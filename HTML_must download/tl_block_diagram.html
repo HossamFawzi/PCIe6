@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PCIe Gen6 — Transaction Layer Block Diagram</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Rajdhani:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg:       #020409;
+  --surface:  #060b12;
+  --panel:    #08111d;
+  --border:   #0f1e30;
+  --border2:  #162840;
+
+  --tx:    #00b4d8;
+  --rx:    #e63946;
+  --sup:   #52b788;
+  --gen6:  #ffd60a;
+  --err:   #ff6b6b;
+  --ctrl:  #c77dff;
+
+  --wire-data:  #00b4d8;
+  --wire-ctrl:  #c77dff;
+  --wire-err:   #ff6b6b;
+  --wire-fc:    #52b788;
+  --wire-tag:   #ffd60a;
+
+  --text:  #7fa8c4;
+  --bright:#d0e8f8;
+  --dim:   #1e3550;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Rajdhani', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* grid bg */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background-image:
+    linear-gradient(rgba(0,180,216,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,180,216,0.025) 1px, transparent 1px);
+  background-size: 40px 40px;
+  animation: gridmove 40s linear infinite;
+  pointer-events: none;
+}
+@keyframes gridmove { to { background-position: 40px 40px; } }
+
+.page { position: relative; z-index: 1; }
+
+/* ─── HEADER ─── */
+header {
+  padding: 28px 32px 20px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(0,180,216,0.04) 0%, transparent 100%);
+  display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+}
+header h1 {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: clamp(1rem, 2.5vw, 1.5rem);
+  font-weight: 700;
+  color: var(--bright);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+header h1 span { color: var(--tx); }
+.hdr-sub { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; color: var(--dim); margin-top: 4px; }
+
+.legend {
+  display: flex; gap: 16px; flex-wrap: wrap; align-items: center;
+}
+.leg { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; font-family: 'IBM Plex Mono', monospace; }
+.leg-dot { width: 8px; height: 8px; border-radius: 1px; flex-shrink: 0; }
+.leg-line { width: 24px; height: 2px; flex-shrink: 0; }
+
+/* ─── CONTROLS ─── */
+.controls {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  padding: 12px 32px; border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.ctrl-btn {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem;
+  padding: 5px 14px; border: 1px solid var(--border2);
+  background: transparent; color: var(--text); cursor: pointer;
+  transition: all 0.15s; letter-spacing: 0.06em;
+}
+.ctrl-btn:hover, .ctrl-btn.active { color: var(--bright); border-color: var(--tx); background: rgba(0,180,216,0.08); }
+.ctrl-btn.active { color: var(--tx); }
+
+/* ─── DIAGRAM CANVAS ─── */
+.canvas-wrap {
+  padding: 24px 20px;
+  overflow-x: auto;
+  min-height: 600px;
+}
+
+svg#diagram {
+  display: block;
+  min-width: 1400px;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+/* SVG styles */
+.layer-bg { fill: rgba(6,11,18,0.9); }
+.layer-border-tx  { stroke: rgba(0,180,216,0.25); fill: rgba(0,180,216,0.03); }
+.layer-border-rx  { stroke: rgba(230,57,70,0.25);  fill: rgba(230,57,70,0.03); }
+.layer-border-sup { stroke: rgba(82,183,136,0.25); fill: rgba(82,183,136,0.03); }
+
+.mod-box {
+  cursor: pointer;
+  transition: filter 0.2s;
+}
+.mod-box:hover { filter: brightness(1.35); }
+.mod-box:hover .mod-body-rect { stroke-width: 1.5; }
+
+.mod-body-rect { transition: stroke-width 0.15s; }
+
+.mod-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  font-size: 9.5px;
+  fill: #d0e8f8;
+  dominant-baseline: central;
+  text-anchor: middle;
+}
+.mod-tag {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 7.5px;
+  dominant-baseline: central;
+  text-anchor: middle;
+}
+.mod-io {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 6.5px;
+  dominant-baseline: central;
+}
+
+/* Arrows / wires */
+.wire { fill: none; stroke-width: 1.5; marker-end: url(#arrowhead); }
+.wire-data { stroke: var(--wire-data); }
+.wire-ctrl { stroke: var(--wire-ctrl); }
+.wire-err  { stroke: var(--wire-err); }
+.wire-fc   { stroke: var(--wire-fc); }
+.wire-tag  { stroke: var(--wire-tag); }
+.wire-dll  { stroke: #888; stroke-dasharray: 4,3; }
+.wire-user { stroke: #aaa; }
+
+.wire-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 6px;
+  fill: #2a4a6a;
+}
+.wire-label-bright { fill: #3a6a8a; }
+
+/* Port dots */
+.port-out { fill: var(--tx); }
+.port-in  { fill: var(--rx); }
+.port-ctrl { fill: var(--ctrl); }
+
+/* Section labels */
+.section-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+/* ─── DETAIL PANEL ─── */
+#detail-panel {
+  position: fixed; right: 0; top: 0; bottom: 0; width: 360px;
+  background: var(--panel);
+  border-left: 1px solid var(--border2);
+  border-left-width: 2px;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  z-index: 200; overflow-y: auto;
+  display: flex; flex-direction: column;
+}
+#detail-panel.open { transform: translateX(0); }
+#detail-panel .dp-header {
+  padding: 20px; border-bottom: 1px solid var(--border2);
+  background: rgba(0,0,0,0.3); flex-shrink: 0; position: sticky; top: 0; z-index: 1;
+}
+#detail-panel .dp-header h2 {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem; font-weight: 700; color: var(--bright);
+  line-height: 1.3; margin-bottom: 4px;
+}
+#detail-panel .dp-tag {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.62rem; letter-spacing: 0.1em;
+}
+#detail-panel .dp-body { padding: 16px; flex: 1; }
+.dp-close {
+  float: right; cursor: pointer; color: var(--dim); font-size: 1.2rem; line-height: 1;
+  background: none; border: none; padding: 0; margin-left: 8px;
+}
+.dp-close:hover { color: var(--bright); }
+
+.dp-section {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.55rem;
+  letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim);
+  margin: 14px 0 6px; padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.dp-note {
+  font-size: 0.72rem; line-height: 1.65; color: var(--text);
+  border-left: 2px solid var(--border2); padding-left: 10px; margin-bottom: 12px;
+}
+.io-entry {
+  display: grid; grid-template-columns: 1fr 48px;
+  gap: 4px; padding: 4px 6px; border-radius: 2px; margin-bottom: 2px;
+  background: rgba(255,255,255,0.02); font-family: 'IBM Plex Mono', monospace;
+}
+.io-entry:hover { background: rgba(255,255,255,0.04); }
+.io-sig { font-size: 0.62rem; color: var(--bright); }
+.io-bits { font-size: 0.58rem; color: var(--dim); text-align: right; }
+.io-in-marker  { border-left: 2px solid var(--tx); }
+.io-out-marker { border-left: 2px solid var(--rx); }
+.dp-badge {
+  display: inline-block; font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.55rem; padding: 2px 7px; border: 1px solid;
+  margin-right: 5px; margin-bottom: 4px;
+}
+.flow-entry {
+  font-size: 0.68rem; padding: 5px 0; border-bottom: 1px solid var(--border);
+  color: var(--text); font-family: 'IBM Plex Mono', monospace;
+}
+.flow-arrow { color: var(--tx); margin: 0 6px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- HEADER -->
+<header>
+  <div>
+    <h1>PCIe Gen6 — <span>Transaction Layer</span> Block Diagram</h1>
+    <div class="hdr-sub">// 22 RTL blocks · full I/O signal flow · click any block for details</div>
+  </div>
+  <div class="legend">
+    <div class="leg"><div class="leg-dot" style="background:var(--tx)"></div>TX Path</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--rx)"></div>RX Path</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--sup)"></div>Support</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--gen6)"></div>Gen6 New</div>
+    <div class="leg" style="margin-left:8px">
+      <div class="leg-line" style="background:var(--wire-data)"></div>Data
+    </div>
+    <div class="leg">
+      <div class="leg-line" style="background:var(--wire-fc)"></div>FC/Credit
+    </div>
+    <div class="leg">
+      <div class="leg-line" style="background:var(--wire-ctrl)"></div>Control
+    </div>
+    <div class="leg">
+      <div class="leg-line" style="background:var(--wire-err)"></div>Error
+    </div>
+    <div class="leg">
+      <div class="leg-line" style="background:var(--wire-tag)"></div>Tag
+    </div>
+  </div>
+</header>
+
+<!-- CONTROLS -->
+<div class="controls">
+  <button class="ctrl-btn active" onclick="toggleWires('all',this)">Show All Wires</button>
+  <button class="ctrl-btn" onclick="toggleWires('data',this)">Data Only</button>
+  <button class="ctrl-btn" onclick="toggleWires('fc',this)">FC/Credits Only</button>
+  <button class="ctrl-btn" onclick="toggleWires('ctrl',this)">Control Only</button>
+  <button class="ctrl-btn" onclick="toggleWires('err',this)">Error Only</button>
+  <button class="ctrl-btn" onclick="toggleWires('tag',this)">Tag Only</button>
+  <button class="ctrl-btn" style="margin-left:auto" onclick="resetHighlight()">Reset Highlight</button>
+</div>
+
+<!-- DIAGRAM -->
+<div class="canvas-wrap">
+<svg id="diagram" viewBox="0 0 1500 1020" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <!-- Arrow markers -->
+  <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+    <path d="M0,0 L6,3 L0,6 Z" fill="currentColor" class="arrow-fill"/>
+  </marker>
+  <marker id="arr-data" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+    <path d="M0,0 L6,3 L0,6 Z" fill="#00b4d8"/>
+  </marker>
+  <marker id="arr-ctrl" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+    <path d="M0,0 L6,3 L0,6 Z" fill="#c77dff"/>
+  </marker>
+  <marker id="arr-err" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+    <path d="M0,0 L6,3 L0,6 Z" fill="#ff6b6b"/>
+  </marker>
+  <marker id="arr-fc" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+    <path d="M0,0 L6,3 L0,6 Z" fill="#52b788"/>
+  </marker>
+  <marker id="arr-tag" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+    <path d="M0,0 L6,3 L0,6 Z" fill="#ffd60a"/>
+  </marker>
+  <marker id="arr-dll" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+    <path d="M0,0 L6,3 L0,6 Z" fill="#888"/>
+  </marker>
+  <!-- Glow filter -->
+  <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+    <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="glow-strong">
+    <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur"/>
+    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+</defs>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!--  BACKGROUND LAYER REGIONS                            -->
+<!-- ══════════════════════════════════════════════════════ -->
+
+<!-- TX Region -->
+<rect x="12" y="12" width="700" height="600" rx="4"
+  class="layer-border-tx" stroke-width="1" fill="rgba(0,180,216,0.025)"/>
+<text x="26" y="26" class="section-label" fill="rgba(0,180,216,0.5)">TX PATH →</text>
+
+<!-- RX Region -->
+<rect x="12" y="630" width="700" height="370" rx="4"
+  class="layer-border-rx" stroke-width="1" fill="rgba(230,57,70,0.025)"/>
+<text x="26" y="644" class="section-label" fill="rgba(230,57,70,0.5)">← RX PATH</text>
+
+<!-- Support Region -->
+<rect x="730" y="12" width="758" height="998" rx="4"
+  class="layer-border-sup" stroke-width="1" fill="rgba(82,183,136,0.015)"/>
+<text x="744" y="26" class="section-label" fill="rgba(82,183,136,0.5)">SUPPORT / SHARED</text>
+
+<!-- External boundaries -->
+<rect x="12" y="820" width="700" height="190" rx="3"
+  stroke="rgba(100,100,100,0.2)" fill="rgba(255,255,255,0.01)" stroke-width="1"/>
+<text x="26" y="834" class="section-label" fill="rgba(100,100,100,0.35)">LAYER BOUNDARIES</text>
+
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!--  MODULE DEFINITIONS (x,y,w,h)                        -->
+<!-- ══════════════════════════════════════════════════════ -->
+
+<!-- ──────────── TX PATH MODULES ──────────── -->
+
+<!-- 1. USR_IF  @ 40,50 -->
+<g class="mod-box" id="box-USR_IF" onclick="showDetail('USR_IF')">
+  <rect x="40" y="50" width="148" height="78" rx="2" class="mod-body-rect"
+    stroke="#00b4d8" stroke-width="0.8" fill="#060d16"/>
+  <rect x="40" y="50" width="148" height="12" rx="2" fill="rgba(0,180,216,0.22)"/>
+  <text x="114" y="57" class="mod-title" font-size="8px">USER LOGIC INTERFACE</text>
+  <text x="114" y="69" class="mod-tag" fill="#00b4d8">USR_IF</text>
+  <!-- Inputs -->
+  <text x="46" y="82" class="mod-io" fill="#7fa8c4">▶ req_type[3:0]</text>
+  <text x="46" y="91" class="mod-io" fill="#7fa8c4">▶ req_addr[63:0]</text>
+  <text x="46" y="100" class="mod-io" fill="#7fa8c4">▶ req_data[511:0]</text>
+  <text x="46" y="109" class="mod-io" fill="#7fa8c4">▶ req_valid / attr / tc</text>
+  <!-- Outputs left side marker -->
+  <circle cx="188" cy="78" r="2.5" fill="#00b4d8"/>
+  <circle cx="188" cy="88" r="2.5" fill="#00b4d8"/>
+</g>
+
+<!-- 2. REQ_Q @ 40,155 -->
+<g class="mod-box" id="box-REQ_Q" onclick="showDetail('REQ_Q')">
+  <rect x="40" y="155" width="148" height="72" rx="2" class="mod-body-rect"
+    stroke="#00b4d8" stroke-width="0.8" fill="#060d16"/>
+  <rect x="40" y="155" width="148" height="12" rx="2" fill="rgba(0,180,216,0.22)"/>
+  <text x="114" y="162" class="mod-title" font-size="8px">POST/NP REQUEST QUEUE</text>
+  <text x="114" y="174" class="mod-tag" fill="#00b4d8">REQ_Q</text>
+  <text x="46" y="186" class="mod-io" fill="#7fa8c4">▶ req_in[575:0]</text>
+  <text x="46" y="195" class="mod-io" fill="#52b788">▶ credit_grant_p/np</text>
+  <text x="46" y="204" class="mod-io" fill="#7fa8c4">◀ req_out[575:0]</text>
+  <text x="46" y="213" class="mod-io" fill="#7fa8c4">◀ q_full_p/np</text>
+  <circle cx="188" cy="205" r="2.5" fill="#00b4d8"/>
+</g>
+
+<!-- 3. TAG_MGR @ 250,155 -->
+<g class="mod-box" id="box-TAG_MGR" onclick="showDetail('TAG_MGR')">
+  <rect x="250" y="155" width="148" height="82" rx="2" class="mod-body-rect"
+    stroke="#ffd60a" stroke-width="0.8" fill="#060d16"/>
+  <rect x="250" y="155" width="148" height="12" rx="2" fill="rgba(255,214,10,0.2)"/>
+  <text x="324" y="162" class="mod-title" font-size="8px">TAG MANAGER</text>
+  <text x="324" y="174" class="mod-tag" fill="#ffd60a">TAG_MGR</text>
+  <text x="256" y="186" class="mod-io" fill="#7fa8c4">▶ tag_req</text>
+  <text x="256" y="195" class="mod-io" fill="#7fa8c4">▶ tag_return[9:0]</text>
+  <text x="256" y="204" class="mod-io" fill="#7fa8c4">▶ timeout_tag[9:0]</text>
+  <text x="256" y="213" class="mod-io" fill="#ffd60a">◀ tag_alloc[9:0]</text>
+  <text x="256" y="222" class="mod-io" fill="#7fa8c4">◀ tag_exhausted</text>
+  <circle cx="250" cy="213" r="2.5" fill="#ffd60a"/>
+  <circle cx="398" cy="204" r="2.5" fill="#ffd60a"/>
+</g>
+
+<!-- 4. FC_INIT @ 250,50  (Gen6) -->
+<g class="mod-box" id="box-FC_INIT" onclick="showDetail('FC_INIT')">
+  <rect x="250" y="50" width="148" height="82" rx="2" class="mod-body-rect"
+    stroke="#ffd60a" stroke-width="1.2" fill="#0a0e0a"/>
+  <rect x="250" y="50" width="148" height="12" rx="2" fill="rgba(255,214,10,0.25)"/>
+  <text x="324" y="57" class="mod-title" font-size="8px">FC INIT FSM</text>
+  <text x="324" y="69" class="mod-tag" fill="#ffd60a">FC_INIT ★</text>
+  <text x="256" y="81" class="mod-io" fill="#7fa8c4">▶ dll_up</text>
+  <text x="256" y="90" class="mod-io" fill="#7fa8c4">▶ initfc_rx[71:0]</text>
+  <text x="256" y="99" class="mod-io" fill="#52b788">◀ initfc_tx[71:0]</text>
+  <text x="256" y="108" class="mod-io" fill="#52b788">◀ fc_init_done</text>
+  <text x="256" y="117" class="mod-io" fill="#52b788">◀ adv_ph/pd/nph/cplh</text>
+  <circle cx="398" cy="108" r="2.5" fill="#52b788"/>
+  <circle cx="250" cy="99" r="2.5" fill="#52b788"/>
+</g>
+
+<!-- 5. CR_MGR @ 40,260 -->
+<g class="mod-box" id="box-CR_MGR" onclick="showDetail('CR_MGR')">
+  <rect x="40" y="260" width="148" height="90" rx="2" class="mod-body-rect"
+    stroke="#52b788" stroke-width="0.8" fill="#060d16"/>
+  <rect x="40" y="260" width="148" height="12" rx="2" fill="rgba(82,183,136,0.2)"/>
+  <text x="114" y="267" class="mod-title" font-size="8px">CREDIT MANAGER</text>
+  <text x="114" y="279" class="mod-tag" fill="#52b788">CR_MGR</text>
+  <text x="46" y="291" class="mod-io" fill="#52b788">▶ cr_update[71:0]</text>
+  <text x="46" y="300" class="mod-io" fill="#7fa8c4">▶ tlp_consume_valid</text>
+  <text x="46" y="309" class="mod-io" fill="#7fa8c4">▶ fc_init_done</text>
+  <text x="46" y="318" class="mod-io" fill="#52b788">◀ credit_grant_p/np/cpl</text>
+  <text x="46" y="327" class="mod-io" fill="#52b788">◀ fc_update_ph[7:0]</text>
+  <text x="46" y="336" class="mod-io" fill="#7fa8c4">◀ ph/pd/nph/cplh avail</text>
+  <circle cx="188" cy="318" r="2.5" fill="#52b788"/>
+  <circle cx="188" cy="327" r="2.5" fill="#52b788"/>
+  <circle cx="40" cy="291" r="2.5" fill="#52b788"/>
+</g>
+
+<!-- 6. ORD @ 250,260 -->
+<g class="mod-box" id="box-ORD" onclick="showDetail('ORD')">
+  <rect x="250" y="260" width="148" height="80" rx="2" class="mod-body-rect"
+    stroke="#ffd60a" stroke-width="1.2" fill="#0a0e0a"/>
+  <rect x="250" y="260" width="148" height="12" rx="2" fill="rgba(255,214,10,0.25)"/>
+  <text x="324" y="267" class="mod-title" font-size="8px">ORDERING / ROB LOGIC</text>
+  <text x="324" y="279" class="mod-tag" fill="#ffd60a">ORD ★</text>
+  <text x="256" y="291" class="mod-io" fill="#7fa8c4">▶ req_id[15:0]</text>
+  <text x="256" y="300" class="mod-io" fill="#7fa8c4">▶ req_type[3:0] / tc / attr</text>
+  <text x="256" y="309" class="mod-io" fill="#7fa8c4">▶ cpl_id / cpl_valid</text>
+  <text x="256" y="318" class="mod-io" fill="#c77dff">◀ ordering_ok</text>
+  <text x="256" y="327" class="mod-io" fill="#ff6b6b">◀ ordering_stall / err</text>
+  <circle cx="398" cy="318" r="2.5" fill="#c77dff"/>
+</g>
+
+<!-- 7. ARB_TX @ 40,380 -->
+<g class="mod-box" id="box-ARB_TX" onclick="showDetail('ARB_TX')">
+  <rect x="40" y="380" width="148" height="80" rx="2" class="mod-body-rect"
+    stroke="#00b4d8" stroke-width="0.8" fill="#060d16"/>
+  <rect x="40" y="380" width="148" height="12" rx="2" fill="rgba(0,180,216,0.22)"/>
+  <text x="114" y="387" class="mod-title" font-size="8px">REQUEST ARBITER (TX)</text>
+  <text x="114" y="399" class="mod-tag" fill="#00b4d8">ARB_TX</text>
+  <text x="46" y="411" class="mod-io" fill="#7fa8c4">▶ req_p / req_np [575:0]</text>
+  <text x="46" y="420" class="mod-io" fill="#52b788">▶ credit_grant_p/np</text>
+  <text x="46" y="429" class="mod-io" fill="#c77dff">▶ ordering_ok</text>
+  <text x="46" y="438" class="mod-io" fill="#7fa8c4">◀ arb_tlp[575:0]</text>
+  <text x="46" y="447" class="mod-io" fill="#7fa8c4">◀ arb_tlp_valid</text>
+  <circle cx="188" cy="438" r="2.5" fill="#00b4d8"/>
+</g>
+
+<!-- 8. PFX @ 250,380  (Gen6) -->
+<g class="mod-box" id="box-PFX" onclick="showDetail('PFX')">
+  <rect x="250" y="380" width="148" height="80" rx="2" class="mod-body-rect"
+    stroke="#ffd60a" stroke-width="1.2" fill="#0a0e0a"/>
+  <rect x="250" y="380" width="148" height="12" rx="2" fill="rgba(255,214,10,0.25)"/>
+  <text x="324" y="387" class="mod-title" font-size="8px">TLP PREFIX HANDLER</text>
+  <text x="324" y="399" class="mod-tag" fill="#ffd60a">PFX ★</text>
+  <text x="256" y="411" class="mod-io" fill="#7fa8c4">▶ tlp_in[1023:0]</text>
+  <text x="256" y="420" class="mod-io" fill="#7fa8c4">▶ ltp_data[127:0]</text>
+  <text x="256" y="429" class="mod-io" fill="#7fa8c4">▶ eetp_data[127:0]</text>
+  <text x="256" y="438" class="mod-io" fill="#00b4d8">◀ tlp_prefixed[1151:0]</text>
+  <text x="256" y="447" class="mod-io" fill="#ff6b6b">◀ prefix_err</text>
+  <circle cx="250" cy="438" r="2.5" fill="#00b4d8"/>
+  <circle cx="398" cy="438" r="2.5" fill="#00b4d8"/>
+</g>
+
+<!-- 9. ECRC @ 460,380  (Gen6) -->
+<g class="mod-box" id="box-ECRC" onclick="showDetail('ECRC')">
+  <rect x="460" y="380" width="148" height="80" rx="2" class="mod-body-rect"
+    stroke="#ffd60a" stroke-width="1.2" fill="#0a0e0a"/>
+  <rect x="460" y="380" width="148" height="12" rx="2" fill="rgba(255,214,10,0.25)"/>
+  <text x="534" y="387" class="mod-title" font-size="8px">ECRC GEN / CHECKER</text>
+  <text x="534" y="399" class="mod-tag" fill="#ffd60a">ECRC ★</text>
+  <text x="466" y="411" class="mod-io" fill="#7fa8c4">▶ tlp_tx[1151:0]</text>
+  <text x="466" y="420" class="mod-io" fill="#7fa8c4">▶ tlp_rx[1151:0]</text>
+  <text x="466" y="429" class="mod-io" fill="#c77dff">▶ ecrc_en (from CFG)</text>
+  <text x="466" y="438" class="mod-io" fill="#00b4d8">◀ tlp_ecrc_tx[1183:0]</text>
+  <text x="466" y="447" class="mod-io" fill="#52b788">◀ ecrc_rx_ok</text>
+  <text x="466" y="456" class="mod-io" fill="#ff6b6b">◀ ecrc_rx_err</text>
+  <circle cx="460" cy="438" r="2.5" fill="#00b4d8"/>
+  <circle cx="608" cy="438" r="2.5" fill="#00b4d8"/>
+</g>
+
+<!-- 10. TLP_ASM @ 40,490 -->
+<g class="mod-box" id="box-TLP_ASM" onclick="showDetail('TLP_ASM')">
+  <rect x="40" y="490" width="148" height="88" rx="2" class="mod-body-rect"
+    stroke="#00b4d8" stroke-width="0.8" fill="#060d16"/>
+  <rect x="40" y="490" width="148" height="12" rx="2" fill="rgba(0,180,216,0.22)"/>
+  <text x="114" y="497" class="mod-title" font-size="8px">TLP ASSEMBLER</text>
+  <text x="114" y="509" class="mod-tag" fill="#00b4d8">TLP_ASM</text>
+  <text x="46" y="521" class="mod-io" fill="#7fa8c4">▶ arb_tlp_in[575:0]</text>
+  <text x="46" y="530" class="mod-io" fill="#7fa8c4">▶ prefix_in[127:0]</text>
+  <text x="46" y="539" class="mod-io" fill="#7fa8c4">▶ ecrc_in[31:0]</text>
+  <text x="46" y="548" class="mod-io" fill="#c77dff">▶ max_payload[2:0]</text>
+  <text x="46" y="557" class="mod-io" fill="#7fa8c4">◀ tlp_out[1023:0]</text>
+  <text x="46" y="566" class="mod-io" fill="#7fa8c4">◀ tlp_hdr[127:0]</text>
+  <circle cx="188" cy="557" r="2.5" fill="#00b4d8"/>
+</g>
+
+<!-- 11. FLIT @ 250,490  (Gen6) -->
+<g class="mod-box" id="box-FLIT" onclick="showDetail('FLIT')">
+  <rect x="250" y="490" width="148" height="88" rx="2" class="mod-body-rect"
+    stroke="#ffd60a" stroke-width="1.2" fill="#0a0e0a"/>
+  <rect x="250" y="490" width="148" height="12" rx="2" fill="rgba(255,214,10,0.25)"/>
+  <text x="324" y="497" class="mod-title" font-size="8px">FLIT MODE CONTROLLER</text>
+  <text x="324" y="509" class="mod-tag" fill="#ffd60a">FLIT ★</text>
+  <text x="256" y="521" class="mod-io" fill="#7fa8c4">▶ tlp_in[1023:0]</text>
+  <text x="256" y="530" class="mod-io" fill="#c77dff">▶ flit_mode_en</text>
+  <text x="256" y="539" class="mod-io" fill="#7fa8c4">▶ dll_flit_ack</text>
+  <text x="256" y="548" class="mod-io" fill="#00b4d8">◀ flit_out[2047:0]</text>
+  <text x="256" y="557" class="mod-io" fill="#7fa8c4">◀ flit_crc[23:0]</text>
+  <text x="256" y="566" class="mod-io" fill="#7fa8c4">◀ flit_seq[11:0]</text>
+  <circle cx="398" cy="548" r="2.5" fill="#00b4d8"/>
+  <circle cx="250" cy="548" r="2.5" fill="#00b4d8"/>
+</g>
+
+<!-- 12. DLL_IF @ 460,490 -->
+<g class="mod-box" id="box-DLL_IF" onclick="showDetail('DLL_IF')">
+  <rect x="460" y="490" width="148" height="88" rx="2" class="mod-body-rect"
+    stroke="#888" stroke-width="0.8" fill="#060d16"/>
+  <rect x="460" y="490" width="148" height="12" rx="2" fill="rgba(136,136,136,0.2)"/>
+  <text x="534" y="497" class="mod-title" font-size="8px">DLL INTERFACE (BOUNDARY)</text>
+  <text x="534" y="509" class="mod-tag" fill="#888">DLL_IF</text>
+  <text x="466" y="521" class="mod-io" fill="#7fa8c4">▶ flit_in[2047:0]</text>
+  <text x="466" y="530" class="mod-io" fill="#7fa8c4">▶ dll_ack / dll_nak</text>
+  <text x="466" y="539" class="mod-io" fill="#52b788">▶ cr_update[71:0]</text>
+  <text x="466" y="548" class="mod-io" fill="#7fa8c4">▶ dll_up</text>
+  <text x="466" y="557" class="mod-io" fill="#00b4d8">◀ flit_to_dll[2047:0]</text>
+  <text x="466" y="566" class="mod-io" fill="#52b788">◀ tlp_rx_out[1023:0]</text>
+  <text x="466" y="575" class="mod-io" fill="#7fa8c4">◀ dll_ready</text>
+  <circle cx="608" cy="557" r="2.5" fill="#888"/>
+  <!-- DLL boundary arrow going right -->
+  <polygon points="618,553 628,557 618,561" fill="rgba(136,136,136,0.6)"/>
+</g>
+
+<!-- ══ RX PATH MODULES ══ -->
+
+<!-- 13. HDR_PARSE @ 40,660  (Gen6) -->
+<g class="mod-box" id="box-HDR_PARSE" onclick="showDetail('HDR_PARSE')">
+  <rect x="40" y="660" width="148" height="90" rx="2" class="mod-body-rect"
+    stroke="#e63946" stroke-width="0.8" fill="#060d16"/>
+  <rect x="40" y="660" width="148" height="12" rx="2" fill="rgba(230,57,70,0.2)"/>
+  <text x="114" y="667" class="mod-title" font-size="7.5px">TLP HEADER PARSER (RX)</text>
+  <text x="114" y="679" class="mod-tag" fill="#e63946">HDR_PARSE ★</text>
+  <text x="46" y="691" class="mod-io" fill="#7fa8c4">▶ tlp_rx[1023:0]</text>
+  <text x="46" y="700" class="mod-io" fill="#7fa8c4">▶ tlp_rx_sop</text>
+  <text x="46" y="709" class="mod-io" fill="#e63946">◀ tlp_type[4:0]</text>
+  <text x="46" y="718" class="mod-io" fill="#e63946">◀ tlp_tag[9:0]</text>
+  <text x="46" y="727" class="mod-io" fill="#e63946">◀ tlp_addr[63:0]</text>
+  <text x="46" y="736" class="mod-io" fill="#ff6b6b">◀ parse_err</text>
+  <circle cx="188" cy="709" r="2.5" fill="#e63946"/>
+  <circle cx="40" cy="691" r="2.5" fill="#e63946"/>
+</g>
+
+<!-- 14. MAL_CHK @ 250,660  (Gen6) -->
+<g class="mod-box" id="box-MAL_CHK" onclick="showDetail('MAL_CHK')">
+  <rect x="250" y="660" width="148" height="80" rx="2" class="mod-body-rect"
+    stroke="#e63946" stroke-width="0.8" fill="#060d16"/>
+  <rect x="250" y="660" width="148" height="12" rx="2" fill="rgba(230,57,70,0.2)"/>
+  <text x="324" y="667" class="mod-title" font-size="7.5px">TLP MALFORMED CHK</text>
+  <text x="324" y="679" class="mod-tag" fill="#e63946">MAL_CHK ★</text>
+  <text x="256" y="691" class="mod-io" fill="#e63946">▶ tlp_type[4:0]</text>
+  <text x="256" y="700" class="mod-io" fill="#7fa8c4">▶ tlp_len / first_be</text>
+  <text x="256" y="709" class="mod-io" fill="#7fa8c4">▶ parse_valid</text>
+  <text x="256" y="718" class="mod-io" fill="#ff6b6b">◀ malformed_err</text>
+  <text x="256" y="727" class="mod-io" fill="#52b788">◀ tlp_ok</text>
+  <circle cx="398" cy="718" r="2.5" fill="#ff6b6b"/>
+  <circle cx="398" cy="727" r="2.5" fill="#52b788"/>
+  <circle cx="250" cy="691" r="2.5" fill="#e63946"/>
+</g>
+
+<!-- 15. PSND @ 460,660  (Gen6) -->
+<g class="mod-box" id="box-PSND" onclick="showDetail('PSND')">
+  <rect x="460" y="660" width="148" height="80" rx="2" class="mod-body-rect"
+    stroke="#e63946" stroke-width="0.8" fill="#060d16"/>
+  <rect x="460" y="660" width="148" height="12" rx="2" fill="rgba(230,57,70,0.2)"/>
+  <text x="534" y="667" class="mod-title" font-size="7.5px">POISONED TLP HANDLER</text>
+  <text x="534" y="679" class="mod-tag" fill="#e63946">PSND ★</text>
+  <text x="466" y="691" class="mod-io" fill="#7fa8c4">▶ tlp_ep_bit</text>
+  <text x="466" y="700" class="mod-io" fill="#52b788">▶ tlp_ok</text>
+  <text x="466" y="709" class="mod-io" fill="#7fa8c4">▶ tlp_rx[1023:0]</text>
+  <text x="466" y="718" class="mod-io" fill="#52b788">◀ tlp_fwd_valid</text>
+  <text x="466" y="727" class="mod-io" fill="#ff6b6b">◀ poison_to_aer[2:0]</text>
+  <circle cx="608" cy="718" r="2.5" fill="#52b788"/>
+  <circle cx="608" cy="727" r="2.5" fill="#ff6b6b"/>
+  <circle cx="460" cy="700" r="2.5" fill="#52b788"/>
+</g>
+
+<!-- 16. RX_RTR @ 40,780  (Gen6) -->
+<g class="mod-box" id="box-RX_RTR" onclick="showDetail('RX_RTR')">
+  <rect x="40" y="780" width="148" height="82" rx="2" class="mod-body-rect"
+    stroke="#e63946" stroke-width="0.8" fill="#060d16"/>
+  <rect x="40" y="780" width="148" height="12" rx="2" fill="rgba(230,57,70,0.2)"/>
+  <text x="114" y="787" class="mod-title" font-size="7.5px">RX TLP ROUTER / MUX</text>
+  <text x="114" y="799" class="mod-tag" fill="#e63946">RX_RTR ★</text>
+  <text x="46" y="811" class="mod-io" fill="#7fa8c4">▶ tlp_type[4:0]</text>
+  <text x="46" y="820" class="mod-io" fill="#52b788">▶ tlp_fwd_valid</text>
+  <text x="46" y="829" class="mod-io" fill="#52b788">▶ ecrc_ok</text>
+  <text x="46" y="838" class="mod-io" fill="#e63946">◀ to_cpl/mwr/cfg/msg/atop</text>
+  <text x="46" y="847" class="mod-io" fill="#e63946">◀ routed_tlp[1023:0]</text>
+  <circle cx="188" cy="838" r="2.5" fill="#e63946"/>
+</g>
+
+<!-- ══ SUPPORT / RIGHT PANEL ══ -->
+
+<!-- 17. CFG @ 750,50 -->
+<g class="mod-box" id="box-CFG" onclick="showDetail('CFG')">
+  <rect x="750" y="50" width="160" height="90" rx="2" class="mod-body-rect"
+    stroke="#52b788" stroke-width="0.8" fill="#060d16"/>
+  <rect x="750" y="50" width="160" height="12" rx="2" fill="rgba(82,183,136,0.22)"/>
+  <text x="830" y="57" class="mod-title" font-size="8px">CONFIG SPACE HANDLER</text>
+  <text x="830" y="69" class="mod-tag" fill="#52b788">CFG</text>
+  <text x="756" y="81" class="mod-io" fill="#7fa8c4">▶ tlp_cfg[255:0]</text>
+  <text x="756" y="90" class="mod-io" fill="#7fa8c4">▶ cfg_addr[11:0]</text>
+  <text x="756" y="99" class="mod-io" fill="#7fa8c4">▶ cfg_wr_data[31:0]</text>
+  <text x="756" y="108" class="mod-io" fill="#c77dff">◀ flit_mode_en</text>
+  <text x="756" y="117" class="mod-io" fill="#c77dff">◀ max_payload[2:0]</text>
+  <text x="756" y="126" class="mod-io" fill="#c77dff">◀ ecrc_en / ro_en</text>
+  <circle cx="750" cy="108" r="2.5" fill="#c77dff"/>
+  <circle cx="750" cy="117" r="2.5" fill="#c77dff"/>
+  <circle cx="750" cy="126" r="2.5" fill="#c77dff"/>
+  <circle cx="910" cy="81" r="2.5" fill="#7fa8c4"/>
+</g>
+
+<!-- 18. TMO_ERR @ 750,170 -->
+<g class="mod-box" id="box-TMO_ERR" onclick="showDetail('TMO_ERR')">
+  <rect x="750" y="170" width="160" height="82" rx="2" class="mod-body-rect"
+    stroke="#52b788" stroke-width="0.8" fill="#060d16"/>
+  <rect x="750" y="170" width="160" height="12" rx="2" fill="rgba(82,183,136,0.22)"/>
+  <text x="830" y="177" class="mod-title" font-size="8px">TIMEOUT / ERROR MANAGER</text>
+  <text x="830" y="189" class="mod-tag" fill="#52b788">TMO_ERR</text>
+  <text x="756" y="201" class="mod-io" fill="#ffd60a">▶ tag_start[9:0]</text>
+  <text x="756" y="210" class="mod-io" fill="#ffd60a">▶ tag_return_valid</text>
+  <text x="756" y="219" class="mod-io" fill="#7fa8c4">▶ timeout_limit[15:0]</text>
+  <text x="756" y="228" class="mod-io" fill="#ffd60a">◀ timeout_tag[9:0]</text>
+  <text x="756" y="237" class="mod-io" fill="#ff6b6b">◀ cpl_timeout_err</text>
+  <text x="756" y="246" class="mod-io" fill="#ff6b6b">◀ err_to_aer[3:0]</text>
+  <circle cx="750" cy="228" r="2.5" fill="#ffd60a"/>
+  <circle cx="910" cy="237" r="2.5" fill="#ff6b6b"/>
+</g>
+
+<!-- 19. AER @ 750,280  (Gen6) -->
+<g class="mod-box" id="box-AER" onclick="showDetail('AER')">
+  <rect x="750" y="280" width="160" height="100" rx="2" class="mod-body-rect"
+    stroke="#ff6b6b" stroke-width="1.2" fill="#0d0606"/>
+  <rect x="750" y="280" width="160" height="12" rx="2" fill="rgba(255,107,107,0.2)"/>
+  <text x="830" y="287" class="mod-title" font-size="8px">AER / ERROR LOGGER</text>
+  <text x="830" y="299" class="mod-tag" fill="#ff6b6b">AER ★</text>
+  <text x="756" y="311" class="mod-io" fill="#ff6b6b">▶ err_from_tmo[3:0]</text>
+  <text x="756" y="320" class="mod-io" fill="#ff6b6b">▶ err_from_mal/psnd/msg</text>
+  <text x="756" y="329" class="mod-io" fill="#ff6b6b">▶ dll_err[3:0]</text>
+  <text x="756" y="338" class="mod-io" fill="#7fa8c4">▶ err_severity[1:0]</text>
+  <text x="756" y="347" class="mod-io" fill="#ff6b6b">◀ aer_status[31:0]</text>
+  <text x="756" y="356" class="mod-io" fill="#ff6b6b">◀ aer_int</text>
+  <text x="756" y="365" class="mod-io" fill="#ff6b6b">◀ err_msg_tlp[255:0]</text>
+  <circle cx="750" cy="311" r="2.5" fill="#ff6b6b"/>
+  <circle cx="750" cy="320" r="2.5" fill="#ff6b6b"/>
+  <circle cx="750" cy="329" r="2.5" fill="#ff6b6b"/>
+</g>
+
+<!-- 20. CPL_HDL @ 750,420 -->
+<g class="mod-box" id="box-CPL_HDL" onclick="showDetail('CPL_HDL')">
+  <rect x="750" y="420" width="160" height="90" rx="2" class="mod-body-rect"
+    stroke="#e63946" stroke-width="0.8" fill="#060d16"/>
+  <rect x="750" y="420" width="160" height="12" rx="2" fill="rgba(230,57,70,0.2)"/>
+  <text x="830" y="427" class="mod-title" font-size="8px">COMPLETION HANDLER</text>
+  <text x="830" y="439" class="mod-tag" fill="#e63946">CPL_HDL</text>
+  <text x="756" y="451" class="mod-io" fill="#7fa8c4">▶ tlp_cpl[1023:0]</text>
+  <text x="756" y="460" class="mod-io" fill="#ffd60a">▶ outstanding_tag[9:0]</text>
+  <text x="756" y="469" class="mod-io" fill="#7fa8c4">▶ expected_len[9:0]</text>
+  <text x="756" y="478" class="mod-io" fill="#7fa8c4">◀ cpl_data[511:0]</text>
+  <text x="756" y="487" class="mod-io" fill="#ffd60a">◀ tag_return[9:0]</text>
+  <text x="756" y="496" class="mod-io" fill="#52b788">◀ cr_return_cplh/cpld</text>
+  <circle cx="750" cy="460" r="2.5" fill="#ffd60a"/>
+  <circle cx="910" cy="487" r="2.5" fill="#ffd60a"/>
+  <circle cx="910" cy="496" r="2.5" fill="#52b788"/>
+</g>
+
+<!-- 21. CPL_Q @ 750,540 -->
+<g class="mod-box" id="box-CPL_Q" onclick="showDetail('CPL_Q')">
+  <rect x="750" y="540" width="160" height="72" rx="2" class="mod-body-rect"
+    stroke="#e63946" stroke-width="0.8" fill="#060d16"/>
+  <rect x="750" y="540" width="160" height="12" rx="2" fill="rgba(230,57,70,0.2)"/>
+  <text x="830" y="547" class="mod-title" font-size="8px">COMPLETION QUEUE</text>
+  <text x="830" y="559" class="mod-tag" fill="#e63946">CPL_Q</text>
+  <text x="756" y="571" class="mod-io" fill="#7fa8c4">▶ cpl_tlp[1023:0]</text>
+  <text x="756" y="580" class="mod-io" fill="#52b788">▶ credit_grant_cpl</text>
+  <text x="756" y="589" class="mod-io" fill="#7fa8c4">◀ cpl_out[1023:0]</text>
+  <text x="756" y="598" class="mod-io" fill="#7fa8c4">◀ q_occ_cpl[7:0]</text>
+  <circle cx="750" cy="571" r="2.5" fill="#7fa8c4"/>
+  <circle cx="910" cy="589" r="2.5" fill="#7fa8c4"/>
+</g>
+
+<!-- 22. MWR_HDL @ 750,640  (Gen6) -->
+<g class="mod-box" id="box-MWR_HDL" onclick="showDetail('MWR_HDL')">
+  <rect x="750" y="640" width="160" height="72" rx="2" class="mod-body-rect"
+    stroke="#e63946" stroke-width="0.8" fill="#060d16"/>
+  <rect x="750" y="640" width="160" height="12" rx="2" fill="rgba(230,57,70,0.2)"/>
+  <text x="830" y="647" class="mod-title" font-size="7.5px">POSTED WRITE HANDLER</text>
+  <text x="830" y="659" class="mod-tag" fill="#e63946">MWR_HDL ★</text>
+  <text x="756" y="671" class="mod-io" fill="#7fa8c4">▶ tlp_mwr[1023:0]</text>
+  <text x="756" y="680" class="mod-io" fill="#7fa8c4">▶ tlp_addr[63:0] / len</text>
+  <text x="756" y="689" class="mod-io" fill="#7fa8c4">◀ mwr_data[511:0]</text>
+  <text x="756" y="698" class="mod-io" fill="#7fa8c4">◀ mwr_addr[63:0]</text>
+  <text x="756" y="707" class="mod-io" fill="#7fa8c4">◀ mwr_valid</text>
+  <circle cx="750" cy="671" r="2.5" fill="#7fa8c4"/>
+  <circle cx="910" cy="689" r="2.5" fill="#7fa8c4"/>
+</g>
+
+<!-- MSG_HDL @ 750,740  (Gen6) -->
+<g class="mod-box" id="box-MSG_HDL" onclick="showDetail('MSG_HDL')">
+  <rect x="750" y="740" width="160" height="72" rx="2" class="mod-body-rect"
+    stroke="#e63946" stroke-width="0.8" fill="#060d16"/>
+  <rect x="750" y="740" width="160" height="12" rx="2" fill="rgba(230,57,70,0.2)"/>
+  <text x="830" y="747" class="mod-title" font-size="7.5px">MESSAGE HANDLER</text>
+  <text x="830" y="759" class="mod-tag" fill="#e63946">MSG_HDL ★</text>
+  <text x="756" y="771" class="mod-io" fill="#7fa8c4">▶ tlp_msg[1023:0]</text>
+  <text x="756" y="780" class="mod-io" fill="#7fa8c4">▶ msg_code[7:0]</text>
+  <text x="756" y="789" class="mod-io" fill="#7fa8c4">◀ intx_assert[3:0]</text>
+  <text x="756" y="798" class="mod-io" fill="#7fa8c4">◀ pme_msg</text>
+  <text x="756" y="807" class="mod-io" fill="#ff6b6b">◀ err_msg_type / msg_to_aer</text>
+  <circle cx="750" cy="771" r="2.5" fill="#7fa8c4"/>
+  <circle cx="910" cy="807" r="2.5" fill="#ff6b6b"/>
+</g>
+
+<!-- ATOP @ 750,840  (Gen6) -->
+<g class="mod-box" id="box-ATOP" onclick="showDetail('ATOP')">
+  <rect x="750" y="840" width="160" height="82" rx="2" class="mod-body-rect"
+    stroke="#ffd60a" stroke-width="1.2" fill="#0a0e0a"/>
+  <rect x="750" y="840" width="160" height="12" rx="2" fill="rgba(255,214,10,0.25)"/>
+  <text x="830" y="847" class="mod-title" font-size="8px">ATOMIC OP HANDLER</text>
+  <text x="830" y="859" class="mod-tag" fill="#ffd60a">ATOP ★</text>
+  <text x="756" y="871" class="mod-io" fill="#7fa8c4">▶ tlp_atomic[1023:0]</text>
+  <text x="756" y="880" class="mod-io" fill="#7fa8c4">▶ atomic_type[1:0]</text>
+  <text x="756" y="889" class="mod-io" fill="#7fa8c4">▶ atomic_addr[63:0]</text>
+  <text x="756" y="898" class="mod-io" fill="#7fa8c4">◀ atop_wr_en</text>
+  <text x="756" y="907" class="mod-io" fill="#7fa8c4">◀ atop_cpl_data[63:0]</text>
+  <text x="756" y="916" class="mod-io" fill="#7fa8c4">◀ atop_tag[9:0]</text>
+  <circle cx="750" cy="871" r="2.5" fill="#7fa8c4"/>
+  <circle cx="910" cy="907" r="2.5" fill="#7fa8c4"/>
+</g>
+
+<!-- USER LOGIC SINK (bottom label) -->
+<text x="960" y="50" class="section-label" fill="rgba(200,200,200,0.25)">← TO DLL LAYER →</text>
+<text x="960" y="860" class="section-label" fill="rgba(200,200,200,0.25)">USER LOGIC (MWR/CPL)</text>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!--  WIRES / CONNECTIONS                                   -->
+<!-- ══════════════════════════════════════════════════════ -->
+
+<!-- USR_IF → REQ_Q  (req_data → queue) -->
+<path class="wire wire-data" data-type="data"
+  d="M 114,128 L 114,155"
+  stroke-width="1.5" marker-end="url(#arr-data)"/>
+<text x="118" y="145" class="wire-label wire-label-bright">req_in[575:0]</text>
+
+<!-- REQ_Q → ARB_TX  (req_out → arbitration) -->
+<path class="wire wire-data" data-type="data"
+  d="M 114,227 L 114,380"
+  stroke-width="1.5" marker-end="url(#arr-data)"/>
+<text x="118" y="310" class="wire-label wire-label-bright">req_out[575:0]</text>
+
+<!-- CR_MGR → credit_grant → REQ_Q + ARB_TX -->
+<path class="wire wire-fc" data-type="fc"
+  d="M 188,318 L 220,318 L 220,200 L 188,200"
+  stroke-width="1.4" marker-end="url(#arr-fc)"/>
+<text x="196" y="260" class="wire-label" fill="#52b788">credit_grant_p</text>
+<path class="wire wire-fc" data-type="fc"
+  d="M 188,318 L 220,318 L 220,420 L 188,420"
+  stroke-width="1.4" marker-end="url(#arr-fc)"/>
+<text x="196" y="378" class="wire-label" fill="#52b788">credit_grant_np</text>
+
+<!-- FC_INIT fc_init_done → CR_MGR -->
+<path class="wire wire-fc" data-type="fc"
+  d="M 324,132 L 324,148 L 114,148 L 114,260"
+  stroke-width="1.3" stroke-dasharray="3,2" marker-end="url(#arr-fc)"/>
+<text x="200" y="145" class="wire-label" fill="#52b788">fc_init_done</text>
+
+<!-- DLL UpdateFC → CR_MGR (from DLL_IF) -->
+<path class="wire wire-fc" data-type="fc"
+  d="M 460,539 L 430,539 L 430,305 L 188,305"
+  stroke-width="1.3" stroke-dasharray="3,2" marker-end="url(#arr-fc)"/>
+<text x="200" y="303" class="wire-label" fill="#52b788">cr_update[71:0]</text>
+
+<!-- ORD → ordering_ok → ARB_TX -->
+<path class="wire wire-ctrl" data-type="ctrl"
+  d="M 324,340 L 324,360 L 114,360 L 114,380"
+  stroke-width="1.3" marker-end="url(#arr-ctrl)"/>
+<text x="140" y="358" class="wire-label" fill="#c77dff">ordering_ok</text>
+
+<!-- TAG_MGR → tag_alloc → TLP_ASM -->
+<path class="wire wire-tag" data-type="tag"
+  d="M 324,237 L 324,248 L 114,248 L 114,490"
+  stroke-width="1.3" stroke-dasharray="3,2" marker-end="url(#arr-tag)"/>
+<text x="130" y="246" class="wire-label" fill="#ffd60a">tag_alloc[9:0]</text>
+
+<!-- ARB_TX → PFX  (arb_tlp) -->
+<path class="wire wire-data" data-type="data"
+  d="M 188,438 L 250,438"
+  stroke-width="1.5" marker-end="url(#arr-data)"/>
+<text x="198" y="435" class="wire-label wire-label-bright">arb_tlp[575:0]</text>
+
+<!-- PFX → ECRC  (tlp_prefixed) -->
+<path class="wire wire-data" data-type="data"
+  d="M 398,438 L 460,438"
+  stroke-width="1.5" marker-end="url(#arr-data)"/>
+<text x="404" y="435" class="wire-label wire-label-bright">tlp_prefixed[1151:0]</text>
+
+<!-- ECRC → TLP_ASM  (ecrc back into assembler) -->
+<path class="wire wire-data" data-type="data"
+  d="M 534,460 L 534,476 L 114,476 L 114,490"
+  stroke-width="1.4" stroke-dasharray="3,2" marker-end="url(#arr-data)"/>
+<text x="200" y="474" class="wire-label wire-label-bright">ecrc_in[31:0]</text>
+
+<!-- CFG → max_payload → TLP_ASM -->
+<path class="wire wire-ctrl" data-type="ctrl"
+  d="M 750,117 L 700,117 L 700,538 L 188,538"
+  stroke-width="1.2" stroke-dasharray="4,2" marker-end="url(#arr-ctrl)"/>
+<text x="620" y="115" class="wire-label" fill="#c77dff">max_payload</text>
+
+<!-- CFG → flit_mode_en → FLIT -->
+<path class="wire wire-ctrl" data-type="ctrl"
+  d="M 750,108 L 705,108 L 705,530 L 398,530"
+  stroke-width="1.2" stroke-dasharray="4,2" marker-end="url(#arr-ctrl)"/>
+<text x="640" y="106" class="wire-label" fill="#c77dff">flit_mode_en</text>
+
+<!-- CFG → ecrc_en → ECRC -->
+<path class="wire wire-ctrl" data-type="ctrl"
+  d="M 750,126 L 534,126 L 534,380"
+  stroke-width="1.2" stroke-dasharray="4,2" marker-end="url(#arr-ctrl)"/>
+<text x="600" y="124" class="wire-label" fill="#c77dff">ecrc_en</text>
+
+<!-- TLP_ASM → FLIT (tlp_out) -->
+<path class="wire wire-data" data-type="data"
+  d="M 188,557 L 250,557"
+  stroke-width="1.5" marker-end="url(#arr-data)"/>
+<text x="194" y="554" class="wire-label wire-label-bright">tlp_out[1023:0]</text>
+
+<!-- FLIT → DLL_IF (flit_out) -->
+<path class="wire wire-data" data-type="data"
+  d="M 398,548 L 460,548"
+  stroke-width="1.5" marker-end="url(#arr-data)"/>
+<text x="404" y="545" class="wire-label wire-label-bright">flit_out[2047:0]</text>
+
+<!-- DLL_IF → boundary right  -->
+<path class="wire wire-dll" data-type="data"
+  d="M 608,557 L 648,557"
+  stroke-width="1.5" marker-end="url(#arr-dll)"/>
+<text x="612" y="554" class="wire-label">→ DLL Layer</text>
+
+<!-- DLL_IF → receives tlp_rx_out from DLL -->
+<path d="M 648,570 L 608,570" stroke="#888" stroke-width="1.2" stroke-dasharray="3,2" fill="none" marker-end="url(#arr-dll)"/>
+<text x="612" y="582" class="wire-label">← DLL Layer</text>
+
+<!-- ── RX PATH wires ── -->
+
+<!-- DLL_IF → HDR_PARSE (tlp_rx from DLL) -->
+<path class="wire wire-data" data-type="data"
+  d="M 534,578 L 534,620 L 40,620 L 40,700 L 40,691"
+  stroke-width="1.4" stroke-dasharray="3,3" marker-end="url(#arr-data)"/>
+<text x="44" y="618" class="wire-label wire-label-bright">tlp_rx[1023:0] (from DLL)</text>
+
+<!-- HDR_PARSE → MAL_CHK (tlp_type) -->
+<path class="wire wire-data" data-type="data"
+  d="M 188,709 L 250,709"
+  stroke-width="1.5" marker-end="url(#arr-data)"/>
+<text x="194" y="706" class="wire-label wire-label-bright">tlp_type[4:0]</text>
+
+<!-- MAL_CHK → PSND (tlp_ok) -->
+<path class="wire wire-ctrl" data-type="ctrl"
+  d="M 398,727 L 430,727 L 430,718 L 460,718"
+  stroke-width="1.4" marker-end="url(#arr-ctrl)"/>
+<text x="402" y="724" class="wire-label" fill="#c77dff">tlp_ok</text>
+
+<!-- PSND → RX_RTR (tlp_fwd_valid) -->
+<path class="wire wire-ctrl" data-type="ctrl"
+  d="M 534,718 L 534,758 L 40,758 L 40,780"
+  stroke-width="1.4" marker-end="url(#arr-ctrl)"/>
+<text x="44" y="756" class="wire-label" fill="#c77dff">tlp_fwd_valid</text>
+
+<!-- MAL_CHK → AER (malformed_err) -->
+<path class="wire wire-err" data-type="err"
+  d="M 398,718 L 440,718 L 440,648 L 720,648 L 720,330 L 750,330"
+  stroke-width="1.3" stroke-dasharray="3,2" marker-end="url(#arr-err)"/>
+<text x="640" y="646" class="wire-label" fill="#ff6b6b">malformed_err</text>
+
+<!-- PSND → AER (poison_to_aer) -->
+<path class="wire wire-err" data-type="err"
+  d="M 608,727 L 660,727 L 660,355 L 750,355"
+  stroke-width="1.3" stroke-dasharray="3,2" marker-end="url(#arr-err)"/>
+<text x="662" y="725" class="wire-label" fill="#ff6b6b">poison_to_aer</text>
+
+<!-- RX_RTR → CPL_HDL -->
+<path class="wire wire-data" data-type="data"
+  d="M 188,838 L 220,838 L 220,465 L 750,465"
+  stroke-width="1.4" marker-end="url(#arr-data)"/>
+<text x="680" y="463" class="wire-label wire-label-bright">→ CPL_HDL</text>
+
+<!-- RX_RTR → MWR_HDL -->
+<path class="wire wire-data" data-type="data"
+  d="M 188,843 L 230,843 L 230,675 L 750,675"
+  stroke-width="1.4" marker-end="url(#arr-data)"/>
+<text x="680" y="673" class="wire-label wire-label-bright">→ MWR_HDL</text>
+
+<!-- RX_RTR → MSG_HDL -->
+<path class="wire wire-data" data-type="data"
+  d="M 188,848 L 235,848 L 235,776 L 750,776"
+  stroke-width="1.4" marker-end="url(#arr-data)"/>
+<text x="680" y="774" class="wire-label wire-label-bright">→ MSG_HDL</text>
+
+<!-- RX_RTR → ATOP -->
+<path class="wire wire-data" data-type="data"
+  d="M 188,853 L 240,853 L 240,876 L 750,876"
+  stroke-width="1.4" marker-end="url(#arr-data)"/>
+<text x="680" y="874" class="wire-label wire-label-bright">→ ATOP</text>
+
+<!-- CPL_HDL → tag_return → TAG_MGR -->
+<path class="wire wire-tag" data-type="tag"
+  d="M 910,487 L 930,487 L 930,196 L 750,196 L 750,155 L 398,155 L 398,196 L 250,196"
+  stroke-width="1.3" stroke-dasharray="3,2" marker-end="url(#arr-tag)"/>
+<text x="395" y="146" class="wire-label" fill="#ffd60a">tag_return[9:0]</text>
+
+<!-- CPL_HDL → cr_return → CR_MGR -->
+<path class="wire wire-fc" data-type="fc"
+  d="M 910,496 L 940,496 L 940,185 L 720,185 L 720,350 L 188,350"
+  stroke-width="1.2" stroke-dasharray="3,2" marker-end="url(#arr-fc)"/>
+<text x="720" y="183" class="wire-label" fill="#52b788">cr_return_cpl</text>
+
+<!-- CPL_HDL → cpl_data → CPL_Q -->
+<path class="wire wire-data" data-type="data"
+  d="M 830,510 L 830,540"
+  stroke-width="1.4" marker-end="url(#arr-data)"/>
+<text x="834" y="527" class="wire-label wire-label-bright">cpl_data</text>
+
+<!-- CPL_Q → cpl_out → USR_IF -->
+<path class="wire wire-data" data-type="data"
+  d="M 910,589 L 960,589 L 960,80 L 188,80"
+  stroke-width="1.5" marker-end="url(#arr-data)"/>
+<text x="830" y="80" class="wire-label wire-label-bright">cpl_data → USR_IF</text>
+
+<!-- MWR_HDL → mwr_data → USR_IF -->
+<path class="wire wire-data" data-type="data"
+  d="M 910,689 L 970,689 L 970,88 L 188,88"
+  stroke-width="1.4" stroke-dasharray="3,2" marker-end="url(#arr-data)"/>
+<text x="870" y="88" class="wire-label wire-label-bright">mwr_data</text>
+
+<!-- TMO_ERR → timeout_tag → TAG_MGR -->
+<path class="wire wire-tag" data-type="tag"
+  d="M 750,228 L 710,228 L 710,196 L 398,196"
+  stroke-width="1.3" stroke-dasharray="3,2" marker-end="url(#arr-tag)"/>
+<text x="635" y="226" class="wire-label" fill="#ffd60a">timeout_tag</text>
+
+<!-- TMO_ERR → err_to_aer → AER -->
+<path class="wire wire-err" data-type="err"
+  d="M 910,237 L 940,237 L 940,310 L 910,310"
+  stroke-width="1.3" stroke-dasharray="3,2" marker-end="url(#arr-err)"/>
+<text x="915" y="275" class="wire-label" fill="#ff6b6b">err_to_aer</text>
+
+<!-- MSG_HDL → msg_to_aer → AER -->
+<path class="wire wire-err" data-type="err"
+  d="M 910,807 L 950,807 L 950,370 L 910,370"
+  stroke-width="1.2" stroke-dasharray="3,2" marker-end="url(#arr-err)"/>
+<text x="918" y="600" class="wire-label" fill="#ff6b6b">msg_to_aer</text>
+
+<!-- ECRC ecrc_rx_ok → RX_RTR -->
+<path class="wire wire-ctrl" data-type="ctrl"
+  d="M 534,447 L 534,460 L 640,460 L 640,829 L 188,829"
+  stroke-width="1.2" stroke-dasharray="3,2" marker-end="url(#arr-ctrl)"/>
+<text x="160" y="828" class="wire-label" fill="#52b788">ecrc_ok</text>
+
+<!-- TAG_MGR → tag_req watch → TMO_ERR -->
+<path class="wire wire-tag" data-type="tag"
+  d="M 398,204 L 440,204 L 440,210 L 750,210"
+  stroke-width="1.2" stroke-dasharray="3,2" marker-end="url(#arr-tag)"/>
+<text x="450" y="208" class="wire-label" fill="#ffd60a">tag_start → TMO_ERR</text>
+
+<!-- ATOP → cpl feedback → CPL_HDL -->
+<path class="wire wire-data" data-type="data"
+  d="M 750,907 L 715,907 L 715,465 L 750,465"
+  stroke-width="1.2" stroke-dasharray="3,2" marker-end="url(#arr-data)"/>
+<text x="718" y="690" class="wire-label wire-label-bright">atop_cpl</text>
+
+<!-- USR_IF outputs right side labels -->
+<text x="660" y="972" class="wire-label" fill="#2a4a6a">↑ All timing driven by clk / rst_n (not shown for clarity)</text>
+
+</svg>
+</div>
+
+</div><!-- .page -->
+
+<!-- DETAIL PANEL -->
+<div id="detail-panel">
+  <div class="dp-header">
+    <button class="dp-close" onclick="closeDetail()">✕</button>
+    <h2 id="dp-name">Module Name</h2>
+    <div id="dp-badges"></div>
+    <div class="dp-tag" id="dp-tag">TAG</div>
+  </div>
+  <div class="dp-body">
+    <div class="dp-note" id="dp-note"></div>
+    <div class="dp-section">INPUTS</div>
+    <div id="dp-ins"></div>
+    <div class="dp-section">OUTPUTS</div>
+    <div id="dp-outs"></div>
+    <div class="dp-section">CONNECTED TO</div>
+    <div id="dp-flows"></div>
+  </div>
+</div>
+
+<script>
+const MODULES = {
+  USR_IF: {
+    name:"User Logic Interface", tag:"USR_IF", layer:"tx",
+    note:"Entry point from software/driver. Accepts outbound requests and receives inbound completions and write data.",
+    ins:[["req_type[3:0]","4b"],["req_addr[63:0]","64b"],["req_len[9:0]","10b"],["req_data[511:0]","512b"],["req_valid","1b"],["req_attr[2:0]","3b"],["req_tc[2:0]","3b"],["req_first_be[3:0]","4b"],["req_last_be[3:0]","4b"]],
+    outs:[["req_ready","1b"],["cpl_data[511:0]","512b"],["cpl_valid","1b"],["cpl_status[2:0]","3b"],["cpl_tag[9:0]","10b"],["mwr_data[511:0]","512b"],["mwr_valid","1b"],["mwr_addr[63:0]","64b"]],
+    flows:["→ req_in → REQ_Q","← cpl_data ← CPL_Q","← mwr_data ← MWR_HDL"]
+  },
+  REQ_Q: {
+    name:"Post/Non-Posted Request Queue", tag:"REQ_Q", layer:"tx",
+    note:"Dual FIFO buffers for posted (MWr/Msg) and non-posted (MRd/IO/Cfg) requests. Gates on FC credits from CR_MGR.",
+    ins:[["req_in[575:0]","576b"],["req_valid_in","1b"],["credit_grant_p","1b"],["credit_grant_np","1b"],["clk/rst_n","–"]],
+    outs:[["req_out[575:0]","576b"],["req_valid_out","1b"],["q_full_p","1b"],["q_full_np","1b"],["q_occ_p[7:0]","8b"],["q_occ_np[7:0]","8b"]],
+    flows:["← req_in ← USR_IF","← credit_grant ← CR_MGR","→ req_out → ARB_TX"]
+  },
+  TAG_MGR: {
+    name:"Tag Manager", tag:"TAG_MGR", layer:"tx", gen6:true,
+    note:"Allocates 10-bit tags for up to 1024 outstanding non-posted requests. Reclaims tags on completion or timeout.",
+    ins:[["tag_req","1b"],["tag_return[9:0]","10b"],["tag_return_valid","1b"],["timeout_tag[9:0]","10b"],["clk/rst_n","–"]],
+    outs:[["tag_alloc[9:0]","10b"],["tag_valid","1b"],["tag_exhausted","1b"],["outstanding_count[9:0]","10b"],["req_addr_lkup[63:0]","64b"],["req_len_lkup[9:0]","10b"],["req_type_lkup[3:0]","4b"]],
+    flows:["→ tag_alloc → TLP_ASM","← tag_return ← CPL_HDL","← timeout_tag ← TMO_ERR","→ tag_start → TMO_ERR"]
+  },
+  FC_INIT: {
+    name:"FC Init FSM", tag:"FC_INIT", layer:"tx", gen6:true,
+    note:"Runs Flow Control initialisation handshake at link bring-up. Exchanges InitFC1 / InitFC2 DLLPs. Separate from steady-state Credit Manager.",
+    ins:[["dll_up","1b"],["initfc_rx[71:0]","72b"],["initfc_rx_valid","1b"],["clk/rst_n","–"]],
+    outs:[["initfc_tx[71:0]","72b"],["initfc_tx_send","1b"],["fc_init_done","1b"],["adv_ph[7:0]","8b"],["adv_pd[11:0]","12b"],["adv_nph[7:0]","8b"],["adv_cplh[7:0]","8b"],["adv_cpld[11:0]","12b"]],
+    flows:["→ fc_init_done → CR_MGR","→ adv_ph/pd → CR_MGR (initial credits)","← dll_up ← DLL_INIT (PHY/DLL)"]
+  },
+  CR_MGR: {
+    name:"Credit Manager", tag:"CR_MGR", layer:"tx",
+    note:"Tracks available TX FC credits per class (Posted H/D, Non-Posted H/D, Completion H/D). Gates transmission to zero when credits exhausted.",
+    ins:[["cr_update[71:0]","72b"],["cr_update_valid","1b"],["tlp_type[3:0]","4b"],["tlp_hdr_cr[7:0]","8b"],["tlp_data_cr[11:0]","12b"],["tlp_consume_valid","1b"],["fc_init_done","1b"],["clk/rst_n","–"]],
+    outs:[["credit_grant_p","1b"],["credit_grant_np","1b"],["credit_grant_cpl","1b"],["ph_avail[7:0]","8b"],["pd_avail[11:0]","12b"],["nph_avail[7:0]","8b"],["cplh_avail[7:0]","8b"],["cpld_avail[11:0]","12b"],["fc_update_ph[7:0]","8b"],["fc_update_valid","1b"]],
+    flows:["→ credit_grant_p/np → REQ_Q & ARB_TX","← cr_update ← DLL (UpdateFC DLLPs)","← fc_init_done ← FC_INIT","← cr_return_cpl ← CPL_HDL","→ fc_update_ph → DLL (for sending UpdateFC)"]
+  },
+  ORD: {
+    name:"Ordering / ROB Logic", tag:"ORD", layer:"tx", gen6:true,
+    note:"Enforces all PCIe ordering rules (Spec Table 2-38). Stalls transactions that would violate ordering between TC/VC/types.",
+    ins:[["req_id[15:0]","16b"],["req_type[3:0]","4b"],["req_tc[2:0]","3b"],["req_attr_ro","1b"],["req_valid","1b"],["cpl_id[15:0]","16b"],["cpl_valid","1b"],["clk/rst_n","–"]],
+    outs:[["ordering_ok","1b"],["ordering_stall","1b"],["ordering_err","1b"]],
+    flows:["→ ordering_ok → ARB_TX","→ ordering_stall stalls request flow"]
+  },
+  ARB_TX: {
+    name:"Request Arbiter (TX)", tag:"ARB_TX", layer:"tx",
+    note:"Arbitrates between posted and non-posted queues gated by credit grants and ordering_ok. Implements strict ordering priority.",
+    ins:[["req_p_valid","1b"],["req_np_valid","1b"],["req_p[575:0]","576b"],["req_np[575:0]","576b"],["credit_grant_p","1b"],["credit_grant_np","1b"],["ordering_ok","1b"],["clk/rst_n","–"]],
+    outs:[["arb_tlp[575:0]","576b"],["arb_tlp_valid","1b"],["arb_type[1:0]","2b"]],
+    flows:["← req_p/np ← REQ_Q","← credit_grant ← CR_MGR","← ordering_ok ← ORD","→ arb_tlp → TLP_ASM & PFX"]
+  },
+  PFX: {
+    name:"TLP Prefix Handler", tag:"PFX", layer:"tx", gen6:true,
+    note:"Prepends Local TLP Prefix (LTP) and End-to-End TLP Prefix (EETP). Both are mandatory in Gen6 for extended addressing and routing.",
+    ins:[["tlp_in[1023:0]","1024b"],["tlp_valid_in","1b"],["ltp_data[127:0]","128b"],["ltp_valid","1b"],["eetp_data[127:0]","128b"],["eetp_valid","1b"],["clk/rst_n","–"]],
+    outs:[["tlp_prefixed[1151:0]","1152b"],["tlp_prefixed_valid","1b"],["prefix_err","1b"],["e2e_fwd","1b"]],
+    flows:["← tlp_in ← ARB_TX","→ tlp_prefixed → ECRC","→ prefix_err → AER"]
+  },
+  ECRC: {
+    name:"ECRC Generator / Checker", tag:"ECRC", layer:"tx", gen6:true,
+    note:"Computes 32-bit End-to-End CRC over header+data. TL responsibility — survives across multiple fabric hops. Checker validates on RX side.",
+    ins:[["tlp_tx[1151:0]","1152b"],["tlp_tx_valid","1b"],["tlp_rx[1151:0]","1152b"],["tlp_rx_valid","1b"],["ecrc_en","1b"],["clk/rst_n","–"]],
+    outs:[["tlp_ecrc_tx[1183:0]","1184b"],["tlp_ecrc_valid","1b"],["ecrc_rx_ok","1b"],["ecrc_rx_err","1b"]],
+    flows:["← tlp_tx ← PFX","← ecrc_en ← CFG","→ tlp_ecrc_tx → TLP_ASM","→ ecrc_rx_ok → RX_RTR","→ ecrc_rx_err → AER"]
+  },
+  TLP_ASM: {
+    name:"TLP Assembler / Packet Builder", tag:"TLP_ASM", layer:"tx",
+    note:"Assembles the final TLP: header (3 or 4 DW) + optional ECRC + data payload. Respects max_payload from CFG. Outputs complete TLP word.",
+    ins:[["arb_tlp_in[575:0]","576b"],["arb_tlp_valid","1b"],["prefix_in[127:0]","128b"],["prefix_valid","1b"],["ecrc_in[31:0]","32b"],["credit_ok","1b"],["max_payload[2:0]","3b"],["clk/rst_n","–"]],
+    outs:[["tlp_out[1023:0]","1024b"],["tlp_valid","1b"],["tlp_sop","1b"],["tlp_eop","1b"],["tlp_hdr[127:0]","128b"],["tlp_be[127:0]","128b"]],
+    flows:["← arb_tlp ← ARB_TX","← max_payload ← CFG","→ tlp_out → FLIT"]
+  },
+  FLIT: {
+    name:"FLIT Mode Controller", tag:"FLIT", layer:"tx", gen6:true,
+    note:"Gen6 MANDATORY. Packs TLPs + DLLPs into 256-byte FLITs with 24-bit CRC and 12-bit sequence number. Zero encoding overhead vs 128b/130b.",
+    ins:[["tlp_in[1023:0]","1024b"],["tlp_valid_in","1b"],["flit_mode_en","1b"],["dll_flit_ack","1b"],["clk/rst_n","–"]],
+    outs:[["flit_out[2047:0]","2048b"],["flit_valid","1b"],["flit_crc[23:0]","24b"],["flit_seq[11:0]","12b"],["flit_retry_req","1b"],["flit_overflow_err","1b"]],
+    flows:["← tlp_in ← TLP_ASM","← flit_mode_en ← CFG","→ flit_out → DLL_IF"]
+  },
+  DLL_IF: {
+    name:"DLL Interface (Boundary)", tag:"DLL_IF", layer:"tx",
+    note:"Hard TL/DLL boundary. In Gen6 full 256B FLITs cross in both directions. Also receives FC credit updates and ACK/NAK from DLL.",
+    ins:[["flit_in[2047:0]","2048b"],["flit_valid_in","1b"],["dll_ack","1b"],["dll_nak","1b"],["dll_up","1b"],["cr_update[71:0]","72b"],["cr_update_valid","1b"],["clk/rst_n","–"]],
+    outs:[["tlp_rx_out[1023:0]","1024b"],["tlp_rx_valid","1b"],["flit_to_dll[2047:0]","2048b"],["flit_to_dll_valid","1b"],["dll_ready","1b"]],
+    flows:["← flit_in ← FLIT","→ flit_to_dll → [DLL Layer]","← cr_update from DLL → CR_MGR","← tlp_rx_out from DLL → HDR_PARSE (RX)"]
+  },
+  HDR_PARSE: {
+    name:"TLP Header Parser (RX)", tag:"HDR_PARSE", layer:"rx", gen6:true,
+    note:"First RX block after DLL boundary. Decodes ALL TLP header fields from the raw received word. Output drives everything downstream.",
+    ins:[["tlp_rx[1023:0]","1024b"],["tlp_rx_valid","1b"],["tlp_rx_sop","1b"],["clk/rst_n","–"]],
+    outs:[["tlp_type[4:0]","5b"],["tlp_fmt[2:0]","3b"],["tlp_tc[2:0]","3b"],["tlp_attr[2:0]","3b"],["tlp_len[9:0]","10b"],["tlp_tag[9:0]","10b"],["tlp_req_id[15:0]","16b"],["tlp_addr[63:0]","64b"],["tlp_ep_bit","1b"],["tlp_td_bit","1b"],["parse_err","1b"],["parse_valid","1b"]],
+    flows:["← tlp_rx ← DLL_IF (from DLL)","→ tlp_type → MAL_CHK","→ tlp_type → RX_RTR","→ parse_err → AER"]
+  },
+  MAL_CHK: {
+    name:"TLP Malformed Checker", tag:"MAL_CHK", layer:"rx", gen6:true,
+    note:"Validates all header fields for spec compliance. Checks reserved fields, invalid length for type, illegal byte enables. Error → TLP dropped + AER.",
+    ins:[["tlp_type[4:0]","5b"],["tlp_fmt[2:0]","3b"],["tlp_len[9:0]","10b"],["tlp_first_be[3:0]","4b"],["tlp_last_be[3:0]","4b"],["parse_valid","1b"],["clk/rst_n","–"]],
+    outs:[["malformed_err","1b"],["malformed_type[3:0]","4b"],["tlp_ok","1b"]],
+    flows:["← tlp_type ← HDR_PARSE","→ tlp_ok → PSND","→ malformed_err → AER"]
+  },
+  PSND: {
+    name:"Poisoned TLP Handler", tag:"PSND", layer:"rx", gen6:true,
+    note:"EP (Error Poison) bit set means the data payload is corrupt. Logs to AER and signals user logic. Data is NOT forwarded upstream.",
+    ins:[["tlp_ep_bit","1b"],["tlp_type[4:0]","5b"],["tlp_ok","1b"],["tlp_rx[1023:0]","1024b"],["clk/rst_n","–"]],
+    outs:[["poisoned_detected","1b"],["poison_drop","1b"],["poison_to_aer[2:0]","3b"],["tlp_fwd_valid","1b"]],
+    flows:["← tlp_ok ← MAL_CHK","→ tlp_fwd_valid → RX_RTR","→ poison_to_aer → AER"]
+  },
+  RX_RTR: {
+    name:"RX TLP Router / MUX", tag:"RX_RTR", layer:"rx", gen6:true,
+    note:"Routes validated TLP to the correct handler based on type field. Cpl→CPL_HDL, MWr→MWR_HDL, Cfg→CFG, Msg→MSG_HDL, AtomicOp→ATOP.",
+    ins:[["tlp_type[4:0]","5b"],["tlp_fwd_valid","1b"],["tlp_rx[1023:0]","1024b"],["ecrc_ok","1b"],["clk/rst_n","–"]],
+    outs:[["to_cpl_valid","1b"],["to_mwr_valid","1b"],["to_cfg_valid","1b"],["to_msg_valid","1b"],["to_atomic_valid","1b"],["routed_tlp[1023:0]","1024b"]],
+    flows:["← tlp_fwd_valid ← PSND","← ecrc_ok ← ECRC","→ routed_tlp → CPL_HDL","→ routed_tlp → MWR_HDL","→ routed_tlp → MSG_HDL","→ routed_tlp → ATOP","→ to_cfg_valid → CFG"]
+  },
+  CPL_HDL: {
+    name:"Completion Handler", tag:"CPL_HDL", layer:"rx",
+    note:"Matches inbound completion TLPs to outstanding non-posted requests via 10-bit tag. Returns data and status to User Logic. Releases tag.",
+    ins:[["tlp_cpl[1023:0]","1024b"],["tlp_cpl_valid","1b"],["outstanding_tag[9:0]","10b"],["expected_len[9:0]","10b"],["clk/rst_n","–"]],
+    outs:[["cpl_data[511:0]","512b"],["cpl_valid","1b"],["cpl_tag[9:0]","10b"],["cpl_status[2:0]","3b"],["cpl_match_err","1b"],["tag_return[9:0]","10b"],["tag_return_valid","1b"],["cr_return_cplh","1b"],["cr_return_cpld[3:0]","4b"]],
+    flows:["← tlp_cpl ← RX_RTR","→ cpl_data → CPL_Q","→ tag_return → TAG_MGR","→ cr_return_cplh/cpld → CR_MGR"]
+  },
+  CPL_Q: {
+    name:"Completion Queue", tag:"CPL_Q", layer:"rx",
+    note:"Buffers inbound completion TLPs before final delivery to User Logic Interface. Gated by credit availability.",
+    ins:[["cpl_tlp[1023:0]","1024b"],["cpl_valid_in","1b"],["credit_grant_cpl","1b"],["clk/rst_n","–"]],
+    outs:[["cpl_out[1023:0]","1024b"],["cpl_valid_out","1b"],["q_full_cpl","1b"],["q_occ_cpl[7:0]","8b"]],
+    flows:["← cpl_tlp ← CPL_HDL","← credit_grant_cpl ← CR_MGR","→ cpl_out → USR_IF"]
+  },
+  MWR_HDL: {
+    name:"Posted Write Handler (MWr RX)", tag:"MWR_HDL", layer:"rx", gen6:true,
+    note:"Handles inbound MWr TLPs (posted — no completion returned). Delivers write data and target address to User Logic.",
+    ins:[["tlp_mwr[1023:0]","1024b"],["tlp_mwr_valid","1b"],["tlp_addr[63:0]","64b"],["tlp_len[9:0]","10b"],["clk/rst_n","–"]],
+    outs:[["mwr_data[511:0]","512b"],["mwr_addr[63:0]","64b"],["mwr_be[63:0]","64b"],["mwr_valid","1b"],["mwr_full","1b"]],
+    flows:["← tlp_mwr ← RX_RTR","→ mwr_data+addr → USR_IF"]
+  },
+  MSG_HDL: {
+    name:"Message Handler", tag:"MSG_HDL", layer:"rx", gen6:true,
+    note:"Handles all PCIe message types: INTx assert/deassert, PME, ERR_COR/NONFATAL/FATAL, Vendor-Defined Messages (VDM), Slot Power Limit.",
+    ins:[["tlp_msg[1023:0]","1024b"],["tlp_msg_valid","1b"],["msg_code[7:0]","8b"],["clk/rst_n","–"]],
+    outs:[["intx_assert[3:0]","4b"],["intx_deassert[3:0]","4b"],["pme_msg","1b"],["err_msg_type[2:0]","3b"],["err_msg_valid","1b"],["vdm_data[511:0]","512b"],["vdm_valid","1b"],["msg_to_aer","1b"]],
+    flows:["← tlp_msg ← RX_RTR","→ intx_assert → USR_IF","→ pme_msg → USR_IF","→ msg_to_aer → AER"]
+  },
+  ATOP: {
+    name:"Atomic Operation Handler", tag:"ATOP", layer:"rx", gen6:true,
+    note:"FetchAdd, Swap, CAS AtomicOp TLPs (PCIe 3.0+). Executes atomic read-modify-write against local memory, generates Completion with original data.",
+    ins:[["tlp_atomic[1023:0]","1024b"],["tlp_atomic_valid","1b"],["atomic_type[1:0]","2b"],["atomic_addr[63:0]","64b"],["atomic_operand[63:0]","64b"],["clk/rst_n","–"]],
+    outs:[["atop_rd_addr[63:0]","64b"],["atop_wr_data[63:0]","64b"],["atop_wr_en","1b"],["atop_cpl_data[63:0]","64b"],["atop_cpl_valid","1b"],["atop_tag[9:0]","10b"]],
+    flows:["← tlp_atomic ← RX_RTR","→ atop_cpl_data → CPL_HDL (completion back to requester)"]
+  },
+  CFG: {
+    name:"Config Space Handler", tag:"CFG", layer:"sup",
+    note:"Implements PCIe config space registers. Broadcasts configuration bits to all dependent modules. Handles CfgRd/CfgWr TLPs and generates completions.",
+    ins:[["tlp_cfg[255:0]","256b"],["tlp_cfg_valid","1b"],["cfg_addr[11:0]","12b"],["cfg_wr_data[31:0]","32b"],["cfg_wr_en","1b"],["clk/rst_n","–"]],
+    outs:[["cfg_rd_data[31:0]","32b"],["cfg_rd_valid","1b"],["cfg_cpl_tlp[255:0]","256b"],["cfg_cpl_valid","1b"],["max_payload[2:0]","3b"],["flit_mode_en","1b"],["ecrc_en","1b"],["ro_en","1b"]],
+    flows:["← tlp_cfg ← RX_RTR","→ max_payload → TLP_ASM","→ flit_mode_en → FLIT","→ ecrc_en → ECRC","→ ro_en → ORD"]
+  },
+  TMO_ERR: {
+    name:"Timeout / Error Manager", tag:"TMO_ERR", layer:"sup",
+    note:"Monitors all outstanding non-posted tag timers. Completion Timeout → AER + tag released. Tracks multiple simultaneous outstanding requests.",
+    ins:[["tag_start[9:0]","10b"],["tag_start_valid","1b"],["tag_return_valid","1b"],["tag_returned[9:0]","10b"],["timeout_limit[15:0]","16b"],["clk/rst_n","–"]],
+    outs:[["timeout_tag[9:0]","10b"],["timeout_valid","1b"],["cpl_timeout_err","1b"],["err_to_aer[3:0]","4b"]],
+    flows:["← tag_start ← TAG_MGR","← tag_return ← CPL_HDL","→ timeout_tag → TAG_MGR (release)","→ err_to_aer → AER"]
+  },
+  AER: {
+    name:"AER / Error Logger", tag:"AER", layer:"sup", gen6:true,
+    note:"Aggregates ALL TL+DLL errors into PCIe AER registers. Generates ERR_COR, ERR_NONFATAL, ERR_FATAL message TLPs upstream. DLL cannot generate TLPs — DLL_ERR passes up here.",
+    ins:[["err_from_tmo[3:0]","4b"],["err_from_cpl[3:0]","4b"],["err_from_mal","1b"],["err_from_psnd","1b"],["err_from_msg","1b"],["err_from_flit","1b"],["dll_err[3:0]","4b"],["err_severity[1:0]","2b"],["clk/rst_n","–"]],
+    outs:[["aer_status[31:0]","32b"],["aer_mask[31:0]","32b"],["aer_int","1b"],["err_msg_tlp[255:0]","256b"],["err_msg_valid","1b"]],
+    flows:["← err_from_mal ← MAL_CHK","← err_from_psnd ← PSND","← err_from_msg ← MSG_HDL","← err_from_tmo ← TMO_ERR","← dll_err ← DLL_ERR (DLL layer)","→ err_msg_tlp → TX path (upstream error reporting)"]
+  }
+};
+
+function showDetail(tag) {
+  const m = MODULES[tag];
+  if (!m) return;
+  const panel = document.getElementById('detail-panel');
+  const colors = {tx:'#00b4d8', rx:'#e63946', sup:'#52b788'};
+  const col = colors[m.layer] || '#888';
+  panel.style.borderLeftColor = col;
+  document.getElementById('dp-name').textContent = m.name;
+  document.getElementById('dp-tag').textContent = m.tag + ' · ' + m.layer.toUpperCase();
+  document.getElementById('dp-tag').style.color = col;
+  let badges = `<span class="dp-badge" style="color:${col};border-color:${col}">${m.layer.toUpperCase()} PATH</span>`;
+  if (m.gen6) badges += `<span class="dp-badge" style="color:#ffd60a;border-color:#ffd60a">★ GEN6</span>`;
+  document.getElementById('dp-badges').innerHTML = badges;
+  document.getElementById('dp-note').textContent = m.note;
+  document.getElementById('dp-ins').innerHTML = m.ins.map(([s,b])=>
+    `<div class="io-entry io-in-marker"><span class="io-sig">▶ ${s}</span><span class="io-bits">${b}</span></div>`
+  ).join('');
+  document.getElementById('dp-outs').innerHTML = m.outs.map(([s,b])=>
+    `<div class="io-entry io-out-marker"><span class="io-sig">◀ ${s}</span><span class="io-bits">${b}</span></div>`
+  ).join('');
+  document.getElementById('dp-flows').innerHTML = (m.flows||[]).map(f=>
+    `<div class="flow-entry">${f}</div>`
+  ).join('');
+  panel.classList.add('open');
+  // Highlight box
+  document.querySelectorAll('.mod-box').forEach(b => b.style.opacity='0.35');
+  const el = document.getElementById('box-'+tag);
+  if (el) el.style.opacity = '1';
+}
+
+function closeDetail() {
+  document.getElementById('detail-panel').classList.remove('open');
+  resetHighlight();
+}
+
+function resetHighlight() {
+  document.querySelectorAll('.mod-box').forEach(b => b.style.opacity='1');
+}
+
+function toggleWires(type, btn) {
+  document.querySelectorAll('.ctrl-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const wires = document.querySelectorAll('.wire');
+  if (type === 'all') {
+    wires.forEach(w => w.style.opacity='1');
+  } else {
+    wires.forEach(w => {
+      const dt = w.dataset.type;
+      w.style.opacity = (dt === type) ? '1' : '0.06';
+    });
+  }
+}
+</script>
+</body>
+</html>
