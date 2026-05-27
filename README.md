@@ -3,8 +3,8 @@
 ## Overview
 This project presents a structured, simulation-driven architectural digital model of the PCI Express (PCIe) Generation 6 protocol. Designed to bridge theoretical specifications with practical implementation, the model abstracts advanced high-speed features into a coherent digital framework. It provides a complete end-to-end communication pipeline to evaluate system behavior, latency, and throughput efficiency under realistic digital conditions.
 
-## Team 101: Debuggers (SMC26)
-* **Supervision:** Dr. Omar Mahmoud Sabry
+## Team 101 Debuggers 
+* Supervision:Dr. Omar Mahmoud Sabry
 * **Team Members:**
   * Hossam Fawzy Abdel-moniem
   * Arwa Hany Saeed
