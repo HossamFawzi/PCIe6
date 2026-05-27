@@ -41,8 +41,9 @@ This repository adheres to standard hardware verification practices:
 5. **Run System Integration:** Execute the top-level testbench to monitor the complete TLP flow from the TX Transaction Layer to the RX Transaction Layer.
 6. **Analysis:** Review the generated waveforms to inspect packet sequencing, valid FLIT boundaries, and fault-tolerance mechanisms.
 
-## Project Status
-* Completed layered architectural planning and data flow specifications.
-* Designed logical representations for 256-byte FLIT framing and simplified FEC.
-* Established the simulation plan and verified baseline unit-level behaviors.
-* Ongoing implementation of full RTL integration and advanced verification testbenches.
+   
+## Current Project Status
+* **RTL Design:** Fully completed for all individual sub-modules across the Transaction, Data Link, and Physical layers.
+* **Verification:** Unit-level functional simulation has been successfully executed and validated for all independent blocks.
+* **System Integration:** Currently developing and verifying the top-level module to establish the complete end-to-end PCIe Gen 6 pipeline.
+* **Hardware Implementation:** Initiated the synthesis and timing analysis phases to evaluate area, power, and hardware feasibility.
