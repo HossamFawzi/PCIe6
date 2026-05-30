@@ -76,7 +76,7 @@ reg [2015:0] crc_input;
 reg [3:0]    ftype_tmp;
 
 always @(posedge clk or negedge rst_n) begin
-    if(!rst_n||link_reset) begin
+    if(!rst_n) begin
         state<=ST_IDLE; seq_cnt<=12'h0;
         flit_out<={2048{1'b0}}; flit_valid<=1'b0;
         flit_sync_hdr<=2'b00; flit_seq<=12'h0;
@@ -84,6 +84,15 @@ always @(posedge clk or negedge rst_n) begin
         tlp_reg<={1024{1'b0}}; dllp_reg<=64'h0;
         has_tlp<=1'b0; has_dllp<=1'b0; null_timer<=5'h0;
     end else begin
+        // FIX ELAB-303: link_reset is synchronous — highest priority in clocked domain
+        if(link_reset) begin
+            state<=ST_IDLE; seq_cnt<=12'h0;
+            flit_out<={2048{1'b0}}; flit_valid<=1'b0;
+            flit_sync_hdr<=2'b00; flit_seq<=12'h0;
+            flit_crc<=32'h0; flit_null_slots<=4'h0;
+            tlp_reg<={1024{1'b0}}; dllp_reg<=64'h0;
+            has_tlp<=1'b0; has_dllp<=1'b0; null_timer<=5'h0;
+        end else begin
         flit_valid<=1'b0;
         if(!flit_mode_en) begin state<=ST_IDLE; null_timer<=5'h0; end
         else case(state)
@@ -128,6 +137,7 @@ always @(posedge clk or negedge rst_n) begin
             end
             default: state<=ST_IDLE;
         endcase
+        end  // end else (link_reset)
     end
 end
 endmodule

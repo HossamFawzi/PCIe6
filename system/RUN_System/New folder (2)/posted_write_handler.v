@@ -69,8 +69,8 @@ module pcie_mwr_hdl (
     //
     reg  [63:0] be_expanded;
     integer i;
-    integer last_start;   // byte index of first byte in last DW
-    integer total_bytes;  // len * 4
+    reg [31:0] last_start;   // byte index of first byte in last DW
+    reg [31:0] total_bytes;  // len * 4 — unsigned to avoid VER-318
 
     always @(*) begin
         be_expanded  = 64'h0;

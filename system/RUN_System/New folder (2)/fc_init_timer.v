@@ -51,6 +51,7 @@ module fc_init_timer (
             fc_init_timeout  <= 1'b0;
             fc_init_retry_req<= 1'b0;
 
+            // synthesis full_case
             case (state)
                 // ── Wait for start ──────────────────────────
                 S_IDLE: begin
@@ -97,7 +98,9 @@ module fc_init_timer (
                     fc_init_err <= 1'b1; // sticky
                 end
 
-                default: state <= S_IDLE;
+                // default: unreachable (2-bit FSM fully enumerated)
+                // synthesis full_case covers this
+                default: state <= S_IDLE; // pragma: unreachable
             endcase
         end
     end

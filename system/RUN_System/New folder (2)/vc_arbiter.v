@@ -30,11 +30,13 @@ module vc_arbiter (
     // ── Combinational RR winner selection ─────────────────────
     always @(*) begin : RR_COMB
         integer j;
+        reg [1:0] idx;
         rr_winner = 2'd0;
         rr_found  = 1'b0;
         for (j = 0; j < 4; j = j + 1) begin
-            if (!rr_found && req_bus[(rr_ptr+j) % 4]) begin
-                rr_winner = (rr_ptr + j) % 4;
+            idx = (rr_ptr + j[1:0]) % 4;
+            if (!rr_found && req_bus[idx]) begin
+                rr_winner = idx;
                 rr_found  = 1'b1;
             end
         end
@@ -48,16 +50,18 @@ module vc_arbiter (
     always @(*) begin : WRR_COMB
         integer k;
         reg [7:0] best_cred;
+        reg [1:0] kidx;
         wrr_winner   = 2'd0;
         wrr_found    = 1'b0;
         wrr_all_zero = 1'b1;
         best_cred    = 8'h0;
         for (k = 0; k < 4; k = k + 1) begin
-            if (req_bus[k] && credits[k] > 8'h0) begin
+            kidx = k[1:0];
+            if (req_bus[kidx] && credits[kidx] > 8'h0) begin
                 wrr_all_zero = 1'b0;
-                if (credits[k] > best_cred) begin
-                    best_cred  = credits[k];
-                    wrr_winner = k[1:0];
+                if (credits[kidx] > best_cred) begin
+                    best_cred  = credits[kidx];
+                    wrr_winner = kidx;
                     wrr_found  = 1'b1;
                 end
             end

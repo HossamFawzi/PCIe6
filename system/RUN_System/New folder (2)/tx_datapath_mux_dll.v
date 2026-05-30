@@ -87,9 +87,9 @@ module dll_tx_datapath_mux (  // RENAMED: was tx_datapath_mux (duplicate with PH
 
     // Number of 256-bit beats required to ship a 1056-bit TLP
     // ceil(1056 / 256) = 5
-    localparam TLP_BEATS  = 5;
+    localparam [2:0] TLP_BEATS  = 3'd5;  // sized unsigned — fixes VER-318 on beat_cnt_max
     // A DLLP is 64 bits → 1 beat
-    localparam DLLP_BEATS = 1;
+    localparam [2:0] DLLP_BEATS = 3'd1;  // sized unsigned
 
     // FSM states (one-hot for synthesis speed)
     localparam [2:0]

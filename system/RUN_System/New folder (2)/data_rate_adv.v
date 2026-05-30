@@ -87,8 +87,8 @@ always @(posedge clk or negedge rst_n) begin
         negotiation_done <= 1'b0;
         speed_change_req <= 1'b0;
         common_speeds    <= 8'h00;
-        neg_effective    <= 8'h00;
-        neg_gen          <= 3'd0;
+        neg_effective    = 8'h00;
+        neg_gen          = 3'd0;
         state            <= S_IDLE;
     end else begin
         negotiation_done <= 1'b0;

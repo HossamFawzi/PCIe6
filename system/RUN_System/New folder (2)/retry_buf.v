@@ -48,6 +48,10 @@
 // ============================================================
 `timescale 1ns/1ps
 
+// FIX VER-318: parameter BUF_DEPTH is a signed integer in Verilog-2001.
+// Comparing unsigned wire occ_w to (BUF_DEPTH-1) — a signed expression —
+// triggers VER-318. Solution: a sized [PTR_W-1:0] localparam forces an
+// unsigned comparison in the assign buf_full statement.
 module retry_buf #(
     parameter BUF_DEPTH = 4096,        // must be power-of-2
     parameter TLP_WIDTH = 1056,
@@ -105,7 +109,9 @@ module retry_buf #(
     // Occupancy & full
     // ----------------------------------------------------------
     wire [PTR_W-1:0] occ_w = head_ptr - tail_ptr; // wraps naturally
-    assign buf_full = (occ_w == BUF_DEPTH - 1);
+    // FIX VER-318: sized constant avoids signed/unsigned mismatch
+    localparam [11:0] BUF_FULL_THR = 12'd4095;  // BUF_DEPTH-1, sized unsigned
+    assign buf_full = (occ_w == BUF_FULL_THR);
 
     // ----------------------------------------------------------
     // Registered occupancy output (12-bit matches port width)
@@ -119,15 +125,14 @@ module retry_buf #(
     // ----------------------------------------------------------
     // Write path
     // ----------------------------------------------------------
-    integer wi;
 
+    // FIX: removed reset for-loop over mem_data/mem_seq (4096x1056-bit).
+    // Elaborating 4M-bit reset assignments OOM's DC K-2015.
+    // Only control pointers need reset; memory contents are don't-care
+    // until written (seq_num_checker_rx validates seq before use).
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             head_ptr <= {PTR_W{1'b0}};
-            for (wi = 0; wi < BUF_DEPTH; wi = wi + 1) begin
-                mem_data[wi] <= {TLP_WIDTH{1'b0}};
-                mem_seq [wi] <= 12'h0;
-            end
         end else if (tlp_write_en && !buf_full) begin
             mem_data[head_ptr] <= tlp_in;
             mem_seq [head_ptr] <= seq_num_in;

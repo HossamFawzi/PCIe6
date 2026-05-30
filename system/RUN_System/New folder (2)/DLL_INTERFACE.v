@@ -62,6 +62,7 @@ always @(posedge clk or negedge rst_n) begin
         end
         else begin
             //  FSM 
+            // synthesis full_case
             case (state)
 
                 IDLE: begin

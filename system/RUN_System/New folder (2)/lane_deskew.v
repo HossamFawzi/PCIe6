@@ -130,6 +130,19 @@ module lane_deskew #(
                 fifo_cnt[i] <= {(FIFO_BITS+1){1'b0}};
             end
         end
+
+        // -----------------------------------------------------------------------
+        // Read path: consume FIFO entries when aligned
+        // (merged here to avoid multi-driver on fifo_cnt / rd_ptr — ELAB-366)
+        // -----------------------------------------------------------------------
+        if (aligned) begin
+            for (i = 0; i < NUM_LANES; i = i + 1) begin
+                if (fifo_cnt[i] > 0) begin
+                    rd_ptr[i]   <= rd_ptr[i]   + 1'b1;
+                    fifo_cnt[i] <= fifo_cnt[i] - 1'b1;
+                end
+            end
+        end
     end
 
     // -----------------------------------------------------------------------
@@ -142,7 +155,7 @@ module lane_deskew #(
     assign deskewed_data = deskew_en ? deskewed_data_r : lane_data;
     assign deskew_valid  = deskew_en ? deskew_valid_r  : lane_valid;
 
-    // Registered read path (used when deskew_en=1)
+    // Registered output capture (read from FIFO, no fifo_cnt/rd_ptr update here)
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             deskewed_data_r <= {NUM_LANES*DATA_WIDTH{1'b0}};
@@ -152,8 +165,6 @@ module lane_deskew #(
                 if (fifo_cnt[i] > 0) begin
                     deskewed_data_r[i*DATA_WIDTH +: DATA_WIDTH] <= fifo[i][rd_ptr[i]];
                     deskew_valid_r[i] <= 1'b1;
-                    rd_ptr[i]         <= rd_ptr[i] + 1'b1;
-                    fifo_cnt[i]       <= fifo_cnt[i] - 1'b1;
                 end else begin
                     deskewed_data_r[i*DATA_WIDTH +: DATA_WIDTH] <= {DATA_WIDTH{1'b0}};
                     deskew_valid_r[i] <= 1'b0;

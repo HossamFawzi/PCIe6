@@ -204,7 +204,7 @@ module decoder_8b10b (
             disparity_out <= 1'b0;
             dec_err       <= 1'b0;
             disparity_err <= 1'b0;
-            rd_current    <= 1'b0;
+            rd_current    = 1'b0;
         end else if (dec_en) begin
             // FIX: load rd_current from disparity_in (blocking assignment) so
             // the caller's running-disparity context is used for this symbol.
@@ -248,7 +248,7 @@ module decoder_8b10b (
             end
 
             // Update running disparity
-            rd_current    <= rd_next;
+            rd_current    = rd_next;
             disparity_out <= rd_next;
 
             // Outputs

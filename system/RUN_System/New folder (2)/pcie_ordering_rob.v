@@ -155,6 +155,7 @@ module pcie_ordering_rob #(
         order_err_comb   = 1'b0;
 
         if (req_valid) begin
+            // synthesis full_case
             case (req_class)
 
                 CLASS_P: begin
@@ -223,7 +224,7 @@ module pcie_ordering_rob #(
                 begin : clear_other_tc
                     integer j;
                     for (j = 0; j < NUM_TC; j = j + 1)
-                        if (j != req_tc)
+                        if ($unsigned(j) != req_tc)
                             posted_pending[j] <= 1'b0;
                 end
             end else begin

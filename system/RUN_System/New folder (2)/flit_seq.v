@@ -28,7 +28,7 @@ module flit_seq (
     wire [11:0] unacked_count = flit_tx_seq - last_acked;
 
     always @(posedge clk or negedge rst_n) begin
-        if (!rst_n || link_reset) begin
+        if (!rst_n) begin
             oldest_unacked_seq <= 12'd0;
             seq_window_full    <= 1'b0;
             seq_wrap_det       <= 1'b0;
@@ -36,6 +36,15 @@ module flit_seq (
             last_acked         <= 12'd0;
             prev_tx_seq        <= 12'd0;
         end else begin
+            // FIX ELAB-303: link_reset handled synchronously (highest priority)
+            if (link_reset) begin
+                oldest_unacked_seq <= 12'd0;
+                seq_window_full    <= 1'b0;
+                seq_wrap_det       <= 1'b0;
+                seq_err            <= 1'b0;
+                last_acked         <= 12'd0;
+                prev_tx_seq        <= 12'd0;
+            end else begin
             seq_err      <= 1'b0;
             seq_wrap_det <= 1'b0;
 
@@ -61,6 +70,7 @@ module flit_seq (
             // incorrect because TX and RX sequence counters are independent.
             if (nak_seq == (oldest_unacked_seq - 1'b1))
                 seq_err <= 1'b1;
+            end
         end
     end
 endmodule
