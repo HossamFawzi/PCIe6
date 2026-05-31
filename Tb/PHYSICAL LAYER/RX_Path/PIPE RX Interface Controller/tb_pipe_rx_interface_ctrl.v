@@ -71,7 +71,6 @@ module tb_pipe_rx_interface_ctrl;
 
         tick(4); rst_n=1; tick(2);
 
-        // Test 1: Reset state - pipe_up should be 0
         $display("Test 1: Reset state");
         if (!pipe_up && !rate_change_busy) begin
             $display("PASS: Reset state correct"); pass=pass+1;
@@ -79,7 +78,6 @@ module tb_pipe_rx_interface_ctrl;
             $display("FAIL: pipe_up=%b busy=%b", pipe_up, rate_change_busy); fail=fail+1;
         end
 
-        // Test 2: Control signals passthrough
         $display("Test 2: Control passthrough");
         power_down_req=2'h1; pipe_rate_req=4'h3;
         tx_elec_idle_req=1; pipe_width_req=2'h1;
@@ -90,19 +88,17 @@ module tb_pipe_rx_interface_ctrl;
             $display("FAIL: pd=%h rate=%h ei=%b width=%h", pipe_powerdown, pipe_rate, pipe_txelecidle, pipe_width); fail=fail+1;
         end
 
-        // Test 3: RX data latched and forwarded
         $display("Test 3: RX data forwarding");
         pipe_rxd = 256'hDEAD_BEEF;
         pipe_rx_valid=1; pipe_rx_elec_idle=0;
         tick_p(3);
-        tick(8); // sync chain
+        tick(8);
         if (rx_valid) begin
             $display("PASS: RX valid propagated"); pass=pass+1;
         end else begin
             $display("FAIL: rx_valid not asserted after %0d cycles", 8); fail=fail+1;
         end
 
-        // Test 4: pipe_up when valid and not elec idle
         $display("Test 4: pipe_up logic");
         pipe_rx_valid=1; pipe_rx_elec_idle=0;
         tick(8);
@@ -112,7 +108,6 @@ module tb_pipe_rx_interface_ctrl;
             $display("FAIL: pipe_up not set (rx_valid=%b ei=%b)", rx_valid, rx_elec_idle); fail=fail+1;
         end
 
-        // Test 5: pipe_up deasserts on elec_idle
         $display("Test 5: pipe_up deasserts on electrical idle");
         pipe_rx_elec_idle=1;
         tick(8);
@@ -122,7 +117,6 @@ module tb_pipe_rx_interface_ctrl;
             $display("FAIL: pipe_up still set on elec_idle"); fail=fail+1;
         end
 
-        // Test 6: Rate change FSM
         $display("Test 6: Rate change FSM");
         power_down_req=2'h0; tx_elec_idle_req=0;
         pipe_rate_req=4'h5;
@@ -130,8 +124,8 @@ module tb_pipe_rx_interface_ctrl;
         tick(3);
         pclk_change_req=0;
         if (rate_change_busy) begin
-            $display("  rate_change_busy asserted"); 
-            // Assert phystatus to complete handshake
+            $display("  rate_change_busy asserted");
+
             @(posedge clk); #1; pipe_phystatus=1;
             tick(8);
             if (pipe_pclkchangeack) begin
@@ -150,7 +144,6 @@ module tb_pipe_rx_interface_ctrl;
             $display("FAIL: rate_change_busy not set"); fail=fail+1;
         end
 
-        // Test 7: phystatus_sync is synchronized
         $display("Test 7: phystatus_sync");
         pipe_phystatus=1;
         tick(5);
@@ -161,7 +154,6 @@ module tb_pipe_rx_interface_ctrl;
         end
         pipe_phystatus=0;
 
-        // Test 8: tx_detect_rx passthrough
         $display("Test 8: tx_detect_rx passthrough");
         tx_detect_rx_req=1; tick(2);
         if (pipe_txdetectrx) begin

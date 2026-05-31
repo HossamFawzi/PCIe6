@@ -1,8 +1,4 @@
-//============================================================
-// Testbench: tb_rx_tlp_router
-// Verifies: Correct routing for each TLP type,
-//           ECRC gating, unknown type handling
-//============================================================
+
 `timescale 1ns / 1ps
 
 module tb_rx_tlp_router;
@@ -41,18 +37,14 @@ module tb_rx_tlp_router;
         input         exp_cpl, exp_mwr, exp_cfg, exp_msg, exp_atomic;
         input [127:0] label;
         begin
-            // Apply inputs before the clock edge
+
             tlp_type      = t_type;
             tlp_fwd_valid = 1;
             ecrc_ok       = t_ecrc;
             tlp_rx        = {1024{1'b1}};
 
-            // Wait for the rising edge where DUT registers the inputs
             @(posedge clk); #1;
 
-            // --- FIX: sample outputs HERE, immediately after the registering edge ---
-            // The DUT has now latched inputs and driven the registered outputs.
-            // Deassert valid AFTER sampling so we don't clock in a second (clearing) cycle.
             if (to_cpl_valid == exp_cpl && to_mwr_valid == exp_mwr &&
                 to_cfg_valid == exp_cfg && to_msg_valid == exp_msg &&
                 to_atomic_valid == exp_atomic) begin
@@ -65,7 +57,6 @@ module tb_rx_tlp_router;
                 fail_count = fail_count + 1;
             end
 
-            // Now deassert and let the bus idle for a cycle before the next test
             tlp_fwd_valid = 0;
             @(posedge clk); #1;
             #4;
@@ -82,7 +73,6 @@ module tb_rx_tlp_router;
         tlp_rx = 0; ecrc_ok = 0;
         #20; rst_n = 1; #10;
 
-        // Test each route
         send_and_check(5'b01010, 1, 1, 0, 0, 0, 0, "Completion");
         send_and_check(5'b00000, 1, 0, 1, 0, 0, 0, "Memory (MWr)");
         send_and_check(5'b00100, 1, 0, 0, 1, 0, 0, "Config Type 0");
@@ -94,10 +84,8 @@ module tb_rx_tlp_router;
         send_and_check(5'b01101, 1, 0, 0, 0, 0, 1, "AtomicOp Swap");
         send_and_check(5'b01110, 1, 0, 0, 0, 0, 1, "AtomicOp CAS");
 
-        // ECRC fail ? should NOT route
         send_and_check(5'b01010, 0, 0, 0, 0, 0, 0, "Cpl ECRC fail");
 
-        // Unknown type
         send_and_check(5'b11111, 1, 0, 0, 0, 0, 0, "Unknown type");
 
         #20;

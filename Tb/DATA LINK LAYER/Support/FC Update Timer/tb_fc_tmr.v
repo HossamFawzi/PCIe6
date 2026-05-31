@@ -1,8 +1,4 @@
-// =============================================================================
-// Testbench: fc_tmr — FC Update Timer
-// Tests: reset, timer fires at limit, dll_inactive suppresses, 
-//        fc_update_sent resets counter, timer re-arms after send
-// =============================================================================
+
 `timescale 1ns/1ps
 module tb_fc_tmr;
 
@@ -48,21 +44,18 @@ module tb_fc_tmr;
     initial begin
         $display("=== TB: fc_tmr ===");
 
-        // TC1: Reset state
         $display("[TC1] After reset outputs = 0");
         apply_reset;
         @(posedge clk);
         check(0, fc_update_req, "fc_update_req=0 after reset");
         check(0, fc_timer_exp,  "fc_timer_exp=0 after reset");
 
-        // TC2: dll_active=0 -> timer does not run
         $display("[TC2] dll_active=0 suppresses timer");
         apply_reset;
         dll_active = 0; fc_timer_limit = 16'd3;
         repeat(10) @(posedge clk);
         check(0, fc_timer_exp, "fc_timer_exp stays 0 when dll_active=0");
 
-        // TC3: Timer fires when dll_active=1 and limit reached
         $display("[TC3] Timer fires at fc_timer_limit");
         apply_reset;
         dll_active = 1; fc_timer_limit = 16'd5;
@@ -70,30 +63,27 @@ module tb_fc_tmr;
         check(1, fc_timer_exp,  "fc_timer_exp=1 at limit");
         check(1, fc_update_req, "fc_update_req=1 at limit");
 
-        // TC4: fc_update_sent resets counter
         $display("[TC4] fc_update_sent resets counter");
         apply_reset;
         dll_active = 1; fc_timer_limit = 16'd8;
         repeat(4) @(posedge clk);
         fc_update_sent = 1; @(posedge clk); fc_update_sent = 0;
-        // counter should have reset; run 4 more cycles (< limit)
+
         repeat(4) @(posedge clk);
         check(0, fc_timer_exp, "fc_timer_exp=0 after fc_update_sent reset");
 
-        // TC5: Timer re-arms after fc_update_sent
         $display("[TC5] Timer re-arms after fc_update_sent");
         apply_reset;
         dll_active = 1; fc_timer_limit = 16'd4;
-        // first expiry
+
         repeat(6) @(posedge clk);
         check(1, fc_timer_exp, "first expiry fires");
-        // simulate sending the update
+
         fc_update_sent = 1; @(posedge clk); fc_update_sent = 0;
-        // reset occurred, run again to second expiry
+
         repeat(6) @(posedge clk);
         check(1, fc_timer_exp, "second expiry fires after re-arm");
 
-        // TC6: fc_update_req mirrors fc_timer_exp
         $display("[TC6] fc_update_req == fc_timer_exp");
         apply_reset;
         dll_active = 1; fc_timer_limit = 16'd3;

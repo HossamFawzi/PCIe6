@@ -36,7 +36,6 @@ module tb_tx_datapath_mux;
         clr();
         @(posedge clk); @(posedge clk); rst_n=1; tick();
 
-        // Test 1: Electrical idle — highest priority
         $display("Test 1: Electrical idle priority");
         enc_valid=1; os_valid=1; flit_valid=1; tx_elec_idle=1; flit_mode_en=1;
         tick(); tick();
@@ -47,7 +46,6 @@ module tb_tx_datapath_mux;
         end
         clr();
 
-        // Test 2: OS priority over flit/enc
         $display("Test 2: OS over encoded data");
         os_data=256'hDEAD_BEEF; enc_data=256'h1234;
         os_valid=1; enc_valid=1;
@@ -59,7 +57,6 @@ module tb_tx_datapath_mux;
         end
         clr();
 
-        // Test 3: FLIT mode when flit_mode_en and flit_valid
         $display("Test 3: FLIT mode selection");
         flit_data = {256'hCAFE_FACE, {1792{1'b0}}};
         flit_valid=1; flit_mode_en=1; enc_valid=1; enc_data=256'h1234;
@@ -71,7 +68,6 @@ module tb_tx_datapath_mux;
         end
         clr();
 
-        // Test 4: Encoded data when nothing else active
         $display("Test 4: Encoded data fallback");
         enc_data=256'h5A5A_A5A5;
         enc_valid=1;
@@ -83,7 +79,6 @@ module tb_tx_datapath_mux;
         end
         clr();
 
-        // Test 5: No valid output when idle
         $display("Test 5: Idle - no output");
         tick(); tick();
         if (!tx_out_valid) begin
@@ -92,7 +87,6 @@ module tb_tx_datapath_mux;
             $display("FAIL: Spurious output"); fail=fail+1;
         end
 
-        // Test 6: flit_valid but flit_mode_en=0 -> falls to enc
         $display("Test 6: FLIT ignored when flit_mode_en=0");
         flit_valid=1; flit_mode_en=0; enc_valid=1; enc_data=256'hABCD;
         tick(); tick();
@@ -103,7 +97,6 @@ module tb_tx_datapath_mux;
         end
         clr();
 
-        // Test 7: Reset
         $display("Test 7: Reset");
         enc_valid=1; enc_data=256'hFFFF;
         tick();
@@ -115,7 +108,6 @@ module tb_tx_datapath_mux;
         end
         rst_n=1; clr();
 
-        // Test 8: Elec idle output is zero data
         $display("Test 8: Elec idle zeroes tx_out");
         tx_elec_idle=1; enc_data=256'hFFFF; enc_valid=1;
         tick(); tick();

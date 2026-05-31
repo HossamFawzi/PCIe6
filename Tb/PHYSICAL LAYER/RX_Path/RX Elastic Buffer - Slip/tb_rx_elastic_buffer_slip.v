@@ -41,7 +41,6 @@ module tb_rx_elastic_buffer_slip;
         end
     endtask
 
-    // Read one entry from core side, return what was read
     task read_one; output reg [DW-1:0] got; output reg valid;
         begin
             @(posedge clk_core); #1; pipe_ready=1;
@@ -61,15 +60,13 @@ module tb_rx_elastic_buffer_slip;
         tick_pipe(4); rst_n=1;
         tick_pipe(4); tick_core(4);
 
-        // Test 1: Initially empty
         $display("Test 1: Initially empty");
         if (buf_empty) begin $display("PASS"); pass=pass+1; end
         else begin $display("FAIL: Not empty"); fail=fail+1; end
 
-        // Test 2: Write and read one entry
         $display("Test 2: Basic write and read");
         write_one(256'hCAFEBABE_12345678);
-        tick_core(12); // CDC settle
+        tick_core(12);
         read_one(rdata, rvalid);
         if (rvalid && rdata==256'hCAFEBABE_12345678) begin
             $display("PASS"); pass=pass+1;
@@ -77,18 +74,17 @@ module tb_rx_elastic_buffer_slip;
             $display("FAIL: valid=%b data=%h", rvalid, rdata[63:0]); fail=fail+1;
         end
 
-        // Test 3: Slip discards one entry, next read gets second entry
         $display("Test 3: Slip operation");
         rst_n=0; tick_pipe(3); rst_n=1; tick_pipe(3); tick_core(3);
         write_one(256'hDEAD_0001);
         write_one(256'hBEEF_0002);
         tick_core(16);
-        // Issue slip (level-triggered into clk_core domain)
+
         @(posedge clk_core); #1; slip_req=1;
-        tick_core(8); // let sync see the level
+        tick_core(8);
         @(posedge clk_core); #1; slip_req=0;
         tick_core(6);
-        // Now read — should get second entry
+
         read_one(rdata, rvalid);
         if (rvalid && rdata==256'hBEEF_0002) begin
             $display("PASS: Second entry after slip"); pass=pass+1;
@@ -98,7 +94,6 @@ module tb_rx_elastic_buffer_slip;
             $display("FAIL: valid=%b data=%h", rvalid, rdata[63:0]); fail=fail+1;
         end
 
-        // Test 4: Fill level increases with writes
         $display("Test 4: Fill level tracking");
         begin : fl
             integer i;
@@ -112,7 +107,6 @@ module tb_rx_elastic_buffer_slip;
             end
         end
 
-        // Test 5: Buffer full when all slots written
         $display("Test 5: Buffer full detection");
         begin : full
             integer i;
@@ -123,14 +117,12 @@ module tb_rx_elastic_buffer_slip;
             else begin $display("FAIL: buf_full not set (fill=%0d)", fill_level); fail=fail+1; end
         end
 
-        // Test 6: Reset clears buffer
         $display("Test 6: Reset");
         rst_n=0; tick_pipe(3);
         if (buf_empty && !data_out_valid) begin $display("PASS"); pass=pass+1; end
         else begin $display("FAIL"); fail=fail+1; end
         rst_n=1;
 
-        // Test 7: buf_center at half fill
         $display("Test 7: buf_center at half fill");
         begin : ctr
             integer i;
@@ -141,7 +133,6 @@ module tb_rx_elastic_buffer_slip;
             else begin $display("FAIL: center=%b fill=%0d", buf_center, fill_level); fail=fail+1; end
         end
 
-        // Test 8: slip_done pulses after slip_req
         $display("Test 8: slip_done pulse");
         begin : sd
             reg got_done;

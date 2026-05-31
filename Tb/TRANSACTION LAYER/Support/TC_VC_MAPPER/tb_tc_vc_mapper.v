@@ -1,14 +1,4 @@
-// =============================================================
-//  TESTBENCH : tb_tc_vc_mapper
-//  DUT       : tc_vc_mapper
-//  TESTS:
-//    T1 — Default cfg (all TC→VC0) → TC3 maps to VC0
-//    T2 — TC1→VC1, TC2→VC2, verify each
-//    T3 — TC7→VC3 (valid, no error)
-//    T4 — TC5→VC7 (VC7>3 → vc_map_err)
-//    T5 — tlp_valid=0 → vc_map_valid=0
-//    T6 — Rapid TC changes: TC0,1,2,3 back-to-back
-// =============================================================
+
 `timescale 1ns/1ps
 
 module tb_tc_vc_mapper;
@@ -56,7 +46,7 @@ module tb_tc_vc_mapper;
             rst_n       = 0;
             tlp_tc      = 3'h0;
             tlp_valid   = 0;
-            // Default: all TCs → VC0 (all 3-bit groups = 000)
+
             vc_map_cfg  = 24'h000000;
             vc_arb_cfg  = 8'h00;
             repeat(4) @(posedge clk);
@@ -70,13 +60,11 @@ module tb_tc_vc_mapper;
             @(negedge clk);
             tlp_tc    = tc;
             tlp_valid = 1;
-            @(posedge clk); #1; // RTL latches here — sample outputs NOW
+            @(posedge clk); #1;
             tlp_valid = 0;
         end
     endtask
 
-    // Build vc_map_cfg: set TC n → VC v
-    // vc_map_cfg[3n+2:3n] = v
     function [23:0] set_tc_vc;
         input [23:0] cfg;
         input [2:0]  tc;
@@ -90,9 +78,6 @@ module tb_tc_vc_mapper;
     initial begin
         $display("=== tc_vc_mapper Testbench ===");
 
-        // --------------------------------------------------
-        // T1: Default map all TC→VC0, send TC3
-        // --------------------------------------------------
         $display("\n[T1] All TC→VC0 by default, TC3");
         do_reset;
         vc_map_cfg = 24'h000000;
@@ -101,14 +86,11 @@ module tb_tc_vc_mapper;
         check(vc_map_valid, 1'b1, "vc_map_valid=1");
         check(vc_map_err,   1'b0, "no error");
 
-        // --------------------------------------------------
-        // T2: TC1→VC1, TC2→VC2
-        // --------------------------------------------------
         $display("\n[T2] TC1→VC1, TC2→VC2");
         do_reset;
         vc_map_cfg = 24'h000000;
-        vc_map_cfg = set_tc_vc(vc_map_cfg, 3'd1, 3'd1); // TC1→VC1
-        vc_map_cfg = set_tc_vc(vc_map_cfg, 3'd2, 3'd2); // TC2→VC2
+        vc_map_cfg = set_tc_vc(vc_map_cfg, 3'd1, 3'd1);
+        vc_map_cfg = set_tc_vc(vc_map_cfg, 3'd2, 3'd2);
 
         send_tlp(3'd1);
         check(vc_id, 3'd1, "TC1→VC1");
@@ -118,9 +100,6 @@ module tb_tc_vc_mapper;
         check(vc_id, 3'd2, "TC2→VC2");
         check(vc_map_err, 1'b0, "no err TC2");
 
-        // --------------------------------------------------
-        // T3: TC7→VC3 (valid)
-        // --------------------------------------------------
         $display("\n[T3] TC7→VC3 (valid)");
         do_reset;
         vc_map_cfg = set_tc_vc(24'h000000, 3'd7, 3'd3);
@@ -128,18 +107,12 @@ module tb_tc_vc_mapper;
         check(vc_id,      3'd3, "TC7→VC3");
         check(vc_map_err, 1'b0, "no error for VC3");
 
-        // --------------------------------------------------
-        // T4: TC5→VC7 → vc_map_err (VC7>3)
-        // --------------------------------------------------
         $display("\n[T4] TC5→VC7 triggers vc_map_err");
         do_reset;
-        vc_map_cfg = set_tc_vc(24'h000000, 3'd5, 3'd7); // VC7 is invalid
+        vc_map_cfg = set_tc_vc(24'h000000, 3'd5, 3'd7);
         send_tlp(3'd5);
         check(vc_map_err, 1'b1, "vc_map_err=1 for VC7");
 
-        // --------------------------------------------------
-        // T5: No valid TLP → vc_map_valid=0
-        // --------------------------------------------------
         $display("\n[T5] tlp_valid=0 → vc_map_valid=0");
         do_reset;
         @(posedge clk);
@@ -148,9 +121,6 @@ module tb_tc_vc_mapper;
         @(posedge clk); @(posedge clk);
         check(vc_map_valid, 1'b0, "vc_map_valid=0 when idle");
 
-        // --------------------------------------------------
-        // T6: Back-to-back TC changes
-        // --------------------------------------------------
         $display("\n[T6] Back-to-back TC0→TC1→TC2→TC3");
         do_reset;
         vc_map_cfg = 24'h000000;

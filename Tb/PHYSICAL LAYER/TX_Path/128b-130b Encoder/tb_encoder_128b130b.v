@@ -19,10 +19,6 @@ module tb_encoder_128b130b;
 
     always #5 clk = ~clk;
 
-    // Send one word: output appears 1 clock AFTER the clocking edge
-    // cy0: assert inputs + data_valid
-    // cy1 (posedge): DFF captures => outputs appear after cy1 posedge
-    // So sample AFTER cy1 posedge (#1)
     task send_check;
         input [127:0] d;
         input         is_os;
@@ -32,7 +28,7 @@ module tb_encoder_128b130b;
         begin
             @(posedge clk); #1;
             data_in=d; is_ordered_set=is_os; data_valid=1;
-            @(posedge clk); #1;   // posedge latches; output now valid
+            @(posedge clk); #1;
             data_valid=0;
             if (data_out_valid && data_out[129:128]==exp_sh && data_out[127:0]==exp_payload)
                 begin $display("PASS: %s", label); pass=pass+1; end
@@ -47,28 +43,23 @@ module tb_encoder_128b130b;
         clk=0; rst_n=0; data_in=0; is_ordered_set=0; data_valid=0;
         @(posedge clk); @(posedge clk); rst_n=1; @(posedge clk); #1;
 
-        // Test 1: Data block → SH=01
         $display("Test 1: Data block SH=01");
         send_check(128'hDEADBEEFCAFEBABE_0123456789ABCDEF, 0, 2'b01,
                    128'hDEADBEEFCAFEBABE_0123456789ABCDEF, "Data block SH=01");
 
-        // Test 2: Ordered set → SH=10
         $display("Test 2: Ordered set SH=10");
         send_check(128'hFFFF0000FFFF0000_AABBCCDD11223344, 1, 2'b10,
                    128'hFFFF0000FFFF0000_AABBCCDD11223344, "Ordered set SH=10");
 
-        // Test 3: Another data block - different payload
         $display("Test 3: Data payload preserved");
         send_check(128'h1122334455667788_99AABBCCDDEEFF00, 0, 2'b01,
                    128'h1122334455667788_99AABBCCDDEEFF00, "Payload preserved");
 
-        // Test 4: No output when idle
         $display("Test 4: No output when idle");
         data_valid=0; @(posedge clk); #1; @(posedge clk); #1;
         if (!data_out_valid) begin $display("PASS"); pass=pass+1; end
         else begin $display("FAIL: spurious output"); fail=fail+1; end
 
-        // Test 5: Reset clears output
         $display("Test 5: Reset");
         @(posedge clk); #1; data_in=128'hFF; data_valid=1;
         rst_n=0; @(posedge clk); #1;
@@ -76,7 +67,6 @@ module tb_encoder_128b130b;
         else begin $display("FAIL"); fail=fail+1; end
         rst_n=1; data_valid=0; @(posedge clk); #1;
 
-        // Test 6: Back-to-back
         $display("Test 6: Back-to-back encoding");
         begin : bb
             integer i; integer ok; ok=1;
@@ -92,7 +82,6 @@ module tb_encoder_128b130b;
             else    begin $display("FAIL"); fail=fail+1; end
         end
 
-        // Test 7: enc_err never set for data symbols
         $display("Test 7: enc_err clear for data");
         begin : t7
             integer i; integer ok; ok=1;

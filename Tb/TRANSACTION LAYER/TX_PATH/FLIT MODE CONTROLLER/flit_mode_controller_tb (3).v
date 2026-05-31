@@ -1,20 +1,8 @@
-// =============================================================================
-// Testbench: flit_mode_controller
-// =============================================================================
-// TC1 - Normal FLIT assembly and ACK
-// TC2 - Retry after ACK_TIMEOUT (8 cycles), then ACK clears retry
-// TC3 - Back-to-back FLITs, sequence number 2 and 3
-// TC4 - flit_mode_en=0 suppresses all output
-// TC5 - Different payloads produce different non-zero CRC values
-// =============================================================================
 
 `timescale 1ns/1ps
 
 module flit_mode_controller_tb;
 
-    // =========================================================================
-    // DUT ports
-    // =========================================================================
     reg          clk;
     reg          rst_n;
     reg [1023:0] tlp_in;
@@ -29,9 +17,6 @@ module flit_mode_controller_tb;
     wire          flit_retry_req;
     wire          flit_overflow_err;
 
-    // =========================================================================
-    // DUT instance
-    // =========================================================================
     flit_mode_controller dut (
         .clk              (clk),
         .rst_n            (rst_n),
@@ -47,15 +32,9 @@ module flit_mode_controller_tb;
         .flit_overflow_err(flit_overflow_err)
     );
 
-    // =========================================================================
-    // Clock: 250 MHz  (4 ns period)
-    // =========================================================================
     initial clk = 0;
     always  #2 clk = ~clk;
 
-    // =========================================================================
-    // Task: apply_reset
-    // =========================================================================
     task apply_reset;
         begin
             rst_n        <= 0;
@@ -70,10 +49,6 @@ module flit_mode_controller_tb;
         end
     endtask
 
-    // =========================================================================
-    // Task: send_tlp_pair
-    //   Drives two 1024-bit chunks; FSM latches chunk0 in IDLE, chunk1 in LOAD_1
-    // =========================================================================
     task send_tlp_pair;
         input [1023:0] chunk0;
         input [1023:0] chunk1;
@@ -81,18 +56,15 @@ module flit_mode_controller_tb;
             tlp_in       <= chunk0;
             tlp_valid_in <= 1;
             flit_mode_en <= 1;
-            @(posedge clk); #1;          // IDLE  -> LOAD_1
+            @(posedge clk); #1;
             tlp_in       <= chunk1;
             tlp_valid_in <= 1;
-            @(posedge clk); #1;          // LOAD_1 -> LOAD_2
+            @(posedge clk); #1;
             tlp_valid_in <= 0;
             tlp_in       <= {1024{1'b0}};
         end
     endtask
 
-    // =========================================================================
-    // Task: wait_flit_valid  (polls up to <timeout> cycles)
-    // =========================================================================
     task wait_flit_valid;
         input integer timeout;
         integer cnt;
@@ -107,9 +79,6 @@ module flit_mode_controller_tb;
         end
     endtask
 
-    // =========================================================================
-    // Pass / fail counters
-    // =========================================================================
     integer pass_cnt, fail_cnt;
 
     task check;
@@ -126,15 +95,9 @@ module flit_mode_controller_tb;
         end
     endtask
 
-    // =========================================================================
-    // Module-level variables (Verilog-2001: no declarations inside begin/end)
-    // =========================================================================
     integer      i;
     reg [23:0]   crc_first;
 
-    // =========================================================================
-    // Main stimulus
-    // =========================================================================
     initial begin
         pass_cnt = 0;
         fail_cnt = 0;
@@ -144,19 +107,13 @@ module flit_mode_controller_tb;
 
         apply_reset;
 
-        // =====================================================================
-        // TC1: Normal FLIT Assembly and ACK
-        // Expected: flit_valid=1, flit_retry_req=0, flit_seq=0
-        // =====================================================================
         $display("\n=== TC1: Normal FLIT Assembly + ACK ===");
         dll_flit_ack <= 0;
 
         send_tlp_pair({128{8'hAB}}, {128{8'hCD}});
 
-        // Pipeline: LOAD_2 -> CALC_CRC -> EMIT -> WAIT_ACK  (~4 cycles)
         wait_flit_valid(20);
 
-        // Sample outputs while in EMIT/WAIT_ACK (flit_valid=1, retry not yet set)
         check(flit_valid         == 1,      "TC1: flit_valid asserted");
         check(flit_retry_req     == 0,      "TC1: no retry_req before ACK");
         check(flit_seq           == 12'h0,  "TC1: seq == 0");
@@ -166,7 +123,6 @@ module flit_mode_controller_tb;
         $display("  flit_seq = %0d  flit_crc = 0x%06h  flit_valid = %b",
                  flit_seq, flit_crc, flit_valid);
 
-        // Grant ACK within timeout window
         dll_flit_ack <= 1;
         @(posedge clk); #1;
         dll_flit_ack <= 0;
@@ -175,26 +131,18 @@ module flit_mode_controller_tb;
         check(flit_retry_req == 0, "TC1: no retry after ACK");
         @(posedge clk); #1;
 
-
-        // =====================================================================
-        // TC2: Retry after timeout (withhold ACK > 8 cycles)
-        // Expected: flit_retry_req=1 after timeout, cleared on ACK
-        // =====================================================================
         $display("\n=== TC2: Retry After ACK Timeout ===");
         dll_flit_ack <= 0;
 
         send_tlp_pair({128{8'h11}}, {128{8'h22}});
         wait_flit_valid(20);
 
-        // Must wait ACK_TIMEOUT (8) + pipeline cycles before retry fires
-        // Wait 12 extra cycles to be safely past timeout
         repeat(12) @(posedge clk);
         #1;
 
         check(flit_retry_req == 1, "TC2: retry_req asserted after timeout");
         check(flit_seq       == 12'h1, "TC2: seq still 1 (not incremented on NACK)");
 
-        // Now ACK the retry
         dll_flit_ack <= 1;
         @(posedge clk); #1;
         dll_flit_ack <= 0;
@@ -203,13 +151,8 @@ module flit_mode_controller_tb;
         check(flit_retry_req == 0, "TC2: retry_req cleared after ACK");
         @(posedge clk); #1;
 
-
-        // =====================================================================
-        // TC3: Back-to-back FLITs — check seq increments
-        // =====================================================================
         $display("\n=== TC3: Back-to-Back FLITs ===");
 
-        // FLIT A  (seq should be 2)
         dll_flit_ack <= 0;
         send_tlp_pair({128{8'hAA}}, {128{8'hBB}});
         wait_flit_valid(20);
@@ -219,7 +162,6 @@ module flit_mode_controller_tb;
         dll_flit_ack <= 0;
         @(posedge clk); #1;
 
-        // FLIT B  (seq should be 3)
         send_tlp_pair({128{8'hCC}}, {128{8'hDD}});
         wait_flit_valid(20);
         check(flit_seq == 12'h3, "TC3: FLIT-B seq == 3");
@@ -228,10 +170,6 @@ module flit_mode_controller_tb;
         dll_flit_ack <= 0;
         @(posedge clk); #1;
 
-
-        // =====================================================================
-        // TC4: flit_mode_en=0 — no FLIT emitted
-        // =====================================================================
         $display("\n=== TC4: flit_mode_en Disabled ===");
         flit_mode_en <= 0;
         tlp_in       <= {1024{8'hFF}};
@@ -243,10 +181,6 @@ module flit_mode_controller_tb;
         check(flit_valid == 0, "TC4: flit_valid stays 0 when disabled");
         flit_mode_en <= 1;
 
-
-        // =====================================================================
-        // TC5: CRC non-zero and changes with payload
-        // =====================================================================
         $display("\n=== TC5: CRC Correctness ===");
         dll_flit_ack <= 0;
 
@@ -270,10 +204,6 @@ module flit_mode_controller_tb;
         @(posedge clk); #1;
         dll_flit_ack <= 0;
 
-
-        // =====================================================================
-        // Summary
-        // =====================================================================
         $display("\n============================================");
         $display("  RESULTS: %0d PASSED, %0d FAILED", pass_cnt, fail_cnt);
         $display("============================================");
@@ -286,9 +216,6 @@ module flit_mode_controller_tb;
         $finish;
     end
 
-    // =========================================================================
-    // Monitor
-    // =========================================================================
     always @(posedge clk) begin
         if (flit_valid)
             $display("[FLIT] seq=%0d  crc=0x%06h  retry=%b  overflow=%b  state=%0d",

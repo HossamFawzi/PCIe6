@@ -1,6 +1,4 @@
-// =============================================================================
-// PCIe Gen6 DLL Support Block: DLLP Generator (DLLP_GEN)
-// =============================================================================
+
 module dllp_gen (
     input  wire        clk,
     input  wire        rst_n,
@@ -19,7 +17,7 @@ module dllp_gen (
     output reg  [63:0] nop_dllp,
     output reg         nop_valid
 );
-    localparam DLLP_NOP_TYPE = 8'h31; // BUG FIX: NOP=0x31 per spec (not 0x00=ACK)
+    localparam DLLP_NOP_TYPE = 8'h31;
     localparam DLLP_PM_BASE  = 8'h20;
 
     always @(posedge clk or negedge rst_n) begin
@@ -31,12 +29,11 @@ module dllp_gen (
             nop_dllp      <= 64'd0;
             nop_valid     <= 1'b0;
         end else begin
-            // Default: clear all valids every cycle (pulse outputs)
+
             fc_dllp_valid <= 1'b0;
             pm_dllp_valid <= 1'b0;
             nop_valid     <= 1'b0;
 
-            // BW notification overrides FC (higher priority)
             if (bw_notif_valid) begin
                 fc_dllp       <= bw_notif;
                 fc_dllp_valid <= 1'b1;

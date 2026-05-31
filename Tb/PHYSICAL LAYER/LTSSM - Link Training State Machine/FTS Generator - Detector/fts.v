@@ -1,40 +1,25 @@
-// ============================================================
-// Module 44 : FTS Generator / Detector (FTS)
-// PCIe Gen6 Physical Layer
-// Fast Training Sequence for L0s exit.
-// TX sends N FTS symbols. RX detects FTS for re-lock.
-// ============================================================
+
 module fts (
     input  wire        clk,
     input  wire        rst_n,
 
-    // TX control
-    input  wire        fts_send,           // Request to send FTS
-    input  wire [7:0]  fts_count,          // Number of FTS symbols to send
+    input  wire        fts_send,
+    input  wire [7:0]  fts_count,
 
-    // RX input
     input  wire [255:0] rx_data,
     input  wire         rx_valid,
 
-    // TX outputs
-    output reg  [255:0] fts_data,          // FTS ordered set data
-    output reg          fts_tx_valid,      // FTS data valid for TX
+    output reg  [255:0] fts_data,
+    output reg          fts_tx_valid,
 
-    // RX detection outputs
-    output reg          fts_detected,      // FTS detected on RX
-    output reg  [7:0]   fts_count_rx       // Count of consecutive FTS detected
+    output reg          fts_detected,
+    output reg  [7:0]   fts_count_rx
 );
 
-// FTS symbol = K28.1 = 0x3C (per PCIe spec)
-// Each 256-bit word carries 32 symbols; a single FTS OS is 4 symbols
-// For simplicity: one 256-bit word = one FTS OS transmission
-localparam [7:0] FTS_SYMBOL = 8'h3C;  // K28.1
-localparam [7:0] COM_SYMBOL = 8'hBC;  // K28.5
-localparam [7:0] FTS_ID     = 8'hF7;  // PAD (used as filler after FTS header)
+localparam [7:0] FTS_SYMBOL = 8'h3C;
+localparam [7:0] COM_SYMBOL = 8'hBC;
+localparam [7:0] FTS_ID     = 8'hF7;
 
-// Build FTS pattern: 4 x FTS_SYMBOL followed by PAD to fill 256 bits
-// FTS OS = FTS FTS FTS FTS (4 symbols) × fts_count times
-// We pack one 32-symbol FTS frame per tx word (8 FTS ordered sets per word)
 wire [255:0] fts_word;
 genvar gi;
 generate
@@ -43,7 +28,6 @@ generate
     end
 endgenerate
 
-// TX FSM
 reg [1:0] tx_state;
 localparam TX_IDLE  = 2'd0;
 localparam TX_SEND  = 2'd1;
@@ -88,7 +72,6 @@ always @(posedge clk or negedge rst_n) begin
     end
 end
 
-// RX detection: detect FTS_SYMBOL in all byte positions
 wire [31:0] sym_is_fts;
 genvar ri;
 generate
@@ -97,7 +80,7 @@ generate
     end
 endgenerate
 
-wire all_fts = (&sym_is_fts);  // All 32 symbols are FTS
+wire all_fts = (&sym_is_fts);
 
 always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin

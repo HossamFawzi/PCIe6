@@ -1,9 +1,4 @@
-// =============================================================================
-// Testbench: pm_tmr — Link State Power Timer  🔴 MUST
-// Tests: reset, L0s timer fires at limit, L1 timer fires at limit,
-//        exit_req resets respective counter, both timers independent,
-//        pm_timeout_err on simultaneous expiry, no expiry before limit
-// =============================================================================
+
 `timescale 1ns/1ps
 module tb_pm_tmr;
 
@@ -56,14 +51,12 @@ module tb_pm_tmr;
     initial begin
         $display("=== TB: pm_tmr ===");
 
-        // TC1: Reset -> no expiry
         $display("[TC1] Reset: no timer expiry");
         apply_reset; @(posedge clk);
         check1(0, l0s_timer_exp,  "l0s_timer_exp=0 after reset");
         check1(0, l1_timer_exp,   "l1_timer_exp=0 after reset");
         check1(0, pm_timeout_err, "pm_timeout_err=0 after reset");
 
-        // TC2: No entry request -> timer never fires
         $display("[TC2] No entry_req -> timer silent");
         apply_reset;
         l0s_limit = 16'd4; l1_limit = 16'd4;
@@ -71,7 +64,6 @@ module tb_pm_tmr;
         check1(0, l0s_timer_exp, "l0s_timer_exp=0 without entry_req");
         check1(0, l1_timer_exp,  "l1_timer_exp=0 without entry_req");
 
-        // TC3: L0s timer fires at l0s_limit
         $display("[TC3] L0s timer fires at l0s_limit");
         apply_reset;
         l0s_limit = 16'd5;
@@ -79,7 +71,6 @@ module tb_pm_tmr;
         repeat(7) @(posedge clk);
         check1(1, l0s_timer_exp, "l0s_timer_exp=1 at limit");
 
-        // TC4: L1 timer fires at l1_limit
         $display("[TC4] L1 timer fires at l1_limit");
         apply_reset;
         l1_limit = 16'd6;
@@ -87,7 +78,6 @@ module tb_pm_tmr;
         repeat(9) @(posedge clk);
         check1(1, l1_timer_exp, "l1_timer_exp=1 at limit");
 
-        // TC5: l0s_exit_req resets L0s counter -> no expiry
         $display("[TC5] l0s_exit_req resets L0s timer");
         apply_reset;
         l0s_limit = 16'd6;
@@ -97,7 +87,6 @@ module tb_pm_tmr;
         repeat(4) @(posedge clk);
         check1(0, l0s_timer_exp, "l0s_timer_exp=0 after exit_req reset");
 
-        // TC6: l1_exit_req resets L1 counter -> no expiry
         $display("[TC6] l1_exit_req resets L1 timer");
         apply_reset;
         l1_limit = 16'd6;
@@ -107,7 +96,6 @@ module tb_pm_tmr;
         repeat(4) @(posedge clk);
         check1(0, l1_timer_exp, "l1_timer_exp=0 after l1_exit_req reset");
 
-        // TC7: L0s and L1 timers are independent
         $display("[TC7] L0s and L1 timers are independent");
         apply_reset;
         l0s_limit = 16'd5; l1_limit = 16'd10;
@@ -117,10 +105,9 @@ module tb_pm_tmr;
         check1(1, l0s_timer_exp, "L0s fired at 5 cycles");
         check1(0, l1_timer_exp,  "L1 not fired at 7 cycles (limit=10)");
 
-        // TC8: pm_timeout_err when both timers expire simultaneously
         $display("[TC8] pm_timeout_err on simultaneous expiry");
         apply_reset;
-        l0s_limit = 16'd5; l1_limit = 16'd5; // same limit -> simultaneous
+        l0s_limit = 16'd5; l1_limit = 16'd5;
         l0s_entry_req = 1; l1_entry_req = 1;
         @(posedge clk); l0s_entry_req = 0; l1_entry_req = 0;
         repeat(8) @(posedge clk);

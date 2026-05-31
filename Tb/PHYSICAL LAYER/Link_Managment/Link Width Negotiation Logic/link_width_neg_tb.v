@@ -2,9 +2,6 @@
 
 module link_width_neg_tb;
 
-    // -----------------------------------------------------------------------
-    // DUT ports
-    // -----------------------------------------------------------------------
     reg        clk;
     reg        rst_n;
     reg  [7:0] ts1_lane_num;
@@ -30,45 +27,29 @@ module link_width_neg_tb;
         .width_change_req(width_change_req)
     );
 
-    // -----------------------------------------------------------------------
-    // Clock: 250 MHz
-    // -----------------------------------------------------------------------
     initial clk = 1'b0;
     always #2 clk = ~clk;
 
-    // -----------------------------------------------------------------------
-    // LTSSM state encoding (mirrors DUT)
-    // -----------------------------------------------------------------------
     localparam ST_DETECT   = 6'h00;
     localparam ST_POLLING  = 6'h01;
     localparam ST_CONFIG   = 6'h02;
     localparam ST_RECOVERY = 6'h03;
     localparam ST_L0       = 6'h04;
 
-    // -----------------------------------------------------------------------
-    // Capability bitmask helpers
-    // ts1 / local bit[4:0] = x16/x8/x4/x2/x1
-    // -----------------------------------------------------------------------
-    localparam P_X1  = 8'h01;   // partner: x1 only
-    localparam P_X2  = 8'h03;   // partner: x1+x2
-    localparam P_X4  = 8'h07;   // partner: x1+x2+x4
-    localparam P_X8  = 8'h0F;   // partner: x1..x8
-    localparam P_X16 = 8'h1F;   // partner: x1..x16
+    localparam P_X1  = 8'h01;
+    localparam P_X2  = 8'h03;
+    localparam P_X4  = 8'h07;
+    localparam P_X8  = 8'h0F;
+    localparam P_X16 = 8'h1F;
 
-    localparam L_X1  = 6'h01;   // local:   x1 only
+    localparam L_X1  = 6'h01;
     localparam L_X2  = 6'h03;
     localparam L_X4  = 6'h07;
     localparam L_X8  = 6'h0F;
     localparam L_X16 = 6'h1F;
 
-    // -----------------------------------------------------------------------
-    // Bookkeeping
-    // -----------------------------------------------------------------------
     integer fail_count;
 
-    // -----------------------------------------------------------------------
-    // Task: apply stimulus and settle
-    // -----------------------------------------------------------------------
     task apply_and_wait;
         input [7:0] ts1;
         input [5:0] lcap;
@@ -84,9 +65,6 @@ module link_width_neg_tb;
         end
     endtask
 
-    // -----------------------------------------------------------------------
-    // Task: full reset
-    // -----------------------------------------------------------------------
     task do_reset;
         begin
             @(negedge clk);
@@ -101,9 +79,6 @@ module link_width_neg_tb;
         end
     endtask
 
-    // -----------------------------------------------------------------------
-    // MAIN
-    // -----------------------------------------------------------------------
     initial begin
         $dumpfile("link_width_neg_tb.vcd");
         $dumpvars(0, link_width_neg_tb);
@@ -119,9 +94,6 @@ module link_width_neg_tb;
         rst_n = 1'b1;
         @(posedge clk);
 
-        // ================================================================
-        // TEST 1 — Reset defaults: x1, not done, lane[0] only
-        // ================================================================
         @(posedge clk); #0.5;
         if (negotiated_width === 6'd1  &&
             width_neg_done   === 1'b0  &&
@@ -134,10 +106,6 @@ module link_width_neg_tb;
             fail_count = fail_count + 1;
         end
 
-        // ================================================================
-        // TEST 2 — x16: both sides fully capable, in Config
-        // Expected: negotiated=16, done=1, active=0xFFFF
-        // ================================================================
         apply_and_wait(P_X16, L_X16, 1'b0, ST_CONFIG);
         if (negotiated_width === 6'd16 &&
             width_neg_done   === 1'b1  &&
@@ -149,9 +117,6 @@ module link_width_neg_tb;
             fail_count = fail_count + 1;
         end
 
-        // ================================================================
-        // TEST 3 — x16 in Recovery state (same result as Config)
-        // ================================================================
         apply_and_wait(P_X16, L_X16, 1'b0, ST_RECOVERY);
         if (negotiated_width === 6'd16 && width_neg_done === 1'b1)
             $display("PASS TEST 3: x16 in Recovery, width=%0d done=%b",
@@ -161,9 +126,6 @@ module link_width_neg_tb;
             fail_count = fail_count + 1;
         end
 
-        // ================================================================
-        // TEST 4 — Fallback x8: local only supports up to x8
-        // ================================================================
         apply_and_wait(P_X16, L_X8, 1'b0, ST_CONFIG);
         if (negotiated_width === 6'd8  &&
             width_neg_done   === 1'b1  &&
@@ -176,9 +138,6 @@ module link_width_neg_tb;
             fail_count = fail_count + 1;
         end
 
-        // ================================================================
-        // TEST 5 — Fallback x4: partner only supports up to x4
-        // ================================================================
         apply_and_wait(P_X4, L_X16, 1'b0, ST_CONFIG);
         if (negotiated_width === 6'd4  &&
             width_neg_done   === 1'b1  &&
@@ -191,9 +150,6 @@ module link_width_neg_tb;
             fail_count = fail_count + 1;
         end
 
-        // ================================================================
-        // TEST 6 — Fallback x2
-        // ================================================================
         apply_and_wait(P_X2, L_X16, 1'b0, ST_CONFIG);
         if (negotiated_width === 6'd2  &&
             width_neg_done   === 1'b1  &&
@@ -206,9 +162,6 @@ module link_width_neg_tb;
             fail_count = fail_count + 1;
         end
 
-        // ================================================================
-        // TEST 7 — x1 only: both sides support only x1
-        // ================================================================
         apply_and_wait(P_X1, L_X1, 1'b0, ST_CONFIG);
         if (negotiated_width === 6'd1  &&
             width_neg_done   === 1'b1  &&
@@ -221,10 +174,6 @@ module link_width_neg_tb;
             fail_count = fail_count + 1;
         end
 
-        // ================================================================
-        // TEST 8 — No common capability: ts1 x2-only, local x4-only
-        //          Expected: width_neg_done=0, default x1
-        // ================================================================
         apply_and_wait(8'h02, 6'h04, 1'b0, ST_CONFIG);
         if (width_neg_done === 1'b0)
             $display("PASS TEST 8: no common cap, neg_done=0 width=%0d",
@@ -235,9 +184,6 @@ module link_width_neg_tb;
             fail_count = fail_count + 1;
         end
 
-        // ================================================================
-        // TEST 9 — Outside Config/Recovery (L0): neg_done and change_req = 0
-        // ================================================================
         apply_and_wait(P_X16, L_X16, 1'b1, ST_L0);
         if (width_neg_done === 1'b0 && width_change_req === 1'b0)
             $display("PASS TEST 9: L0 state, done=%b change_req=%b",
@@ -248,9 +194,6 @@ module link_width_neg_tb;
             fail_count = fail_count + 1;
         end
 
-        // ================================================================
-        // TEST 10 — Detect state: neg_done and change_req = 0
-        // ================================================================
         apply_and_wait(P_X16, L_X16, 1'b1, ST_DETECT);
         if (width_neg_done === 1'b0 && width_change_req === 1'b0)
             $display("PASS TEST 10: Detect state, done=%b change_req=%b",
@@ -261,10 +204,6 @@ module link_width_neg_tb;
             fail_count = fail_count + 1;
         end
 
-        // ================================================================
-        // TEST 11 — width_change_req: upcfg_req=1, multi-lane capable
-        //           in Recovery → change_req asserted
-        // ================================================================
         apply_and_wait(P_X16, L_X16, 1'b1, ST_RECOVERY);
         if (width_change_req === 1'b1 && width_neg_done === 1'b1)
             $display("PASS TEST 11: upcfg change_req=%b in Recovery", width_change_req);
@@ -274,9 +213,6 @@ module link_width_neg_tb;
             fail_count = fail_count + 1;
         end
 
-        // ================================================================
-        // TEST 12 — width_change_req: upcfg_req=0 → change_req=0
-        // ================================================================
         apply_and_wait(P_X16, L_X16, 1'b0, ST_RECOVERY);
         if (width_change_req === 1'b0)
             $display("PASS TEST 12: upcfg_req=0, change_req=%b", width_change_req);
@@ -285,10 +221,6 @@ module link_width_neg_tb;
             fail_count = fail_count + 1;
         end
 
-        // ================================================================
-        // TEST 13 — width_change_req: upcfg_req=1 but only x1 common
-        //           → no upconfigure possible → change_req=0
-        // ================================================================
         apply_and_wait(P_X1, L_X1, 1'b1, ST_RECOVERY);
         if (width_change_req === 1'b0)
             $display("PASS TEST 13: upcfg=1 x1-only, change_req=%b (no upgrade possible)",
@@ -298,9 +230,6 @@ module link_width_neg_tb;
             fail_count = fail_count + 1;
         end
 
-        // ================================================================
-        // TEST 14 — active_lanes bitmap for each width
-        // ================================================================
         begin : test14
             integer ok;
             ok = 1;
@@ -339,9 +268,6 @@ module link_width_neg_tb;
                 $display("PASS TEST 14: all active_lanes bitmaps correct");
         end
 
-        // ================================================================
-        // TEST 15 — Asymmetric: partner x8, local x16 → x8 (partner limits)
-        // ================================================================
         apply_and_wait(P_X8, L_X16, 1'b0, ST_CONFIG);
         if (negotiated_width === 6'd8 && active_lanes === 16'h00FF)
             $display("PASS TEST 15: asymmetric x8/x16 → x8, lanes=%h", active_lanes);
@@ -351,9 +277,6 @@ module link_width_neg_tb;
             fail_count = fail_count + 1;
         end
 
-        // ================================================================
-        // TEST 16 — Async reset mid-operation clears outputs
-        // ================================================================
         apply_and_wait(P_X16, L_X16, 1'b1, ST_RECOVERY);
         @(negedge clk);
         rst_n = 1'b0;
@@ -370,12 +293,8 @@ module link_width_neg_tb;
         end
         rst_n = 1'b1;
 
-        // ================================================================
-        // TEST 17 — Config holds target after returning to L0
-        //           (negotiated_width preserved, done de-asserted)
-        // ================================================================
         apply_and_wait(P_X16, L_X16, 1'b0, ST_CONFIG);
-        // transition to L0
+
         apply_and_wait(P_X16, L_X16, 1'b0, ST_L0);
         if (negotiated_width === 6'd16 && width_neg_done === 1'b0)
             $display("PASS TEST 17: L0 holds width=%0d, done=0 (inactive)",
@@ -386,9 +305,6 @@ module link_width_neg_tb;
             fail_count = fail_count + 1;
         end
 
-        // ================================================================
-        // TEST 18 — Polling state: neg_done=0, width_change_req=0
-        // ================================================================
         apply_and_wait(P_X16, L_X16, 1'b1, 6'h01);
         if (width_neg_done === 1'b0 && width_change_req === 1'b0)
             $display("PASS TEST 18: Polling state done=%b chgreq=%b",
@@ -399,9 +315,6 @@ module link_width_neg_tb;
             fail_count = fail_count + 1;
         end
 
-        // ================================================================
-        // SUMMARY
-        // ================================================================
         repeat(4) @(posedge clk);
         if (fail_count == 0)
             $display("ALL TESTS PASSED");

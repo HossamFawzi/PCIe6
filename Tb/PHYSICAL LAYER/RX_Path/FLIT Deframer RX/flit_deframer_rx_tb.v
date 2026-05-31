@@ -1,15 +1,8 @@
-//============================================================
-// Testbench: flit_deframer_rx_tb
-// PCIe 6.0 Physical Link Layer - FLIT Deframer RX
-// Compatible with ModelSim / QuestaSim / Icarus Verilog
-//============================================================
+
 `timescale 1ns/1ps
 
 module flit_deframer_rx_tb;
 
-    // -------------------------------------------------------
-    // DUT ports
-    // -------------------------------------------------------
     reg           clk;
     reg           rst_n;
     reg  [2303:0] flit_in;
@@ -27,9 +20,6 @@ module flit_deframer_rx_tb;
     wire          flit_null;
     wire          flit_sync_err;
 
-    // -------------------------------------------------------
-    // DUT instantiation
-    // -------------------------------------------------------
     flit_deframer_rx DUT (
         .clk          (clk),
         .rst_n        (rst_n),
@@ -48,23 +38,13 @@ module flit_deframer_rx_tb;
         .flit_sync_err(flit_sync_err)
     );
 
-    // -------------------------------------------------------
-    // Clock: 1 GHz (1 ns period)
-    // -------------------------------------------------------
     initial clk = 0;
     always #0.5 clk = ~clk;
 
-    // -------------------------------------------------------
-    // Test counters
-    // -------------------------------------------------------
     integer pass_cnt;
     integer fail_cnt;
     integer test_num;
 
-    // -------------------------------------------------------
-    // CRC-32/MPEG-2 reference function (identical to DUT)
-    // Poly=0x04C11DB7, Init=0xFFFFFFFF, no reflection, no final XOR
-    // -------------------------------------------------------
     function [31:0] crc32_ref;
         input [2015:0] data;
         reg   [31:0]   crc;
@@ -81,12 +61,6 @@ module flit_deframer_rx_tb;
         end
     endfunction
 
-    // -------------------------------------------------------
-    // Task: assemble a valid 2304-bit FLIT block
-    //   flit_in = { fec[255:0], crc[31:0],
-    //               seq[11:0], ftype[3:0],
-    //               dllp[63:0], tlp[1023:0], rsvd[911:0] }
-    // -------------------------------------------------------
     task build_flit;
         input [3:0]    ftype;
         input [11:0]   seq;
@@ -94,7 +68,7 @@ module flit_deframer_rx_tb;
         input [63:0]   dllp;
         input [911:0]  rsvd;
         input [255:0]  fec;
-        input          corrupt_crc;    // 1 = flip one CRC bit
+        input          corrupt_crc;
         output [2303:0] flit_out;
         reg [2015:0] content;
         reg [31:0]   crc;
@@ -106,9 +80,6 @@ module flit_deframer_rx_tb;
         end
     endtask
 
-    // -------------------------------------------------------
-    // Task: apply one FLIT and check all outputs
-    // -------------------------------------------------------
     task apply_and_check;
         input [2303:0] fin;
         input          fv;
@@ -160,7 +131,7 @@ module flit_deframer_rx_tb;
                     fail_cnt = fail_cnt + 1;
                 end
             end else begin
-                // When disabled: check error flags are suppressed
+
                 if (flit_crc_err === 1'b0 && flit_sync_err === 1'b0 &&
                     tlp_valid    === 1'b0 && dllp_valid    === 1'b0) begin
                     $display("[PASS] Test %0d (%s): disabled - no spurious outputs", test_num, label);
@@ -174,9 +145,6 @@ module flit_deframer_rx_tb;
         end
     endtask
 
-    // -------------------------------------------------------
-    // Reset task
-    // -------------------------------------------------------
     task do_reset;
         begin
             rst_n        = 1'b0;
@@ -192,9 +160,6 @@ module flit_deframer_rx_tb;
         end
     endtask
 
-    // -------------------------------------------------------
-    // Test data constants
-    // -------------------------------------------------------
     localparam [1023:0] TLP_A = 1024'hDEAD_BEEF_CAFE_BABE_1234_5678_9ABC_DEF0_DEAD_BEEF_CAFE_BABE_1234_5678_9ABC_DEF0_DEAD_BEEF_CAFE_BABE_1234_5678_9ABC_DEF0_DEAD_BEEF_CAFE_BABE_1234_5678_9ABC_DEF0_DEAD_BEEF_CAFE_BABE_1234_5678_9ABC_DEF0_DEAD_BEEF_CAFE_BABE_1234_5678_9ABC_DEF0_DEAD_BEEF_CAFE_BABE_1234_5678_9ABC_DEF0_DEAD_BEEF_CAFE_BABE_1234_5678_9ABC_DEF0;
     localparam [1023:0] TLP_B = 1024'hAAAA_BBBB_CCCC_DDDD_EEEE_FFFF_0000_1111_2222_3333_4444_5555_6666_7777_8888_9999_AAAA_BBBB_CCCC_DDDD_EEEE_FFFF_0000_1111_2222_3333_4444_5555_6666_7777_8888_9999_AAAA_BBBB_CCCC_DDDD_EEEE_FFFF_0000_1111_2222_3333_4444_5555_6666_7777_8888_9999_AAAA_BBBB_CCCC_DDDD_EEEE_FFFF_0000_1111_2222_3333_4444_5555_6666_7777_8888_9999;
     localparam [63:0]   DLLP_A = 64'hFEDC_BA98_7654_3210;
@@ -205,9 +170,6 @@ module flit_deframer_rx_tb;
 
     reg [2303:0] flit_vec;
 
-    // -------------------------------------------------------
-    // Main test body
-    // -------------------------------------------------------
     initial begin
         pass_cnt = 0;
         fail_cnt = 0;
@@ -221,9 +183,6 @@ module flit_deframer_rx_tb;
         do_reset;
         $display("\n--- Reset Complete ---\n");
 
-        // ============================================================
-        // GROUP 1: Data FLIT (type=1, TLP+DLLP)
-        // ============================================================
         $display("--- Group 1: Data FLIT (type=1, TLP+DLLP) ---");
 
         build_flit(4'h1, 12'h001, TLP_A, DLLP_A, RSVD_0, FEC_ZERO, 0, flit_vec);
@@ -241,9 +200,6 @@ module flit_deframer_rx_tb;
                         1024'h0,1, 64'h0,1, 12'hFFF, 0,0,0,
                         "DATA_seq_FFF_zeros");
 
-        // ============================================================
-        // GROUP 2: TLP-only FLIT (type=2)
-        // ============================================================
         $display("\n--- Group 2: TLP-only FLIT (type=2) ---");
 
         build_flit(4'h2, 12'h010, TLP_A, 64'hDEAD, RSVD_0, FEC_ZERO, 0, flit_vec);
@@ -256,9 +212,6 @@ module flit_deframer_rx_tb;
                         TLP_B,1, 64'h0,0, 12'h011, 0,0,0,
                         "TLP_ONLY_seq011");
 
-        // ============================================================
-        // GROUP 3: DLLP-only FLIT (type=3)
-        // ============================================================
         $display("\n--- Group 3: DLLP-only FLIT (type=3) ---");
 
         build_flit(4'h3, 12'h020, 1024'hBEEF, DLLP_A, RSVD_0, FEC_ZERO, 0, flit_vec);
@@ -271,9 +224,6 @@ module flit_deframer_rx_tb;
                         1024'h0,0, DLLP_B,1, 12'h021, 0,0,0,
                         "DLLP_ONLY_seq021");
 
-        // ============================================================
-        // GROUP 4: Null FLIT (type=0)
-        // ============================================================
         $display("\n--- Group 4: Null FLIT (type=0) ---");
 
         build_flit(4'h0, 12'h030, TLP_A, DLLP_A, RSVD_0, FEC_ZERO, 0, flit_vec);
@@ -286,9 +236,6 @@ module flit_deframer_rx_tb;
                         1024'h0,0, 64'h0,0, 12'h031, 0,1,0,
                         "NULL_seq031");
 
-        // ============================================================
-        // GROUP 5: CRC Error
-        // ============================================================
         $display("\n--- Group 5: CRC Error (flit_crc_err=1) ---");
 
         build_flit(4'h1, 12'h040, TLP_A, DLLP_A, RSVD_0, FEC_ZERO, 1, flit_vec);
@@ -306,9 +253,6 @@ module flit_deframer_rx_tb;
                         1024'h0,0, 64'h0,0, 12'h042, 1,0,0,
                         "CRC_ERR_type3");
 
-        // ============================================================
-        // GROUP 6: Invalid FLIT type -> flit_sync_err=1
-        // ============================================================
         $display("\n--- Group 6: Invalid FLIT Type (flit_sync_err=1) ---");
 
         build_flit(4'hA, 12'h050, TLP_A, DLLP_A, RSVD_0, FEC_ZERO, 0, flit_vec);
@@ -326,9 +270,6 @@ module flit_deframer_rx_tb;
                         1024'h0,0, 64'h0,0, 12'h052, 0,0,1,
                         "INV_TYPE_0x8");
 
-        // ============================================================
-        // GROUP 7: FEC Uncorrectable Error (fec_syndrome!=0, fec_corrected=0)
-        // ============================================================
         $display("\n--- Group 7: FEC Uncorrectable Error (flit_sync_err=1) ---");
 
         build_flit(4'h1, 12'h060, TLP_A, DLLP_A, RSVD_0, FEC_ERR, 0, flit_vec);
@@ -341,10 +282,6 @@ module flit_deframer_rx_tb;
                         1024'h0,0, 64'h0,0, 12'h061, 0,0,1,
                         "FEC_UNCORR_type2");
 
-        // ============================================================
-        // GROUP 8: FEC Corrected (fec_syndrome!=0, fec_corrected=1)
-        //          sync_err must NOT be asserted
-        // ============================================================
         $display("\n--- Group 8: FEC Corrected (no flit_sync_err) ---");
 
         build_flit(4'h1, 12'h070, TLP_A, DLLP_A, RSVD_0, FEC_ERR, 0, flit_vec);
@@ -357,9 +294,6 @@ module flit_deframer_rx_tb;
                         1024'h0,0, DLLP_B,1, 12'h071, 0,0,0,
                         "FEC_CORR_type3");
 
-        // ============================================================
-        // GROUP 9: flit_valid=0 (no decode)
-        // ============================================================
         $display("\n--- Group 9: flit_valid=0 (decoder idle) ---");
 
         build_flit(4'h1, 12'h080, TLP_A, DLLP_A, RSVD_0, FEC_ZERO, 0, flit_vec);
@@ -372,9 +306,6 @@ module flit_deframer_rx_tb;
                         1024'h0,0, 64'h0,0, 12'h000, 0,0,0,
                         "FLIT_VALID_0_NULL");
 
-        // ============================================================
-        // GROUP 10: flit_mode_en=0 (FLIT mode disabled)
-        // ============================================================
         $display("\n--- Group 10: flit_mode_en=0 (FLIT mode disabled) ---");
 
         build_flit(4'h1, 12'h090, TLP_A, DLLP_A, RSVD_0, FEC_ZERO, 0, flit_vec);
@@ -387,9 +318,6 @@ module flit_deframer_rx_tb;
                         1024'h0,0, 64'h0,0, 12'h000, 0,0,0,
                         "MODE_EN_0_INV_TYPE");
 
-        // ============================================================
-        // GROUP 11: Reset during operation
-        // ============================================================
         $display("\n--- Group 11: Reset During Operation ---");
 
         build_flit(4'h1, 12'h0A0, TLP_A, DLLP_A, RSVD_0, FEC_ZERO, 0, flit_vec);
@@ -420,9 +348,6 @@ module flit_deframer_rx_tb;
         rst_n = 1'b1;
         @(posedge clk);
 
-        // ============================================================
-        // GROUP 12: Sequence number tracking (check flit_seq monotonicity)
-        // ============================================================
         $display("\n--- Group 12: Sequence Number Tracking ---");
 
         begin : seq_blk
@@ -454,9 +379,6 @@ module flit_deframer_rx_tb;
             end
         end
 
-        // ============================================================
-        // GROUP 13: Continuous streaming - interleaved types
-        // ============================================================
         $display("\n--- Group 13: Continuous Streaming (interleaved types) ---");
 
         begin : stream_blk
@@ -506,9 +428,6 @@ module flit_deframer_rx_tb;
             end
         end
 
-        // ============================================================
-        // SUMMARY
-        // ============================================================
         $display("\n========================================================");
         $display(" SIMULATION COMPLETE");
         $display(" Total Tests : %0d", test_num);
@@ -523,14 +442,12 @@ module flit_deframer_rx_tb;
         $finish;
     end
 
-    // Timeout watchdog
     initial begin
         #200000;
         $display("[TIMEOUT] Simulation exceeded time limit");
         $finish;
     end
 
-    // Waveform dump
     initial begin
         $dumpfile("flit_deframer_rx_waves.vcd");
         $dumpvars(0, flit_deframer_rx_tb);

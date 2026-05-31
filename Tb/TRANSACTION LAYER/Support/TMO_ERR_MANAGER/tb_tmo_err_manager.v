@@ -1,13 +1,4 @@
-// =============================================================
-//  TESTBENCH : tb_tmo_err_manager
-//  DUT       : tmo_err_manager
-//  TESTS:
-//    T1 — Allocate tag, return before timeout → no error
-//    T2 — Allocate tag, let it expire → timeout fires
-//    T3 — Multiple tags: one returns OK, one times out
-//    T4 — cpl_timeout_err sticks after timeout
-//    T5 — New tag alloc right after timeout of previous
-// =============================================================
+
 `timescale 1ns/1ps
 
 module tb_tmo_err_manager;
@@ -101,9 +92,6 @@ module tb_tmo_err_manager;
     initial begin
         $display("=== tmo_err_manager Testbench ===");
 
-        // --------------------------------------------------
-        // T1: Allocate tag 3, return before timeout → no error
-        // --------------------------------------------------
         $display("\n[T1] Tag 3 returned before timeout");
         do_reset;
         timeout_limit = 16'd20;
@@ -114,14 +102,11 @@ module tb_tmo_err_manager;
         check(timeout_valid,   1'b0, "no timeout_valid");
         check(cpl_timeout_err, 1'b0, "no cpl_timeout_err");
 
-        // --------------------------------------------------
-        // T2: Allocate tag 5, let it expire (limit=8 cycles)
-        // --------------------------------------------------
         $display("\n[T2] Tag 5 expires → timeout fires");
         do_reset;
         timeout_limit = 16'd8;
         alloc_tag(10'd5);
-        // Wait until timeout fires (up to 20 cycles)
+
         begin : wait_tmo
             integer cyc;
             for (cyc = 0; cyc < 20; cyc = cyc + 1) begin
@@ -134,16 +119,13 @@ module tb_tmo_err_manager;
         check(cpl_timeout_err, 1'b1, "cpl_timeout_err sticky");
         check(err_to_aer[0], 1'b1, "err_to_aer[0]=1");
 
-        // --------------------------------------------------
-        // T3: Tag 2 returns OK, tag 7 times out
-        // --------------------------------------------------
         $display("\n[T3] Tag 2 OK, tag 7 times out");
         do_reset;
         timeout_limit = 16'd10;
         alloc_tag(10'd2);
         alloc_tag(10'd7);
         repeat(3) @(posedge clk);
-        return_tag(10'd2);   // Tag 2 completes early
+        return_tag(10'd2);
         begin : wait_tmo3
             integer cyc;
             for (cyc = 0; cyc < 20; cyc = cyc + 1) begin
@@ -154,22 +136,16 @@ module tb_tmo_err_manager;
         check(timeout_valid, 1'b1, "timeout_valid for tag 7");
         check_val(timeout_tag, 10'd7, "timeout_tag=7 (not 2)");
 
-        // --------------------------------------------------
-        // T4: cpl_timeout_err stays sticky
-        // --------------------------------------------------
         $display("\n[T4] cpl_timeout_err remains sticky");
         repeat(5) @(posedge clk);
         check(cpl_timeout_err, 1'b1, "sticky after timeout");
 
-        // --------------------------------------------------
-        // T5: Re-alloc same tag after timeout
-        // --------------------------------------------------
         $display("\n[T5] Re-alloc tag 7 after its timeout");
         alloc_tag(10'd7);
         repeat(3) @(posedge clk);
         return_tag(10'd7);
         repeat(3) @(posedge clk);
-        // The timeout_valid should NOT fire again
+
         check(timeout_valid, 1'b0, "no spurious timeout after re-alloc");
 
         $display("\n===================================");

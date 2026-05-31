@@ -1,22 +1,3 @@
-// =============================================================================
-// lcrc_flit_crc_chk.v  — FINAL VERSION
-// PCIe Gen6 — DLL RX Path — Module 17: LCRC / FLIT CRC Checker (CRC_CHK)
-// =============================================================================
-//
-// INPUT PACKET STRUCTURE (1056 bits):
-//   [1055:1044]  SEQ[11:0]        — 12-bit sequence number
-//   [1043:1024]  reserved (20b)   — ignored
-//   [1023:32]    TLP body (992b)  — CRC covers this field
-//   [31:0]       CRC[31:0]        — received LCRC or FLIT CRC
-//
-// CRC-32 ALGORITHM (PCIe LCRC — CRC-32/MPEG-2):
-//   Polynomial : 0x04C11DB7
-//   Init       : 0xFFFFFFFF
-//   Data       : MSB-first bytes, 124 bytes (992 bits)
-//   Final XOR  : none — matches PCIe LCRC spec
-//
-// LATENCY: 1 clock cycle (all outputs registered)
-// =============================================================================
 
 `timescale 1ns/1ps
 

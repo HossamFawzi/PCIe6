@@ -1,16 +1,4 @@
-// =============================================================================
-// Module 7: Compliance / EIEOS / SOS Generator
-// PCIe Gen6 Physical Layer
-// Description: Generates all ordered sets required for link training:
-//   - TS1/TS2: Training Sequences
-//   - FTS:     Fast Training Sequence (L0s exit)
-//   - EIOS:    Electrical Idle Ordered Set
-//   - EIEOS:   Electrical Idle Exit Ordered Set (Gen3+)
-//   - SOS:     Skip Ordered Set (clock tolerance compensation)
-//   - Compliance pattern
-//
-// Priority: EIEOS > EIOS > SOS > FTS > Compliance > TS1 > TS2
-// =============================================================================
+
 module compliance_eieos_sos_gen (
     input  wire        clk,
     input  wire        rst_n,
@@ -32,7 +20,7 @@ module compliance_eieos_sos_gen (
 
     output reg  [255:0] os_data,
     output reg          os_valid,
-    output reg  [3:0]   os_type   // 0=TS1,1=TS2,2=FTS,3=EIOS,4=EIEOS,5=SOS,6=Compliance
+    output reg  [3:0]   os_type
 );
 
 localparam K28_0 = 8'h1C;
@@ -41,8 +29,8 @@ localparam K28_2 = 8'h5C;
 localparam K28_5 = 8'hBC;
 
 localparam [255:0] EIEOS_PAT = {16{16'hFF00}};
-localparam [255:0] SOS_PAT   = {32{8'h1C}};   // K28.0 x32
-localparam [255:0] EIOS_PAT  = {32{8'hBC}};   // K28.5 x32
+localparam [255:0] SOS_PAT   = {32{8'h1C}};
+localparam [255:0] EIOS_PAT  = {32{8'hBC}};
 localparam [255:0] FTS_PAT   = {8'h3C,8'h3C,8'h3C,8'h3C,
                                  8'h3C,8'h3C,8'h3C,8'h3C,
                                  8'h3C,8'h3C,8'h3C,8'h3C,

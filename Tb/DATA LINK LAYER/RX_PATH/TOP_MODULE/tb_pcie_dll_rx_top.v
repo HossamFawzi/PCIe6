@@ -1,21 +1,12 @@
-// =============================================================================
-// Testbench : tb_pcie_dll_rx_top
-// DUT       : pcie_dll_rx_top — PCIe Gen6 DLL RX Path (all 12 sub-modules)
-// Simulator : Icarus Verilog 12 (Verilog-2001 compatible)
-// =============================================================================
+
 `timescale 1ns/1ps
-
-
-
 
 module tb_pcie_dll_rx_top;
 
-// ── Clock ──────────────────────────────────────────────────────────────────
 reg clk;
 initial clk = 0;
 always #2.5 clk = ~clk;
 
-// ── DUT ports ──────────────────────────────────────────────────────────────
 reg          rst_n;
 reg  [255:0] phy_rxd;
 reg          phy_rx_valid;
@@ -72,7 +63,6 @@ pcie_dll_rx_top dut (
     .dllp_crc_err(dllp_crc_err_w),.dllp_mal_err(dllp_mal_err)
 );
 
-// ── Standalone: Descrambler ────────────────────────────────────────────────
 reg  [255:0] d_in; reg d_vin; reg [22:0] d_seed; reg d_en; reg d_lrst;
 wire [255:0] d_out; wire d_vout; wire d_serr;
 Descrambler u_d (.clk(clk),.rst_n(rst_n),
@@ -80,7 +70,6 @@ Descrambler u_d (.clk(clk),.rst_n(rst_n),
     .scramble_en(d_en),.link_reset(d_lrst),
     .data_out(d_out),.data_valid_out(d_vout),.lfsr_sync_err(d_serr));
 
-// ── Standalone: DLLP CRC Chk ──────────────────────────────────────────────
 reg [63:0] dc_raw; reg dc_rxv;
 wire [47:0] dc_body; wire dc_ok; wire dc_err; wire dc_vout2;
 dllp_crc_chk u_dc (.clk(clk),.rst_n(rst_n),
@@ -88,7 +77,6 @@ dllp_crc_chk u_dc (.clk(clk),.rst_n(rst_n),
     .dllp_body(dc_body),.dllp_crc_ok(dc_ok),
     .dllp_crc_err(dc_err),.dllp_valid_out(dc_vout2));
 
-// ── Standalone: DLLP MAL Chk ──────────────────────────────────────────────
 reg [47:0] m_body; reg m_cok; reg m_vin;
 wire m_tok; wire m_merr; wire [47:0] m_clean; wire m_cv;
 dllp_mal_chk u_m (.clk(clk),.rst_n(rst_n),
@@ -96,7 +84,6 @@ dllp_mal_chk u_m (.clk(clk),.rst_n(rst_n),
     .dllp_type_ok(m_tok),.dllp_mal_err(m_merr),
     .dllp_clean(m_clean),.dllp_clean_valid(m_cv));
 
-// ── Standalone: DLLP Decoder ──────────────────────────────────────────────
 reg [47:0] dd_cl; reg dd_vin;
 wire [7:0] dd_ph; wire [11:0] dd_pd; wire [7:0] dd_nph;
 wire [7:0] dd_cplh; wire [11:0] dd_cpld; wire dd_fcv;
@@ -107,7 +94,6 @@ dllp_receiver_decoder u_dd (.clk(clk),.rst_n(rst_n),
     .fc_update_cplh(dd_cplh),.fc_update_cpld(dd_cpld),.fc_update_valid(dd_fcv),
     .pm_type(dd_pmt),.pm_valid(dd_pmv),.ack_out(dd_ao),.ack_out_valid(dd_av));
 
-// ── Standalone: ACK/NAK Receiver ──────────────────────────────────────────
 reg [23:0] ar_ao; reg ar_vin;
 wire [11:0] ar_as; wire [11:0] ar_ns; wire ar_av; wire ar_nv; wire ar_r;
 ack_nak_receiver u_ar (.clk(clk),.rst_n(rst_n),
@@ -115,7 +101,6 @@ ack_nak_receiver u_ar (.clk(clk),.rst_n(rst_n),
     .ack_seq(ar_as),.nak_seq(ar_ns),.ack_valid(ar_av),
     .nak_valid(ar_nv),.retry_req(ar_r));
 
-// ── Standalone: Seq Num Checker ───────────────────────────────────────────
 reg [11:0] sq_seq; reg sq_rxv; reg sq_ok; reg [1023:0] sq_cl; reg sq_lr;
 wire sq_seqok; wire sq_dup; wire sq_err; wire sq_nak; wire sq_dack;
 wire [11:0] sq_ev; wire [11:0] sq_ne; wire [1023:0] sq_fwd; wire sq_fv;
@@ -126,7 +111,6 @@ seq_num_checker_rx u_sq (.clk(clk),.rst_n(rst_n),
     .nak_req(sq_nak),.seq_dup_ack(sq_dack),.seq_err_val(sq_ev),
     .next_expected(sq_ne),.tlp_fwd(sq_fwd),.tlp_fwd_valid(sq_fv));
 
-// ── Standalone: ACK/NAK Sched TX ─────────────────────────────────────────
 reg [11:0] sc_seq; reg sc_cok; reg sc_tv; reg sc_tim; reg [7:0] sc_fr;
 wire [63:0] sc_ad; wire [63:0] sc_nd; wire sc_dv; wire [1:0] sc_dt;
 ack_nak_scheduler_tx u_sc (.clk(clk),.rst_n(rst_n),
@@ -134,14 +118,12 @@ ack_nak_scheduler_tx u_sc (.clk(clk),.rst_n(rst_n),
     .ack_timer_exp(sc_tim),.ack_freq(sc_fr),
     .ack_dllp(sc_ad),.nak_dllp(sc_nd),.dllp_valid(sc_dv),.dllp_type(sc_dt));
 
-// ── Standalone: Null Handler ──────────────────────────────────────────────
 reg nh_n; reg [1023:0] nh_d; reg nh_sv;
 wire nh_dr; wire [7:0] nh_c;
 nullified_tlp_handler u_nh (.clk(clk),.rst_n(rst_n),
     .flit_null(nh_n),.flit_slot_data(nh_d),.flit_slot_valid(nh_sv),
     .null_drop(nh_dr),.null_count(nh_c));
 
-// ── Standalone: RX DEMUX ──────────────────────────────────────────────────
 reg [255:0] dm_rd; reg dm_rv; reg [1023:0] dm_ft; reg dm_ftv;
 reg [63:0] dm_fd; reg dm_fdv; reg dm_fm;
 wire [1055:0] dm_tr; wire dm_tv2; wire [63:0] dm_dr2; wire dm_dv; wire dm_pe;
@@ -152,38 +134,37 @@ rx_datapath_demux u_dm (.clk(clk),.rst_n(rst_n),
     .tlp_rx(dm_tr),.tlp_rx_valid(dm_tv2),
     .dllp_raw(dm_dr2),.dllp_rx_valid(dm_dv),.rx_parse_err(dm_pe));
 
-// ── Sticky seen registers ─────────────────────────────────────────────────
-reg sk_flit_v;    // phy rx_flit_valid
-reg sk_tlp_v;     // deframer flit_tlp_valid
-reg sk_dllp_v;    // deframer flit_dllp_valid
-reg sk_null;      // deframer flit_null
-reg sk_crcerr;    // deframer flit_crc_err OR lcrc crc_err
-reg sk_crcok;     // lcrc crc_ok
-reg sk_tlpfwd;    // tlp_fwd_valid
-reg sk_dcrcok;    // dllp_crc_ok
-reg sk_dcrcerr;   // dllp_crc_err
-reg sk_dtxv;      // dllp_valid_tx
-reg sk_dserr;     // descrambler sync_err
-reg sk_dc_ok;     // dllp crc chk ok
-reg sk_dc_err;    // dllp crc chk err
-reg sk_dc_vo;     // dllp crc chk valid_out
-reg sk_m_cv;      // mal chk clean_valid
-reg sk_m_me;      // mal chk mal_err
-reg sk_dd_fv;     // decoder fc_valid
-reg sk_dd_pv;     // decoder pm_valid
-reg sk_dd_av;     // decoder ack_valid
-reg sk_ar_av;     // ack/nak rcv ack_valid
-reg sk_ar_nv;     // ack/nak rcv nak_valid
-reg sk_sq_ok;     // seq ok
-reg sk_sq_fv;     // seq fwd valid
-reg sk_sq_dup;    // seq dup
-reg sk_sq_err;    // seq err
-reg sk_sq_nak;    // seq nak
-reg sk_sc_dv;     // sched dllp_valid
-reg sk_nh_dr;     // null drop
-reg sk_dm_tv;     // demux tlp
-reg sk_dm_dv;     // demux dllp
-reg sk_dm_pe;     // demux parse err
+reg sk_flit_v;
+reg sk_tlp_v;
+reg sk_dllp_v;
+reg sk_null;
+reg sk_crcerr;
+reg sk_crcok;
+reg sk_tlpfwd;
+reg sk_dcrcok;
+reg sk_dcrcerr;
+reg sk_dtxv;
+reg sk_dserr;
+reg sk_dc_ok;
+reg sk_dc_err;
+reg sk_dc_vo;
+reg sk_m_cv;
+reg sk_m_me;
+reg sk_dd_fv;
+reg sk_dd_pv;
+reg sk_dd_av;
+reg sk_ar_av;
+reg sk_ar_nv;
+reg sk_sq_ok;
+reg sk_sq_fv;
+reg sk_sq_dup;
+reg sk_sq_err;
+reg sk_sq_nak;
+reg sk_sc_dv;
+reg sk_nh_dr;
+reg sk_dm_tv;
+reg sk_dm_dv;
+reg sk_dm_pe;
 
 always @(posedge clk) begin
     if (dut.u_phy_if_rx.rx_flit_valid)       sk_flit_v  <= 1;
@@ -220,7 +201,6 @@ always @(posedge clk) begin
     if (dm_pe)     sk_dm_pe  <= 1;
 end
 
-// ── Score & TC name — declared before tasks that reference them ─────────
 integer pass_count, fail_count;
 reg [127:0] tc_name;
 
@@ -251,7 +231,6 @@ task do_assert;
     end
 endtask
 
-// ── Timing helper ────────────────────────────────────────────────────────
 task wait_clk;
     input integer n;
     integer i;
@@ -261,7 +240,6 @@ task wait_clk;
     end
 endtask
 
-// ── Reset task ───────────────────────────────────────────────────────────
 task do_reset;
 begin
     rst_n=0; phy_rxd=0; phy_rx_valid=0; phy_rx_status=0;
@@ -284,7 +262,6 @@ begin
 end
 endtask
 
-// ── CRC functions ────────────────────────────────────────────────────────
 function [15:0] crc16f;
     input [47:0] data;
     integer i, j;
@@ -340,7 +317,6 @@ function [2047:0] mkflit;
     end
 endfunction
 
-// ── send_flit task ────────────────────────────────────────────────────────
 reg [2047:0] sf_flit;
 integer sf_b;
 task send_flit;
@@ -354,15 +330,11 @@ task send_flit;
     end
 endtask
 
-// ── Module-level temps ────────────────────────────────────────────────────
 reg [47:0]  tmp_body;
 reg [63:0]  tmp_dllp;
 integer     tmp_k;
 reg [2047:0] tmp_flit;
 
-// ==========================================================================
-// MAIN
-// ==========================================================================
 initial begin
     pass_count=0; fail_count=0;
     $dumpfile("dump.vcd"); $dumpvars(0, tb_pcie_dll_rx_top);
@@ -370,9 +342,6 @@ initial begin
     $display("PCIe Gen6 DLL RX Path — Comprehensive Testbench");
     $display("============================================================");
 
-    // ======================================================================
-    // GROUP A — PHY Interface RX
-    // ======================================================================
     tc_name = "TC_A1_Normal_FLIT";
     do_reset; ltssm_dl_up=1; fec_syndrome=0; fec_corrected=0;
     send_flit(mkflit(4'h1,12'h001,64'h0,1024'hA5A5,0));
@@ -407,9 +376,6 @@ initial begin
     @(negedge clk); rst_n=0; wait_clk(2); @(negedge clk); rst_n=1; wait_clk(2);
     do_assert("beat_cnt=0 after mid-reset", dut.u_phy_if_rx.beat_cnt===3'd0);
 
-    // ======================================================================
-    // GROUP B — Descrambler (standalone)
-    // ======================================================================
     tc_name = "TC_B1_Bypass";
     do_reset; d_en=0;
     @(negedge clk);
@@ -431,9 +397,6 @@ initial begin
     @(negedge clk); d_vin=0; wait_clk(2);
     do_assert("lfsr_sync_err on seed mismatch", sk_dserr);
 
-    // ======================================================================
-    // GROUP C — FLIT RX Deframer (via DUT)
-    // ======================================================================
     tc_name = "TC_C1_TLP_FLIT";
     do_reset; flit_mode_en=1; scramble_en=0; ltssm_dl_up=1; fec_syndrome=0; fec_corrected=0;
     send_flit(mkflit(4'h1,12'h001,64'h0,1024'hA5A5,0));
@@ -473,9 +436,6 @@ initial begin
     wait_clk(10);
     do_assert("FEC UE: no flit_tlp_valid", !sk_tlp_v);
 
-    // ======================================================================
-    // GROUP D — Nullified TLP Handler (standalone)
-    // ======================================================================
     tc_name = "TC_D1_Null_Drop";
     do_reset;
     @(negedge clk); nh_n=1; nh_sv=1; nh_d={1024{1'b1}};
@@ -507,9 +467,6 @@ initial begin
     wait_clk(2);
     do_assert("null_count saturates at 0xFF", nh_c===8'hFF);
 
-    // ======================================================================
-    // GROUP E — RX Datapath DEMUX (standalone)
-    // ======================================================================
     tc_name = "TC_E1_FLIT_TLP";
     do_reset;
     @(negedge clk); dm_fm=1; dm_ft=1024'hABCDEF; dm_ftv=1; dm_fdv=0;
@@ -554,9 +511,6 @@ initial begin
     do_assert("COM: no parse_err", !sk_dm_pe);
     do_assert("COM: no tlp_valid", !sk_dm_tv);
 
-    // ======================================================================
-    // GROUP F — LCRC / FLIT CRC Checker (via DUT)
-    // ======================================================================
     tc_name = "TC_F1_CRC_Good";
     do_reset; flit_mode_en=1; scramble_en=0; ltssm_dl_up=1; fec_syndrome=0; fec_corrected=0;
     send_flit(mkflit(4'h1,12'h010,64'h0,1024'hABCDEF,0));
@@ -570,9 +524,6 @@ initial begin
     do_assert("Bad FLIT CRC: error flagged", sk_crcerr);
     do_assert("Bad FLIT CRC: no TLP forward", !sk_tlpfwd);
 
-    // ======================================================================
-    // GROUP G — Sequence Number Checker (standalone)
-    // ======================================================================
     tc_name = "TC_G1_InOrder";
     do_reset; sq_lr=0;
     @(negedge clk); sq_seq=12'h000; sq_rxv=1; sq_ok=1; sq_cl=1024'hABCD;
@@ -625,9 +576,6 @@ initial begin
     @(negedge clk); sq_lr=1; @(negedge clk); sq_lr=0; wait_clk(2);
     do_assert("G6: next_expected=0 post-reset", sq_ne===12'h000);
 
-    // ======================================================================
-    // GROUP H — ACK/NAK Scheduler TX (standalone)
-    // ======================================================================
     tc_name = "TC_H1_ACK_Freq1";
     do_reset; sc_fr=1; sc_cok=1; sc_tim=0;
     @(negedge clk); sc_seq=12'hA00; sc_tv=1; sc_cok=1;
@@ -660,9 +608,6 @@ initial begin
     @(negedge clk); sc_tim=1; @(negedge clk); sc_tim=0; wait_clk(6);
     do_assert("H4: timer flush emits ACK", sk_sc_dv);
 
-    // ======================================================================
-    // GROUP I — DLLP CRC Checker (standalone)
-    // ======================================================================
     tc_name = "TC_I1_Good_CRC";
     do_reset; tmp_body=48'h001234560000; tmp_dllp=mkdllp(tmp_body,0);
     @(negedge clk); dc_raw=tmp_dllp; dc_rxv=1;
@@ -683,9 +628,6 @@ initial begin
     do_assert("I3: no crc_ok when rx_valid=0",  !sk_dc_ok);
     do_assert("I3: no crc_err when rx_valid=0", !sk_dc_err);
 
-    // ======================================================================
-    // GROUP J — DLLP Malformed Checker (standalone)
-    // ======================================================================
     tc_name = "TC_J1_ACK_Pass";
     do_reset;
     @(negedge clk); m_body={8'h00,8'h00,8'h00,8'h05,8'h60,8'h00}; m_cok=1; m_vin=1;
@@ -736,9 +678,6 @@ initial begin
     @(negedge clk); m_vin=0; wait_clk(3);
     do_assert("J8: PM_Enter_L1 passes", sk_m_cv);
 
-    // ======================================================================
-    // GROUP K — DLLP Receiver / Decoder (standalone)
-    // ======================================================================
     tc_name = "TC_K1_ACK_Dec";
     do_reset;
     @(negedge clk); dd_cl={8'h00,8'h00,8'h05,8'h60,8'h00,8'h00}; dd_vin=1;
@@ -783,9 +722,6 @@ initial begin
     do_assert("K7: pm_valid for L23", sk_dd_pv);
     do_assert("K7: pm_type=1",        dd_pmt===3'd1||sk_dd_pv);
 
-    // ======================================================================
-    // GROUP L — ACK/NAK Receiver (standalone)
-    // ======================================================================
     tc_name = "TC_L1_ACK_Rcv";
     do_reset;
     @(negedge clk); ar_ao={8'h00,12'h042,4'h0}; ar_vin=1;
@@ -814,9 +750,6 @@ initial begin
     @(negedge clk); ar_vin=0; wait_clk(3);
     do_assert("L4: wrap-around ACK accepted", sk_ar_av);
 
-    // ======================================================================
-    // GROUP M — End-to-End Integration
-    // ======================================================================
     tc_name = "TC_M1_E2E_TLP";
     do_reset; flit_mode_en=1; scramble_en=0; ltssm_dl_up=1;
     fec_syndrome=0; fec_corrected=0; ack_freq=1;
@@ -865,9 +798,6 @@ initial begin
     do_assert("M5: Valid FLIT after error",  sk_flit_v);
     do_assert("M5: TLP deframed post-err",  sk_tlp_v);
 
-    // ======================================================================
-    // SUMMARY
-    // ======================================================================
     wait_clk(5);
     $display("\n============================================================");
     $display("TEST SUMMARY  —  PCIe Gen6 DLL RX Path");

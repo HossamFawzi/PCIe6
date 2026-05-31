@@ -30,7 +30,6 @@ module tb_compliance_eieos_sos_gen;
         send_eieos=0; send_sos=0; send_compliance=0;
     end endtask
 
-    // Assert one send signal; output appears after the latching posedge
     task send_os;
         input [6:0] which;
         begin
@@ -38,7 +37,7 @@ module tb_compliance_eieos_sos_gen;
             send_ts1=which[0]; send_ts2=which[1]; send_fts=which[2];
             send_eios=which[3]; send_eieos=which[4]; send_sos=which[5];
             send_compliance=which[6];
-            @(posedge clk); #1; // latches inputs; outputs now valid
+            @(posedge clk); #1;
             clr();
         end
     endtask
@@ -54,41 +53,35 @@ module tb_compliance_eieos_sos_gen;
         clr();
         @(posedge clk); @(posedge clk); rst_n=1; @(posedge clk); #1;
 
-        // Test 1: EIEOS
         $display("Test 1: EIEOS");
         send_os(7'b010000);
         if (os_valid && os_type==4'd4 && os_data==EIEOS_PAT) begin $display("PASS"); pass=pass+1; end
         else begin $display("FAIL: v=%b t=%0d", os_valid, os_type); fail=fail+1; end
 
-        // Test 2: EIOS
         $display("Test 2: EIOS");
-        @(posedge clk); #1; // clear from prev
+        @(posedge clk); #1;
         send_os(7'b001000);
         if (os_valid && os_type==4'd3 && os_data==EIOS_PAT) begin $display("PASS"); pass=pass+1; end
         else begin $display("FAIL: v=%b t=%0d", os_valid, os_type); fail=fail+1; end
 
-        // Test 3: SOS
         $display("Test 3: SOS");
         @(posedge clk); #1;
         send_os(7'b100000);
         if (os_valid && os_type==4'd5 && os_data==SOS_PAT) begin $display("PASS"); pass=pass+1; end
         else begin $display("FAIL: v=%b t=%0d data=%h", os_valid, os_type, os_data[255:248]); fail=fail+1; end
 
-        // Test 4: FTS
         $display("Test 4: FTS");
         @(posedge clk); #1;
         send_os(7'b000100);
         if (os_valid && os_type==4'd2) begin $display("PASS"); pass=pass+1; end
         else begin $display("FAIL: v=%b t=%0d", os_valid, os_type); fail=fail+1; end
 
-        // Test 5: Compliance
         $display("Test 5: Compliance");
         @(posedge clk); #1;
         send_os(7'b1000000);
         if (os_valid && os_type==4'd6) begin $display("PASS"); pass=pass+1; end
         else begin $display("FAIL: v=%b t=%0d", os_valid, os_type); fail=fail+1; end
 
-        // Test 6: TS1 with link/lane
         $display("Test 6: TS1 link/lane");
         @(posedge clk); #1;
         link_num=8'hAB; lane_num=8'hCD;
@@ -98,27 +91,23 @@ module tb_compliance_eieos_sos_gen;
         else begin $display("FAIL: v=%b t=%0d lnk=%02h ln=%02h", os_valid, os_type,
                              os_data[223:216], os_data[215:208]); fail=fail+1; end
 
-        // Test 7: TS2
         $display("Test 7: TS2");
         @(posedge clk); #1;
         send_os(7'b000010);
         if (os_valid && os_type==4'd1) begin $display("PASS"); pass=pass+1; end
         else begin $display("FAIL: v=%b t=%0d", os_valid, os_type); fail=fail+1; end
 
-        // Test 8: Priority EIEOS > EIOS (both asserted same cycle)
         $display("Test 8: Priority EIEOS > EIOS");
         clr(); send_eieos=1; send_eios=1;
         @(posedge clk); #1; clr();
         if (os_valid && os_type==4'd4) begin $display("PASS"); pass=pass+1; end
         else begin $display("FAIL: t=%0d v=%b", os_type, os_valid); fail=fail+1; end
 
-        // Test 9: No output when idle
         $display("Test 9: No output when idle");
         clr(); @(posedge clk); #1; @(posedge clk); #1;
         if (!os_valid) begin $display("PASS"); pass=pass+1; end
         else begin $display("FAIL: spurious output t=%0d", os_type); fail=fail+1; end
 
-        // Test 10: Reset
         $display("Test 10: Reset");
         send_sos=1; @(posedge clk); #1;
         rst_n=0; @(posedge clk); #1;

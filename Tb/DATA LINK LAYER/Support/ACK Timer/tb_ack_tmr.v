@@ -24,27 +24,23 @@ module tb_ack_tmr;
     initial begin
         $display("=== TB: ack_tmr ===");
 
-        // TC1: Reset
         $display("[TC1] Reset clears outputs");
         rst; @(posedge clk); #1;
         chk(0,ack_timer_exp,"ack_timer_exp=0 after reset");
         chk(0,replay_timer_exp,"replay_timer_exp=0 after reset");
         chk(0,replay_num,"replay_num=0 after reset");
 
-        // TC2: No TLP - timers silent
         $display("[TC2] No TLP - timers silent");
         rst; for(i=0;i<30;i=i+1)@(posedge clk); #1;
         chk(0,ack_timer_exp,"ack_timer_exp stays 0");
         chk(0,replay_timer_exp,"replay_timer_exp stays 0");
 
-        // TC3: ACK latency timer fires
         $display("[TC3] ACK latency timer fires");
         rst; ack_lat_limit=5; replay_limit=50;
         tlp_rx_valid=1; @(posedge clk); #1; tlp_rx_valid=0;
         repeat(7)@(posedge clk); #1;
         chk(1,ack_timer_exp,"ack_timer_exp fires at limit");
 
-        // TC4: ack_sent clears timer
         $display("[TC4] ack_sent clears timer");
         rst; ack_lat_limit=5; replay_limit=50;
         tlp_rx_valid=1; @(posedge clk); #1; tlp_rx_valid=0;
@@ -53,14 +49,12 @@ module tb_ack_tmr;
         repeat(5)@(posedge clk); #1;
         chk(0,ack_timer_exp,"ack_timer_exp cleared after ack_sent");
 
-        // TC5: Replay timer fires
         $display("[TC5] Replay timer fires");
         rst; ack_lat_limit=200; replay_limit=8;
         tlp_rx_valid=1; @(posedge clk); #1; tlp_rx_valid=0;
         repeat(11)@(posedge clk); #1;
         chk(1,replay_timer_exp,"replay_timer_exp fires at limit");
 
-        // TC6: replay_num increments
         $display("[TC6] replay_num increments");
         rst; ack_lat_limit=200; replay_limit=4;
         tlp_rx_valid=1; @(posedge clk); #1; tlp_rx_valid=0;
@@ -68,21 +62,19 @@ module tb_ack_tmr;
         if(replay_num>=1)begin $display("  PASS | replay_num >= 1 | got=%0d",replay_num);pass_count=pass_count+1;end
         else begin $display("  FAIL | replay_num < 1 | got=%0d",replay_num);fail_count=fail_count+1;end
 
-        // TC7: replay_num saturates at 3
         $display("[TC7] replay_num saturates at 3");
         rst; ack_lat_limit=200; replay_limit=2;
         tlp_rx_valid=1; @(posedge clk); #1; tlp_rx_valid=0;
         repeat(50)@(posedge clk); #1;
         chk(3,replay_num,"replay_num saturates at 3");
 
-        // TC8: ack_sent resets replay_num - key fix: wait extra cycle after ack_sent
         $display("[TC8] ack_sent resets replay_num");
         rst; ack_lat_limit=200; replay_limit=2;
         tlp_rx_valid=1; @(posedge clk); #1; tlp_rx_valid=0;
         repeat(10)@(posedge clk); #1;
-        // replay_timer_exp is high; now send ack
+
         ack_sent=1; @(posedge clk); #1; ack_sent=0;
-        // Need extra cycle: RTL clears replay_timer_exp when ack_sent, and replay_num clears next cycle
+
         @(posedge clk); #1;
         chk(0,replay_num,"replay_num=0 after ack_sent");
 

@@ -30,7 +30,6 @@ module pcie6_phy_tx_tb;
 
     task idle; begin si(0,0,0,0,0,0); end endtask
 
-    // Continuous assertion check
     always @(posedge clk) if(rst_n && phy_tx_elec_idle && phy_tx_compliance) begin
         $display("[ASSERT-FAIL] ElecIdle+Compliance both high t=%0t",$time);
         fail_cnt=fail_cnt+1;
@@ -42,7 +41,6 @@ module pcie6_phy_tx_tb;
         rst_n=0; idle();
         repeat(5) @(posedge clk); #1;
 
-        //--TC-01: Reset--
         $display("\n--- TC-01: Reset ---");
         @(negedge clk);
         check(1,  phy_tx_elec_idle==1);
@@ -53,7 +51,6 @@ module pcie6_phy_tx_tb;
         @(posedge clk); #1; rst_n=1; idle();
         repeat(3) @(posedge clk); #1;
 
-        //--TC-02: Single-word FLIT--
         $display("\n--- TC-02: Single-word FLIT ---");
         begin : b2
             reg [255:0] D; D={8{32'hDEADBEEF}};
@@ -68,15 +65,14 @@ module pcie6_phy_tx_tb;
         end
         repeat(3) @(posedge clk); #1; idle();
 
-        //--TC-03: Multi-word FLIT--
         $display("\n--- TC-03: Multi-word FLIT ---");
         begin : b3
             reg [255:0] SD,PD,ED;
             SD={8{32'hAAAABBBB}}; PD={8{32'h11112222}}; ED={8{32'hFFFFEEEE}};
-            @(posedge clk); #1; si(SD,1,1,0,0,0); // SOP
-            @(posedge clk); #1; si(PD,1,0,0,0,0); // payload
-            @(posedge clk); #1; si(ED,1,0,1,0,0); // EOP
-            // SOP arrives at output now (2 cycles after driven)
+            @(posedge clk); #1; si(SD,1,1,0,0,0);
+            @(posedge clk); #1; si(PD,1,0,0,0,0);
+            @(posedge clk); #1; si(ED,1,0,1,0,0);
+
             @(negedge clk);
             check(9,  phy_tx_valid==1);
             check(10, phy_txd==SD);
@@ -91,13 +87,12 @@ module pcie6_phy_tx_tb;
         end
         repeat(3) @(posedge clk); #1; idle();
 
-        //--TC-04: Back-to-back FLITs--
         $display("\n--- TC-04: Back-to-back FLITs ---");
         begin : b4
             reg [255:0] FA,FB;
             FA={8{32'hA0A0A0A0}}; FB={8{32'hB0B0B0B0}};
-            @(posedge clk); #1; si(FA,1,1,1,0,0); // FLIT A
-            @(posedge clk); #1; si(FB,1,1,1,0,0); // FLIT B
+            @(posedge clk); #1; si(FA,1,1,1,0,0);
+            @(posedge clk); #1; si(FB,1,1,1,0,0);
             @(posedge clk); #1; idle();
             @(negedge clk);
             check(15, phy_tx_valid==1);
@@ -109,7 +104,6 @@ module pcie6_phy_tx_tb;
         end
         repeat(3) @(posedge clk); #1; idle();
 
-        //--TC-05: Electrical Idle--
         $display("\n--- TC-05: Electrical Idle ---");
         @(posedge clk); #1; si({8{32'hC0C0C0C0}},1,1,0,0,0);
         @(posedge clk); #1; si(0,0,0,0,1,0);
@@ -122,7 +116,6 @@ module pcie6_phy_tx_tb;
         check(22, phy_tx_compliance==0);
         repeat(3) @(posedge clk); #1; idle(); repeat(2) @(posedge clk); #1;
 
-        //--TC-06: Compliance--
         $display("\n--- TC-06: Compliance ---");
         @(posedge clk); #1; si(0,0,0,0,0,1);
         @(posedge clk); #1; si(0,0,0,0,0,1);
@@ -134,7 +127,6 @@ module pcie6_phy_tx_tb;
         check(26, phy_tx_elec_idle==0);
         repeat(3) @(posedge clk); #1; idle(); repeat(2) @(posedge clk); #1;
 
-        //--TC-07: ElecIdle > Compliance priority--
         $display("\n--- TC-07: ElecIdle Priority over Compliance ---");
         @(posedge clk); #1; si(0,0,0,0,1,1);
         @(posedge clk); #1; si(0,0,0,0,1,1);
@@ -145,7 +137,6 @@ module pcie6_phy_tx_tb;
         check(29, phy_tx_valid==0);
         repeat(3) @(posedge clk); #1; idle(); repeat(2) @(posedge clk); #1;
 
-        //--TC-08: Inter-FLIT gap--
         $display("\n--- TC-08: Inter-FLIT Gap ---");
         @(posedge clk); #1; si({8{32'hDEADDEAD}},1,1,1,0,0);
         @(posedge clk); #1; idle();

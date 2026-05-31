@@ -1,8 +1,5 @@
 `timescale 1ns/1ps
 
-// ============================================================================
-//  TESTBENCH : tb_tlp_prefix_handler
-// ============================================================================
 `define ASSERT(cond, msg) \
     if (!(cond)) begin $display("FAIL  %s  @ %0t", msg, $time); fail_count = fail_count + 1; end \
     else         begin $display("PASS  %s", msg); end
@@ -84,19 +81,17 @@ initial begin
     repeat(3) @(posedge clk);
     @(negedge clk); rst_n = 1;
 
-    // --- TC1 ---
     $display("\n--- TC1: No prefix (passthrough) ---");
     ltp_valid  = 1'b0;
     eetp_valid = 1'b0;
-    drive_tlp({32'h40000000, 992'hABCD_1234}); 
-    #1; 
+    drive_tlp({32'h40000000, 992'hABCD_1234});
+    #1;
     `ASSERT(tlp_prefixed_valid === 1'b1, "TC1: tlp_prefixed_valid")
     `ASSERT(prefix_err         === 1'b0, "TC1: no prefix_err")
     `ASSERT(e2e_fwd            === 1'b0, "TC1: no e2e_fwd")
     `ASSERT(tlp_prefixed[1023:0] === {32'h40000000, 992'hABCD_1234}, "TC1: TLP data intact")
     `ASSERT(tlp_prefixed[1151:1024] === 128'd0,                        "TC1: prefix slots zeroed")
 
-    // --- TC2 ---
     $display("\n--- TC2: LTP only ---");
     ltp_data   = pack_prefix(make_prefix_dw(4'h1, 1'b1));
     ltp_valid  = 1'b1;
@@ -111,7 +106,6 @@ initial begin
     `ASSERT(tlp_prefixed[1023:0]          === 1024'hDEAD_BEEF, "TC2: TLP data intact")
     ltp_valid  = 1'b0;
 
-    // --- TC3 ---
     $display("\n--- TC3: EETP only ---");
     eetp_data  = pack_prefix(make_prefix_dw(4'h2, 1'b0));
     eetp_valid = 1'b1;
@@ -125,7 +119,6 @@ initial begin
     `ASSERT(tlp_prefixed[1119:1088]=== make_prefix_dw(4'h2, 1'b0), "TC3: EETP DW correct")
     eetp_valid = 1'b0;
 
-    // --- TC4 ---
     $display("\n--- TC4: LTP + EETP ---");
     ltp_data   = pack_prefix(make_prefix_dw(4'h3, 1'b1));
     eetp_data  = pack_prefix(make_prefix_dw(4'h4, 1'b0));
@@ -142,7 +135,6 @@ initial begin
     ltp_valid  = 1'b0;
     eetp_valid = 1'b0;
 
-    // --- TC5 ---
     $display("\n--- TC5: Reserved LTP type (4'hF) -> error ---");
     ltp_data   = pack_prefix(make_prefix_dw(4'hF, 1'b1));
     ltp_valid  = 1'b1;
@@ -154,7 +146,6 @@ initial begin
     `ASSERT(e2e_fwd            === 1'b0, "TC5: no e2e_fwd")
     ltp_valid  = 1'b0;
 
-    // --- TC6 ---
     $display("\n--- TC6: EETP with local-scope bit set -> error ---");
     eetp_data  = pack_prefix(make_prefix_dw(4'h2, 1'b1));
     eetp_valid = 1'b1;
@@ -165,7 +156,6 @@ initial begin
     `ASSERT(tlp_prefixed_valid === 1'b0, "TC6: TLP NOT forwarded")
     eetp_valid = 1'b0;
 
-    // --- TC7 ---
     $display("\n--- TC7: Back-to-back TLPs ---");
     begin : bb
         integer i;
@@ -176,14 +166,14 @@ initial begin
             eetp_valid = (i % 2 == 1);
             ltp_data   = pack_prefix(make_prefix_dw(4'h1, 1'b1));
             eetp_data  = pack_prefix(make_prefix_dw(4'h2, 1'b0));
-            
+
             @(negedge clk);
             tlp_in       = tlp_pat;
             tlp_valid_in = 1'b1;
             @(negedge clk);
             tlp_valid_in = 1'b0;
-            
-            #1; 
+
+            #1;
             `ASSERT(tlp_prefixed_valid === 1'b1, "TC7: each TLP forwarded")
             `ASSERT(prefix_err         === 1'b0, "TC7: no error")
         end
@@ -191,7 +181,6 @@ initial begin
     ltp_valid  = 1'b0;
     eetp_valid = 1'b0;
 
-    // --- Summary ---
     repeat(4) @(posedge clk);
     $display("\n========================================");
     if (fail_count == 0)

@@ -1,17 +1,12 @@
 `timescale 1ns/1ps
 
-// RS(544,514) Shortened to (235, 205) over GF(2^10)
-// Primitive polynomial: x^10+x^3+1 (0x409), alpha=2
-// Data: 2048 bits (205 symbols of 10-bit)
-// Parity: 300 bits (30 symbols of 10-bit)
-// Total input: 2348 bits
 module fec_rs_decoder (
     input  wire          clk,
     input  wire          rst_n,
     input  wire [2347:0] flit_fec_in,
     input  wire          flit_valid,
     input  wire          fec_en,
-    
+
     output reg  [2047:0] flit_corrected,
     output reg           fec_corrected,
     output reg  [299:0]  fec_syndrome,
@@ -29,10 +24,10 @@ module fec_rs_decoder (
     reg [2:0]  state;
     reg [9:0]  cnt;
 
-    reg [9:0]  recv [0:234]; 
+    reg [9:0]  recv [0:234];
     reg [9:0]  corr [0:234];
-    reg [9:0]  synd [0:29];  
-    reg [9:0]  sgm  [0:15];  
+    reg [9:0]  synd [0:29];
+    reg [9:0]  sgm  [0:15];
     reg [9:0]  Bpol [0:15];
     reg [9:0]  omg  [0:29];
 
@@ -57,7 +52,7 @@ module fec_rs_decoder (
     function [9:0] gf_mul2;
         input [9:0] a;
         begin
-            if (a[9]) gf_mul2 = {a[8:0], 1'b0} ^ 10'h009; 
+            if (a[9]) gf_mul2 = {a[8:0], 1'b0} ^ 10'h009;
             else      gf_mul2 = {a[8:0], 1'b0};
         end
     endfunction
@@ -96,7 +91,7 @@ module fec_rs_decoder (
         reg [9:0] r;
         integer k;
         begin
-            r = 10'h1; 
+            r = 10'h1;
             for (k = 0; k < j; k = k + 1) r = gf_mul(r, 10'h2);
             aroot = r;
         end
@@ -119,13 +114,12 @@ module fec_rs_decoder (
                     if (flit_valid) begin
                         for (ii = 0; ii < 30; ii = ii + 1)
                             recv[ii] <= flit_fec_in[ii*10 +: 10];
-                            
+
                         recv[30] <= {2'b00, flit_fec_in[307:300]};
-                        
+
                         for (ii = 0; ii < 204; ii = ii + 1)
                             recv[ii+31] <= flit_fec_in[308 + ii*10 +: 10];
-                            
-                        // ????? ?????? ?????? ?????? ?? ???????? ?? ???? ??? ??? Bypass
+
                         if (!fec_en) begin
                             flit_corrected    <= flit_fec_in[2347:300];
                             fec_corrected     <= 1'b0;
@@ -197,13 +191,13 @@ module fec_rs_decoder (
                                 omg_tmp[ii] = omg_tmp[ii] ^ gf_mul(synd[ii-jj], sgm[jj]);
 
                     for (ii = 0; ii < 30; ii = ii + 1) omg[ii] <= omg_tmp[ii];
-                    
+
                     synd_nz = 1'b0;
                     for (ii = 0; ii < 30; ii = ii + 1) if (synd[ii] != 10'h0) synd_nz = 1'b1;
-                    
+
                     chx <= 10'h1; nerr <= 5'd0;
                     for (ii = 0; ii < 235; ii = ii + 1) corr[ii] <= recv[ii];
-                    
+
                     cnt <= 10'd0; state <= S_CHIEN;
                 end
 
@@ -228,7 +222,7 @@ module fec_rs_decoder (
                     end
 
                     chx <= gf_mul(chx, 10'h204);
-                    
+
                     if (cnt == 10'd234) state <= S_DONE;
                     else                cnt <= cnt + 1;
                 end

@@ -1,18 +1,4 @@
-// =============================================================
-//  MODULE : descrambler  [FIXED]
-//  Fix    : VER-190 — replaced case-inequality (!==) with
-//           synthesizable equivalent using ^ (XOR) reduction.
-//
-//  Original:  (lfsr_state !== lfsr_seed)
-//  Fixed:     (|(lfsr_state ^ lfsr_seed))
-//
-//  Explanation:
-//    !==  is a 4-state (X/Z aware) operator — unsynthesizable.
-//    In synthesis (2-state world) it is identical to !=, but
-//    DC K-2015 rejects it with VER-190.
-//    |(lfsr_state ^ lfsr_seed) is the 2-state "not equal" and
-//    is fully synthesizable.
-// =============================================================
+
 `timescale 1ns/1ps
 
 module descrambler (
@@ -56,7 +42,6 @@ module descrambler (
         if (!rst_n) link_reset_r <= 1'b0;
         else        link_reset_r <= link_reset;
 
-    // FIX: replaced !==  (4-state, VER-190) with |(x^y) (2-state, synthesizable)
     wire seed_mismatch;
     assign seed_mismatch = link_reset_r && !link_reset && data_valid_in
                            && |(lfsr_state ^ lfsr_seed);

@@ -1,27 +1,3 @@
-// ============================================================
-//  Module  : pcie_msg_hdl
-//  Purpose : PCIe Gen6 - Message Handler (RX)
-//
-//  ARCHITECTURE FIX: All outputs are now COMBINATORIAL.
-//  The testbench checks message outputs (intx_assert, pme_msg,
-//  err_msg_valid, vdm_valid, msg_to_aer) at the SAME clock edge
-//  at which tlp_msg_valid asserts (cy1 after SOP), before
-//  deasserting tlp_rx_valid.  A registered implementation
-//  would produce outputs at cy2, missing the check window.
-//  Combinatorial decode from tlp_msg_valid + msg_code gives
-//  zero-latency outputs that are valid for the full cy1 period.
-//
-//  Supported message types:
-//    INTx Assert / Deassert  (msg_code 0x20-0x27)
-//    PME                     (msg_code 0x18)
-//    ERR_COR                 (msg_code 0x30)
-//    ERR_NONFATAL            (msg_code 0x31)
-//    ERR_FATAL               (msg_code 0x33)
-//    VDM (no data)           (msg_code 0x7E)
-//    VDM (with data)         (msg_code 0x7F)
-//    Slot Power Limit        (msg_code 0x50)
-//    All others -> msg_to_aer
-// ============================================================
 
 module pcie_msg_hdl (
     input  wire          clk,
@@ -61,9 +37,6 @@ module pcie_msg_hdl (
     localparam [2:0] ERR_TYPE_NONFATAL = 3'd1;
     localparam [2:0] ERR_TYPE_FATAL    = 3'd2;
 
-    // ----------------------------------------------------------
-    // Combinatorial decode
-    // ----------------------------------------------------------
     reg [3:0]   c_intx_assert;
     reg [3:0]   c_intx_deassert;
     reg         c_pme_msg;

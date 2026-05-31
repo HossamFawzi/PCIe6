@@ -1,16 +1,4 @@
-// =============================================================================
-// Module  : flit_rx_deframer
-// Layer   : Data Link Layer (DLL) — RX Path
-// BUG-1 FIX: Field layout and CRC algorithm now EXACTLY match flit_deframer_rx
-//   FLIT layout (2048 bits):
-//     [2047:2016]  CRC-32/MPEG-2  (32b) over bits [2015:0]
-//     [2015:2004]  Sequence number (12b)
-//     [2003:2000]  FLIT type       (4b): 0=Null,1=Data(TLP+DLLP),2=TLP-only,3=DLLP-only
-//     [1999:1936]  DLLP payload   (64b)
-//     [1935: 912]  TLP  payload  (1024b)
-//     [ 911:   0]  Reserved       (912b)
-//   Previously used CRC-24 with old field positions — every FLIT failed CRC.
-// =============================================================================
+
 `timescale 1ns/1ps
 module flit_rx_deframer (
     input  wire          clk,

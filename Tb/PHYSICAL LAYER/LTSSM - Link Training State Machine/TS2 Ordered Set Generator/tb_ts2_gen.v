@@ -1,6 +1,4 @@
-// ============================================================
-// Testbench for Module 42 : TS2 Ordered Set Generator
-// ============================================================
+
 `timescale 1ns/1ps
 
 module tb_ts2_gen;
@@ -66,22 +64,18 @@ module tb_ts2_gen;
         link_num=0; lane_num=0; speed_cap=0; fts_count=0;
         repeat(4) @(posedge clk); rst_n=1; @(posedge clk);
 
-        // TC1: Typical link training completion
         link_num=8'h01; lane_num=8'h00; speed_cap=8'h3F; fts_count=8'h30;
         send_and_wait;
         check_ts2(8'h01,8'h00,8'h30,8'h3F,"TC1_typical");
 
-        // TC2: PAD link/lane (Polling state)
         link_num=8'hFF; lane_num=8'hFF; speed_cap=8'h01; fts_count=8'h00;
         send_and_wait;
         check_ts2(8'hFF,8'hFF,8'h00,8'h01,"TC2_PAD");
 
-        // TC3: Gen6 speed cap
         link_num=8'h00; lane_num=8'h01; speed_cap=8'h40; fts_count=8'hFF;
         send_and_wait;
         check_ts2(8'h00,8'h01,8'hFF,8'h40,"TC3_Gen6_speed");
 
-        // TC4: TS2 vs TS1 ID are different
         begin : TC4
             link_num=8'h01; lane_num=8'h00; speed_cap=8'h3F; fts_count=8'h30;
             send_and_wait;
@@ -92,7 +86,6 @@ module tb_ts2_gen;
             end
         end
 
-        // TC5: done pulses exactly once
         begin : TC5
             integer cnt; cnt=0;
             link_num=8'h02; lane_num=8'h01; speed_cap=8'h3F; fts_count=8'h20;
@@ -103,7 +96,6 @@ module tb_ts2_gen;
             else begin $display("FAIL [TC5_done_once] cnt=%0d",cnt); fail_count=fail_count+1; end
         end
 
-        // TC6: reset clears all
         begin : TC6
             rst_n=0; repeat(3) @(posedge clk); #1;
             if(ts2_valid===1'b0 && ts2_done===1'b0 && ts2_data===256'd0) begin
@@ -114,7 +106,6 @@ module tb_ts2_gen;
             rst_n=1;
         end
 
-        // TC7: back-to-back sends
         begin : TC7
             integer i;
             for(i=0;i<4;i=i+1) begin

@@ -1,8 +1,4 @@
-// =============================================================================
-// Testbench: dll_err — Error Reporting Interface to TL AER
-// Tests: reset, each individual error bit, priority encoding,
-//        severity levels, dll_err_to_aer bit positions, multi-error
-// =============================================================================
+
 `timescale 1ns/1ps
 module tb_dll_err;
 
@@ -17,7 +13,6 @@ module tb_dll_err;
     integer pass_count = 0;
     integer fail_count = 0;
 
-    // Match RTL constants
     localparam ERR_NONE            = 4'd0;
     localparam ERR_REPLAY_ROLLOVER = 4'd1;
     localparam ERR_DLLP_CRC        = 4'd2;
@@ -94,14 +89,12 @@ module tb_dll_err;
     initial begin
         $display("=== TB: dll_err ===");
 
-        // TC1: Reset - no errors
         $display("[TC1] Reset: no errors");
         apply_reset;
         @(posedge clk);
         check1(0, dll_err_valid, "dll_err_valid=0");
         check4(ERR_NONE, dll_err_type, "dll_err_type=NONE");
 
-        // TC2: replay_rollover_err -> FATAL, bit[0]
         $display("[TC2] replay_rollover_err -> FATAL");
         apply_reset;
         replay_rollover_err = 1; @(posedge clk); @(posedge clk);
@@ -111,7 +104,6 @@ module tb_dll_err;
         check2(SEV_FATAL, dll_err_severity, "severity=FATAL");
         replay_rollover_err = 0;
 
-        // TC3: dllp_crc_err -> COR, bit[1]
         $display("[TC3] dllp_crc_err -> COR");
         apply_reset;
         dllp_crc_err = 1; @(posedge clk); @(posedge clk);
@@ -121,7 +113,6 @@ module tb_dll_err;
         check2(SEV_COR, dll_err_severity,  "severity=COR");
         dllp_crc_err = 0;
 
-        // TC4: dllp_mal_err -> NONFATAL, bit[2]
         $display("[TC4] dllp_mal_err -> NONFATAL");
         apply_reset;
         dllp_mal_err = 1; @(posedge clk); @(posedge clk);
@@ -130,7 +121,6 @@ module tb_dll_err;
         check2(SEV_NONFATAL, dll_err_severity, "severity=NONFATAL");
         dllp_mal_err = 0;
 
-        // TC5: lcrc_err -> NONFATAL, bit[3]
         $display("[TC5] lcrc_err -> NONFATAL");
         apply_reset;
         lcrc_err = 1; @(posedge clk); @(posedge clk);
@@ -139,7 +129,6 @@ module tb_dll_err;
         check2(SEV_NONFATAL, dll_err_severity, "severity=NONFATAL");
         lcrc_err = 0;
 
-        // TC6: flit_uncorr_err -> FATAL, bit[4]
         $display("[TC6] flit_uncorr_err -> FATAL");
         apply_reset;
         flit_uncorr_err = 1; @(posedge clk); @(posedge clk);
@@ -148,7 +137,6 @@ module tb_dll_err;
         check2(SEV_FATAL, dll_err_severity,   "severity=FATAL");
         flit_uncorr_err = 0;
 
-        // TC7: lfsr_sync_err -> FATAL, bit[5]
         $display("[TC7] lfsr_sync_err -> FATAL");
         apply_reset;
         lfsr_sync_err = 1; @(posedge clk); @(posedge clk);
@@ -157,7 +145,6 @@ module tb_dll_err;
         check2(SEV_FATAL, dll_err_severity,  "severity=FATAL");
         lfsr_sync_err = 0;
 
-        // TC8: Priority: replay_rollover > flit_uncorr > lfsr_sync
         $display("[TC8] Priority: replay_rollover wins over dllp_crc");
         apply_reset;
         replay_rollover_err = 1; dllp_crc_err = 1;
@@ -166,7 +153,6 @@ module tb_dll_err;
         check2(SEV_FATAL, dll_err_severity,       "severity=FATAL with priority err");
         replay_rollover_err = 0; dllp_crc_err = 0;
 
-        // TC9: No error -> dll_err_valid=0
         $display("[TC9] No error -> dll_err_valid=0");
         apply_reset;
         @(posedge clk); @(posedge clk);

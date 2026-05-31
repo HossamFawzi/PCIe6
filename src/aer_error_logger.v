@@ -1,14 +1,4 @@
-// =============================================================
-//  MODULE : aer_error_logger  [FIXED]
-//  Fix    : VER-134 + LATCH (aer_mask) — removed mixed blocking/nonblocking
-//           assignments to aer_int, err_msg_tlp, err_msg_valid.
-//  Method : All outputs driven exclusively by nonblocking (<=).
-//           Combinational intermediate signals (new_status,
-//           any_error, msg_type, nxt_int, nxt_valid, nxt_tlp)
-//           computed with blocking = inside the always block,
-//           then committed to the registered outputs at the end
-//           with a single nonblocking statement each.
-// =============================================================
+
 module aer_error_logger (
     input  wire        clk,
     input  wire        rst_n,
@@ -50,12 +40,10 @@ module aer_error_logger (
     localparam [7:0] MSG_ERR_NONFATAL = 8'h31;
     localparam [7:0] MSG_ERR_FATAL    = 8'h33;
 
-    // Purely combinational temporaries — blocking only, never appear
-    // as register targets, so no VER-134 conflict.
     reg [31:0]  new_status;
     reg         any_error;
     reg [7:0]   msg_type;
-    // Registered-output next-values (committed once, nonblocking)
+
     reg         nxt_int;
     reg         nxt_valid;
     reg [255:0] nxt_tlp;
@@ -71,16 +59,15 @@ module aer_error_logger (
             err_msg_valid   <= 1'b0;
             aer_status_prev <= 32'h0;
         end else begin
-            aer_mask <= aer_mask;  // hold: prevents latch inference on aer_mask_reg
-            // ── Combinational computation (blocking = only) ────────────────
+            aer_mask <= aer_mask;
+
             nxt_int   = 1'b0;
             nxt_valid = 1'b0;
             nxt_tlp   = err_msg_tlp;
             any_error = 1'b0;
 
-            new_status = aer_status;   // start from current sticky value
+            new_status = aer_status;
 
-            // Map inputs → status bits
             if (err_from_tmo[0])             begin new_status[BIT_CT]   = 1'b1; any_error = 1'b1; end
             if (err_from_cpl[0])             begin new_status[BIT_UC]   = 1'b1; any_error = 1'b1; end
             if (err_from_cpl[1])             begin new_status[BIT_CA]   = 1'b1; any_error = 1'b1; end
@@ -91,7 +78,6 @@ module aer_error_logger (
             if (dll_err_valid && dll_err[0]) begin new_status[BIT_DLPE] = 1'b1; any_error = 1'b1; end
             if (dll_err_valid && dll_err[1]) begin new_status[BIT_FCP]  = 1'b1; any_error = 1'b1; end
 
-            // Generate message TLP if unmasked error present
             if (any_error && |(new_status & ~aer_mask)) begin
                 case (err_severity)
                     2'b00:   msg_type = MSG_ERR_COR;
@@ -112,7 +98,6 @@ module aer_error_logger (
                 nxt_int   = 1'b1;
             end
 
-            // ── Commit to registers (nonblocking only) ─────────────────────
             aer_status      <= new_status;
             aer_int         <= nxt_int;
             err_msg_valid   <= nxt_valid;

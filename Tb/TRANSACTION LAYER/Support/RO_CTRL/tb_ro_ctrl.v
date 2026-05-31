@@ -1,7 +1,4 @@
-// =============================================================
-//  TESTBENCH : tb_ro_ctrl  (clean rewrite)
-//  DUT       : ro_ctrl
-// =============================================================
+
 `timescale 1ns/1ps
 
 module tb_ro_ctrl;
@@ -36,7 +33,6 @@ module tb_ro_ctrl;
     integer pass_count = 0;
     integer fail_count = 0;
 
-    // ── helpers ──────────────────────────────────────────────
     task chk1;
         input       got;
         input       exp;
@@ -66,7 +62,6 @@ module tb_ro_ctrl;
         end
     endtask
 
-    // Drive on negedge, latch on posedge, sample at +#1
     task apply;
         input       attr_ro;
         input [3:0] rtype;
@@ -82,11 +77,9 @@ module tb_ro_ctrl;
         end
     endtask
 
-    // ── stimulus ──────────────────────────────────────────────
     initial begin
         $display("=== ro_ctrl Testbench ===");
 
-        // T1 — MWr + RO=1 + ro_en=1 → bypass OK
         $display("\n[T1] MWr + RO=1 + ro_en=1");
         do_reset;
         apply(1, 4'b0000, 1, 0);
@@ -94,35 +87,30 @@ module tb_ro_ctrl;
         chk1(ro_err,           1'b0, "no ro_err");
         chk1(ordering_override,1'b0, "ordering_override=0");
 
-        // T2 — MWr + RO=1 + ro_en=0 → error
         $display("\n[T2] MWr + RO=1 + ro_en=0");
         do_reset;
         apply(1, 4'b0000, 0, 0);
         chk1(ro_err,       1'b1, "ro_err=1");
         chk1(ro_bypass_ok, 1'b0, "no bypass");
 
-        // T3 — MRd + RO=1 + ro_en=1 → bypass OK
         $display("\n[T3] MRd + RO=1 + ro_en=1");
         do_reset;
         apply(1, 4'b0001, 1, 0);
         chk1(ro_bypass_ok, 1'b1, "ro_bypass_ok=1 MRd");
         chk1(ro_err,       1'b0, "no error");
 
-        // T4 — Cpl + RO=1 → illegal
         $display("\n[T4] Cpl + RO=1 -> ro_err");
         do_reset;
         apply(1, 4'b1010, 1, 0);
         chk1(ro_err,       1'b1, "ro_err=1 Cpl");
         chk1(ro_bypass_ok, 1'b0, "no bypass Cpl");
 
-        // T5 — MWr + RO=0 → strict
         $display("\n[T5] MWr + RO=0");
         do_reset;
         apply(0, 4'b0000, 1, 0);
         chk1(ro_bypass_ok, 1'b0, "no bypass RO=0");
         chk1(ro_err,       1'b0, "no error");
 
-        // T6 — RO=1 + stall=1 → override
         $display("\n[T6] RO=1 + ordering_stall=1");
         do_reset;
         apply(1, 4'b0000, 1, 1);

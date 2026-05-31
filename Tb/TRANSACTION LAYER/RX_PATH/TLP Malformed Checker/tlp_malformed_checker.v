@@ -1,10 +1,3 @@
-// ============================================================
-// Module: tlp_malformed_checker
-// PCIe Gen6 Transaction Layer - TLP Malformed Checker
-// FIX: Outputs are now COMBINATORIAL (always @*) so they
-//      are valid in the same cycle as parse_valid, matching
-//      the one-cycle sample window the testbench expects.
-// ============================================================
 
 module tlp_malformed_checker (
     input  wire        clk,
@@ -48,7 +41,6 @@ module tlp_malformed_checker (
     wire io_len_ok   = (tlp_len == 10'd1);
     wire cfg_len_ok  = (tlp_len == 10'd1);
 
-    // Skip BE checks for types that have no first_be/last_be fields
     wire skip_be = is_cpl | is_msg | is_atomic;
 
     wire be_len1_ok  = skip_be ? 1'b1 :
@@ -65,9 +57,6 @@ module tlp_malformed_checker (
         1'b1
     );
 
-    // -------------------------------------------------------
-    // Combinatorial decode (no clock, no register)
-    // -------------------------------------------------------
     reg        c_malformed_err;
     reg [3:0]  c_malformed_type;
     reg        c_tlp_ok;

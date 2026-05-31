@@ -1,15 +1,4 @@
-// =============================================================================
-// Module 8: TX Datapath MUX (PHY)
-// PCIe Gen6 Physical Layer
-// Description: Final TX multiplexer. Selects between:
-//   - Electrical Idle  (Priority 1 — highest)
-//   - Ordered Sets     (Priority 2)
-//   - FLIT data Gen6   (Priority 3a)
-//   - Encoded data Gen1-5 (Priority 3b)
-//
-// Note: FLIT is 2048b. This MUX passes the first 256b slice to the PIPE
-//       interface; the TX Gear Box (Module 6) handles full serialization.
-// =============================================================================
+
 module tx_datapath_mux (
     input  wire          clk,
     input  wire          rst_n,
@@ -29,7 +18,7 @@ module tx_datapath_mux (
     output reg  [255:0]  tx_out,
     output reg           tx_out_valid,
     output reg           tx_elec_idle_out,
-    output reg  [1:0]    mux_sel  // 0=elec_idle,1=OS,2=enc,3=flit
+    output reg  [1:0]    mux_sel
 );
 
 always @(posedge clk or negedge rst_n) begin
@@ -52,7 +41,7 @@ always @(posedge clk or negedge rst_n) begin
             tx_out_valid <= 1'b1;
             mux_sel      <= 2'h1;
         end else if (flit_mode_en && flit_valid) begin
-            // First 256b slice — Gear Box serializes the full 2048b FLIT
+
             tx_out       <= flit_data[2047:1792];
             tx_out_valid <= 1'b1;
             mux_sel      <= 2'h3;

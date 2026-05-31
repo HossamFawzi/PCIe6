@@ -2,22 +2,18 @@ module DLL_IF (
     input               clk,
     input               rst_n,
 
-    // From FLIT Controller
     input      [2047:0] flit_in,
     input               flit_valid_in,
 
-    // From DLL
     input               dll_ack,
     input               dll_nak,
     input               dll_up,
     input      [71:0]   cr_update,
     input               cr_update_valid,
 
-    // To TL RX
     output reg [1023:0] tlp_rx_out,
     output reg          tlp_rx_valid,
 
-    // To DLL
     output reg [2047:0] flit_to_dll,
     output reg          flit_to_dll_valid,
     output reg          dll_ready
@@ -49,20 +45,18 @@ always @(posedge clk or negedge rst_n) begin
         replay_buffer     <= 2048'h0;
     end
     else begin
-        //Defaults cleared every cycle 
+
         dll_ready         <= dll_up;
         flit_to_dll_valid <= 1'b0;
         tlp_rx_valid      <= 1'b0;
 
-        //  Link-down override (highest priority) 
         if (!dll_up) begin
             state       <= IDLE;
             retry_cnt   <= 3'h0;
             timeout_cnt <= 16'h0;
         end
         else begin
-            //  FSM 
-            // synthesis full_case
+
             case (state)
 
                 IDLE: begin
@@ -112,7 +106,6 @@ always @(posedge clk or negedge rst_n) begin
             endcase
         end
 
-        // RX path: forward credit updates to TL RX pipeline 
         if (cr_update_valid) begin
             tlp_rx_out   <= cr_update[63:0];
             tlp_rx_valid <= 1'b1;

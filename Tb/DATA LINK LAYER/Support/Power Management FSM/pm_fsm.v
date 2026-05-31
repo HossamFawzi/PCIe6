@@ -1,6 +1,4 @@
-// =============================================================================
-// PCIe Gen6 DLL Support Block: Power Management FSM (PM_FSM)
-// =============================================================================
+
 module pm_fsm (
     input  wire       clk,
     input  wire       rst_n,
@@ -32,7 +30,7 @@ module pm_fsm (
             link_state   <= LS_L0;
             ltssm_pm_req <= 3'd0;
         end else begin
-            // pm_dllp_send is a ONE-cycle pulse; default off
+
             pm_dllp_send <= 1'b0;
 
             case (link_state)

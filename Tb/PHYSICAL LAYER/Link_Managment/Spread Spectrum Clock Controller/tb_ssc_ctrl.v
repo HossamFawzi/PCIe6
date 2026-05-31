@@ -1,6 +1,4 @@
-// ============================================================
-// Testbench for Module 51 : Spread Spectrum Clock Controller
-// ============================================================
+
 `timescale 1ns/1ps
 
 module tb_ssc_ctrl;
@@ -38,7 +36,6 @@ module tb_ssc_ctrl;
         rst_n=0; ssc_en=0; ssc_profile=2'd0;
         repeat(4) @(posedge clk); rst_n=1; @(posedge clk);
 
-        // TC1: SSC disabled — mod_req = 0, active = 0
         ssc_en=0; ssc_profile=2'd0;
         repeat(5) @(posedge clk); #1;
         if (!ssc_active && ssc_mod_req===8'd0 && !ssc_down_spread && !ssc_center_spread) begin
@@ -47,7 +44,6 @@ module tb_ssc_ctrl;
             $display("FAIL [TC1_disabled] active=%b req=%0d", ssc_active, ssc_mod_req); fail_count=fail_count+1;
         end
 
-        // TC2: Down-spread active
         ssc_en=1; ssc_profile=2'd1;
         repeat(5) @(posedge clk); #1;
         if (ssc_active && ssc_down_spread && !ssc_center_spread) begin
@@ -57,7 +53,6 @@ module tb_ssc_ctrl;
             fail_count=fail_count+1;
         end
 
-        // TC3: Center-spread active
         ssc_profile=2'd2;
         repeat(5) @(posedge clk); #1;
         if (ssc_active && ssc_center_spread && !ssc_down_spread) begin
@@ -66,14 +61,13 @@ module tb_ssc_ctrl;
             $display("FAIL [TC3_center_spread]"); fail_count=fail_count+1;
         end
 
-        // TC4: Down-spread mod_req changes (triangle wave)
         ssc_profile=2'd1;
         begin : TC4
             reg [7:0] v0, v1, v2;
             @(posedge clk); #1; v0 = ssc_mod_req;
             @(posedge clk); #1; v1 = ssc_mod_req;
             @(posedge clk); #1; v2 = ssc_mod_req;
-            // Should be increasing initially
+
             if (v1 >= v0 || v2 >= v1) begin
                 $display("PASS [TC4_mod_changes]"); pass_count=pass_count+1;
             end else begin
@@ -81,7 +75,6 @@ module tb_ssc_ctrl;
             end
         end
 
-        // TC5: Center-spread mod_req eventually goes negative (wraps in 8-bit)
         ssc_profile=2'd2;
         begin : TC5
             integer min_val, max_val, i;
@@ -93,7 +86,7 @@ module tb_ssc_ctrl;
                 if (val < min_val) min_val = val;
                 if (val > max_val) max_val = val;
             end
-            // Should see both low and high values indicating modulation
+
             if (max_val > min_val + 8'd10) begin
                 $display("PASS [TC5_center_modulates]"); pass_count=pass_count+1;
             end else begin
@@ -101,7 +94,6 @@ module tb_ssc_ctrl;
             end
         end
 
-        // TC6: ssc_en goes low → stops modulation
         ssc_en=0;
         repeat(5) @(posedge clk); #1;
         if (!ssc_active && ssc_mod_req===8'd0) begin
@@ -110,7 +102,6 @@ module tb_ssc_ctrl;
             $display("FAIL [TC6_en_low_stops] active=%b req=%0d", ssc_active, ssc_mod_req); fail_count=fail_count+1;
         end
 
-        // TC7: Profile=0 (off) with ssc_en=1 → inactive
         ssc_en=1; ssc_profile=2'd0;
         repeat(5) @(posedge clk); #1;
         if (!ssc_active && ssc_mod_req===8'd0) begin
@@ -119,7 +110,6 @@ module tb_ssc_ctrl;
             $display("FAIL [TC7_profile_off]"); fail_count=fail_count+1;
         end
 
-        // TC8: Reset clears
         ssc_en=1; ssc_profile=2'd1;
         repeat(5) @(posedge clk);
         rst_n=0; repeat(3) @(posedge clk); #1;

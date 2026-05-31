@@ -1,21 +1,3 @@
-// =============================================================================
-// PCIe 6.0 Flit Mode Controller - Transaction Layer TX
-// =============================================================================
-// FLIT Structure (256 bytes = 2048 bits):
-//   [2047:0]   - Payload (TLPs + DLLP padding)
-//   flit_seq   - 12-bit rolling sequence number
-//   flit_crc   - CRC-24 over payload
-//
-// FSM States:
-//   IDLE      -> LOAD_1   : first TLP chunk latched
-//   LOAD_1    -> LOAD_2   : second TLP chunk assembled
-//   LOAD_2    -> CALC_CRC : pipeline stage
-//   CALC_CRC  -> EMIT     : CRC computed
-//   EMIT      -> WAIT_ACK : outputs driven for one cycle
-//   WAIT_ACK  -> IDLE     : ACK received, seq increments
-//   WAIT_ACK  -> RETRY    : ACK timeout, retry asserted
-//   RETRY     -> IDLE     : retry ACK received
-// =============================================================================
 
 module flit_mode_controller (
     input  wire           clk,
@@ -56,9 +38,6 @@ module flit_mode_controller (
     reg [23:0]   crc_result;
     reg [3:0]    ack_timer;
 
-    // =========================================================================
-    // CRC-24: x^24+x^23+x^6+x^5+x+1
-    // =========================================================================
     function [23:0] crc24;
         input [2047:0] data;
         integer i;
@@ -97,13 +76,11 @@ module flit_mode_controller (
         end
     endfunction
 
-    // FSM sequential
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) state <= IDLE;
         else        state <= next_state;
     end
 
-    // FSM next-state
     always @(*) begin
         next_state = state;
         case (state)
@@ -123,7 +100,6 @@ module flit_mode_controller (
         endcase
     end
 
-    // FSM datapath
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             flit_out          <= {FLIT_PAYLOAD_BITS{1'b0}};
@@ -166,7 +142,6 @@ module flit_mode_controller (
                     crc_result <= crc24(flit_buf);
                 end
 
-                // Drive outputs once; NO retry decision here
                 EMIT: begin
                     flit_out   <= flit_buf;
                     flit_crc   <= crc_result;
@@ -177,7 +152,6 @@ module flit_mode_controller (
                     ack_timer  <= ACK_TIMEOUT;
                 end
 
-                // Hold valid, count down, still NO retry flag
                 WAIT_ACK: begin
                     flit_out   <= retry_buf;
                     flit_crc   <= crc_result;
@@ -192,7 +166,6 @@ module flit_mode_controller (
                     end
                 end
 
-                // Timeout expired: re-emit + assert retry
                 RETRY: begin
                     flit_out       <= retry_buf;
                     flit_crc       <= crc24(retry_buf);

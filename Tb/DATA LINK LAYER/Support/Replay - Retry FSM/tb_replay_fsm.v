@@ -22,42 +22,35 @@ module tb_replay_fsm;
     initial begin
         $display("=== TB: replay_fsm ===");
 
-        // TC1: Reset
         $display("[TC1] Reset clears outputs");
         rst; @(posedge clk); #1;
         chk1(0,retry_req,"retry_req=0");
         chk1(0,dll_link_down,"dll_link_down=0");
         chk1(0,replay_rollover_err,"replay_rollover_err=0");
 
-        // TC2: NAK triggers retry_req — set nak_valid BEFORE posedge
         $display("[TC2] NAK triggers retry_req");
         rst; replay_num=2'd0; nak_seq=12'hABC;
-        // Set input, then let posedge register -> IDLE detects nak -> goes to RETRY state
-        // retry_req is registered in RETRY state, one cycle after detection
-        nak_valid=1; @(posedge clk); #1; nak_valid=0; // FSM: IDLE->RETRY, retry_req<=1
+
+        nak_valid=1; @(posedge clk); #1; nak_valid=0;
         chk1(1,retry_req,"retry_req=1 on NAK");
 
-        // TC3: retry_seq_start = nak_seq
         $display("[TC3] retry_seq_start follows nak_seq");
         rst; replay_num=2'd0; nak_seq=12'h123;
         nak_valid=1; @(posedge clk); #1; nak_valid=0;
         if(retry_seq_start===12'h123)begin $display("  PASS | retry_seq_start=0x123");pass_count=pass_count+1;end
         else begin $display("  FAIL | retry_seq_start exp=0x123 got=0x%h",retry_seq_start);fail_count=fail_count+1;end
 
-        // TC4: retry_req auto-clears
         $display("[TC4] retry_req auto-clears");
         rst; replay_num=2'd0;
-        nak_valid=1; @(posedge clk); #1; nak_valid=0;  // in RETRY, retry_req=1
-        @(posedge clk); #1;  // RETRY->IDLE, retry_req cleared
+        nak_valid=1; @(posedge clk); #1; nak_valid=0;
+        @(posedge clk); #1;
         chk1(0,retry_req,"retry_req=0 after one cycle");
 
-        // TC5: replay_timer_exp triggers retry
         $display("[TC5] replay_timer_exp triggers retry_req");
         rst; replay_num=2'd1;
         replay_timer_exp=1; @(posedge clk); #1; replay_timer_exp=0;
         chk1(1,retry_req,"retry_req=1 on replay_timer_exp");
 
-        // TC6: 4th replay -> link_down
         $display("[TC6] replay_num=3 causes dll_link_down");
         rst; replay_num=2'd3;
         nak_valid=1; @(posedge clk); #1; nak_valid=0;
@@ -65,14 +58,12 @@ module tb_replay_fsm;
         chk1(1,dll_link_down,"dll_link_down=1 at replay_num=3");
         chk1(1,replay_rollover_err,"replay_rollover_err=1 at replay_num=3");
 
-        // TC7: replay_num=2 -> no link_down
         $display("[TC7] replay_num=2 -> no link_down");
         rst; replay_num=2'd2;
         nak_valid=1; @(posedge clk); #1; nak_valid=0;
         repeat(3)@(posedge clk); #1;
         chk1(0,dll_link_down,"dll_link_down=0 when replay_num=2");
 
-        // TC8: Idle -> no retry
         $display("[TC8] Idle: no retry");
         rst; replay_num=2'd0;
         repeat(10)@(posedge clk); #1;

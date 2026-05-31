@@ -1,41 +1,24 @@
-// ============================================================
-// Module 41 : TS1 Ordered Set Generator (TS1_GEN)
-// PCIe Gen6 Physical Layer
-// Generates TS1 Ordered Sets for link training.
-// Used in Polling, Configuration, and Recovery states.
-// ============================================================
+
 module ts1_gen (
     input  wire        clk,
     input  wire        rst_n,
 
-    // Control inputs
-    input  wire [7:0]  link_num,       // Link number (0xFF = PAD)
-    input  wire [7:0]  lane_num,       // Lane number (0xFF = PAD)
-    input  wire [7:0]  speed_cap,      // Speed capability bits
-    input  wire [7:0]  fts_count,      // FTS count field
-    input  wire        ts1_send,       // Request to send TS1
-    input  wire        compliance_mode,// Set compliance bit in TS1
+    input  wire [7:0]  link_num,
+    input  wire [7:0]  lane_num,
+    input  wire [7:0]  speed_cap,
+    input  wire [7:0]  fts_count,
+    input  wire        ts1_send,
+    input  wire        compliance_mode,
 
-    // Outputs
-    output reg  [255:0] ts1_data,      // 256-bit TS1 ordered set
-    output reg          ts1_valid,     // ts1_data is valid
-    output reg          ts1_done       // One-shot: TS1 fully generated
+    output reg  [255:0] ts1_data,
+    output reg          ts1_valid,
+    output reg          ts1_done
 );
 
-// TS1 Ordered Set constants (PCIe spec)
-// Symbol 0: COM (K28.5) = 0xBC
-// Symbol 1: Link Number
-// Symbol 2: Lane Number
-// Symbol 3: FTS Count
-// Symbol 4: Speed Cap
-// Symbols 5-15: Training Control / reserved
-// Symbols 16-31: Scrambled PAD (0xF7)
+localparam [7:0] COM_SYMBOL  = 8'hBC;
+localparam [7:0] PAD_SYMBOL  = 8'hF7;
+localparam [7:0] TS1_ID      = 8'h4A;
 
-localparam [7:0] COM_SYMBOL  = 8'hBC;  // K28.5
-localparam [7:0] PAD_SYMBOL  = 8'hF7;  // K23.7
-localparam [7:0] TS1_ID      = 8'h4A;  // TS1 identifier symbol
-
-// Compliance bit position in training control byte (symbol 5)
 localparam COMPLIANCE_BIT = 4;
 
 reg [1:0] state;
@@ -54,7 +37,7 @@ always @(posedge clk or negedge rst_n) begin
         state        <= S_IDLE;
         training_ctrl<= 8'h00;
     end else begin
-        ts1_done  <= 1'b0; // default pulse off
+        ts1_done  <= 1'b0;
 
         case (state)
             S_IDLE: begin
@@ -66,15 +49,7 @@ always @(posedge clk or negedge rst_n) begin
             end
 
             S_BUILD: begin
-                // Build 32-byte (256-bit) TS1 ordered set
-                // Byte 0 (bits 7:0)   = COM
-                // Byte 1 (bits 15:8)  = Link Number
-                // Byte 2 (bits 23:16) = Lane Number
-                // Byte 3 (bits 31:24) = FTS Count
-                // Byte 4 (bits 39:32) = Speed Capability
-                // Byte 5 (bits 47:40) = Training Control
-                // Byte 6 (bits 55:48) = TS1 ID
-                // Bytes 7-31          = PAD
+
                 ts1_data[  7:  0] <= COM_SYMBOL;
                 ts1_data[ 15:  8] <= link_num;
                 ts1_data[ 23: 16] <= lane_num;

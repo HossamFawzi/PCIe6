@@ -33,7 +33,6 @@ module tb_flit_framer_tx;
     always #5 clk = ~clk;
     task tick; input integer n; integer i; begin for(i=0;i<n;i=i+1) @(posedge clk); #1; end endtask
 
-    // Wait up to n cycles; set got_valid if flit_valid seen, capture outputs
     reg [2047:0] cap_flit;
     reg [1:0]    cap_sh;
     reg [11:0]   cap_seq;
@@ -67,7 +66,6 @@ module tb_flit_framer_tx;
         fec_parity=0; flit_mode_en=0; link_reset=0;
         tick(4); rst_n=1; tick(2);
 
-        // Test 1: No output when flit_mode_en=0
         $display("Test 1: No output when flit_mode_en=0");
         flit_mode_en=0; tlp_valid=1; tlp_data=1024'hABCD;
         tick(8);
@@ -75,7 +73,6 @@ module tb_flit_framer_tx;
         else begin $display("FAIL: got output without flit_mode_en"); fail=fail+1; end
         tlp_valid=0;
 
-        // Test 2: FLIT generated with TLP
         $display("Test 2: FLIT generation with TLP");
         flit_mode_en=1;
         @(posedge clk); #1; tlp_data={1024{1'b1}}; tlp_valid=1;
@@ -84,7 +81,6 @@ module tb_flit_framer_tx;
         if (got) begin $display("PASS"); pass=pass+1; end
         else begin $display("FAIL: No FLIT in 30 cycles"); fail=fail+1; end
 
-        // Test 3: Sync header = 01
         $display("Test 3: Sync header=01");
         flit_mode_en=1;
         @(posedge clk); #1; tlp_valid=1; tlp_data=1024'h5A5A;
@@ -93,7 +89,6 @@ module tb_flit_framer_tx;
         if (got && cap_sh==2'b01) begin $display("PASS: sh=%b", cap_sh); pass=pass+1; end
         else begin $display("FAIL: sh=%b got=%b", cap_sh, got); fail=fail+1; end
 
-        // Test 4: Sequence number increments
         $display("Test 4: Sequence number increments");
         prev_seq = cap_seq;
         flit_mode_en=1;
@@ -106,29 +101,26 @@ module tb_flit_framer_tx;
             $display("FAIL: seq=%0d prev=%0d got=%b", cap_seq, prev_seq, got); fail=fail+1;
         end
 
-        // Test 5: TLP data in payload - check pattern
         $display("Test 5: TLP data preserved");
         flit_mode_en=1;
         @(posedge clk); #1; tlp_valid=1; tlp_data={16{64'hDEADBEEFCAFEBABE}};
         @(posedge clk); #1; tlp_valid=0;
         wait_flit(30, got);
-        // The TLP is packed at payload[2011:988] inside the FLIT
+
         if (got && cap_flit[2011:988]=={16{64'hDEADBEEFCAFEBABE}}) begin
             $display("PASS"); pass=pass+1;
         end else if (got) begin
-            // Some implementations may reorder; just check it appears somewhere in flit
+
             $display("PASS: FLIT generated (payload layout impl-specific)"); pass=pass+1;
         end else begin
             $display("FAIL: No FLIT"); fail=fail+1;
         end
 
-        // Test 6: Link reset clears state
         $display("Test 6: Link reset");
         link_reset=1; tick(3); link_reset=0;
         if (!flit_valid) begin $display("PASS"); pass=pass+1; end
         else begin $display("FAIL"); fail=fail+1; end
 
-        // Test 7: NULL FLIT when idle
         $display("Test 7: NULL FLIT when idle");
         begin : nf
             integer wc; reg gnull;
@@ -141,7 +133,6 @@ module tb_flit_framer_tx;
             else begin $display("PASS: throttle timing-dependent"); pass=pass+1; end
         end
 
-        // Test 8: CRC non-zero for data FLIT
         $display("Test 8: CRC non-zero");
         flit_mode_en=1;
         @(posedge clk); #1; tlp_valid=1; tlp_data=1024'hABCDEF;

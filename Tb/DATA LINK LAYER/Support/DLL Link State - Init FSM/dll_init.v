@@ -1,6 +1,4 @@
-// =============================================================================
-// PCIe Gen6 DLL Support Block: DLL Link State / Init FSM (DLL_INIT)
-// =============================================================================
+
 module dll_init (
     input  wire clk,
     input  wire rst_n,
@@ -29,7 +27,7 @@ module dll_init (
             dll_active    <= 1'b0;
             dll_error     <= 1'b0;
         end else begin
-            // dll_reset_seq is a one-cycle pulse; clear every cycle by default
+
             dll_reset_seq <= 1'b0;
             dll_error     <= 1'b0;
 
@@ -39,7 +37,7 @@ module dll_init (
                     dll_active   <= 1'b0;
                     if (ltssm_dl_up) begin
                         state         <= DL_INIT;
-                        dll_reset_seq <= 1'b1;   // pulse on entry
+                        dll_reset_seq <= 1'b1;
                     end
                 end
                 DL_INIT: begin
@@ -69,7 +67,7 @@ module dll_init (
                     dll_active   <= 1'b0;
                     if (ltssm_dl_up) begin
                         state         <= DL_INIT;
-                        dll_reset_seq <= 1'b1;   // pulse on re-init
+                        dll_reset_seq <= 1'b1;
                         dll_error     <= 1'b0;
                     end else if (ltssm_dl_down) begin
                         state <= DL_INACTIVE;

@@ -1,6 +1,4 @@
-// =============================================================
-//  TESTBENCH : tb_vc_arbiter (clean)
-// =============================================================
+
 `timescale 1ns/1ps
 module tb_vc_arbiter;
 
@@ -57,7 +55,6 @@ module tb_vc_arbiter;
     initial begin
         $display("=== vc_arbiter Testbench ===");
 
-        // T1: RR only VC0
         $display("\n[T1] RR: only VC0 requesting");
         do_reset;
         set_reqs(1,0,0,0);
@@ -66,7 +63,6 @@ module tb_vc_arbiter;
         chk1(vc_arb_valid, 1'b1, "vc_arb_valid=1");
         set_reqs(0,0,0,0);
 
-        // T2: RR only VC1
         $display("\n[T2] RR: only VC1");
         do_reset;
         set_reqs(0,1,0,0);
@@ -74,7 +70,6 @@ module tb_vc_arbiter;
         chkN(vc_grant_id, 3'd1, "vc_grant_id=1");
         set_reqs(0,0,0,0);
 
-        // T3: RR VC0+VC2 → must alternate
         $display("\n[T3] RR: VC0+VC2 alternate");
         do_reset;
         vc_arb_scheme=2'b00;
@@ -96,7 +91,6 @@ module tb_vc_arbiter;
         end
         set_reqs(0,0,0,0);
 
-        // T4: RR all 4 — cycle through 0,1,2,3
         $display("\n[T4] RR: all 4 VCs cycle 0→1→2→3");
         do_reset;
         vc_arb_scheme=2'b00;
@@ -112,7 +106,7 @@ module tb_vc_arbiter;
                     $display("  grant[%0d]=VC%0d", k, vc_grant_id);
                 end
             end
-            // Check first 4 grants cover all of 0-3
+
             cycle_ok=1;
             for (idx=0; idx<4; idx=idx+1) begin
                 if (grant_log[idx] !== idx[2:0]) cycle_ok=0;
@@ -121,11 +115,10 @@ module tb_vc_arbiter;
         end
         set_reqs(0,0,0,0);
 
-        // T5: WRR VC0 weight=4 VC1 weight=1
         $display("\n[T5] WRR: VC0 w=4, VC1 w=1");
         do_reset;
         vc_arb_scheme=2'b01;
-        vc_weight=32'h0000_0104; // VC0=4, VC1=1
+        vc_weight=32'h0000_0104;
         set_reqs(1,1,0,0);
         vc0_cnt=0; vc1_cnt=0;
         for (k=0; k<10; k=k+1) begin
@@ -145,7 +138,6 @@ module tb_vc_arbiter;
         end
         set_reqs(0,0,0,0);
 
-        // T6: no requests → vc_arb_valid=0
         $display("\n[T6] No requests → idle");
         do_reset;
         @(posedge clk); #1;

@@ -1,7 +1,4 @@
-// =============================================================
-//  MODULE : vc_arbiter  (fixed RR scan)
-//  TAG    : VC_ARB  🔴 MUST
-// =============================================================
+
 module vc_arbiter (
     input  wire        clk,
     input  wire        rst_n,
@@ -21,13 +18,11 @@ module vc_arbiter (
     reg [1:0]  rr_ptr;
     reg [7:0]  credits [0:3];
 
-    // Combinational RR arbitration result
     reg [1:0]  rr_winner;
     reg        rr_found;
 
     integer i;
 
-    // ── Combinational RR winner selection ─────────────────────
     always @(*) begin : RR_COMB
         integer j;
         reg [1:0] idx;
@@ -42,7 +37,6 @@ module vc_arbiter (
         end
     end
 
-    // ── Combinational WRR winner selection ────────────────────
     reg [1:0]  wrr_winner;
     reg        wrr_found;
     reg        wrr_all_zero;
@@ -68,7 +62,6 @@ module vc_arbiter (
         end
     end
 
-    // ── Registered output ──────────────────────────────────────
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             vc_grant     <= 4'h0;
@@ -85,7 +78,7 @@ module vc_arbiter (
 
             if (req_bus != 4'h0) begin
                 if (vc_arb_scheme == 2'b00) begin
-                    // ── Round-Robin ──────────────────────────
+
                     if (rr_found) begin
                         vc_grant     <= 4'h1 << rr_winner;
                         vc_grant_id  <= {1'b0, rr_winner};
@@ -94,9 +87,9 @@ module vc_arbiter (
                     end
                 end
                 else begin
-                    // ── WRR ──────────────────────────────────
+
                     if (wrr_all_zero) begin
-                        // Reload credits
+
                         credits[0] <= vc_weight[7:0];
                         credits[1] <= vc_weight[15:8];
                         credits[2] <= vc_weight[23:16];

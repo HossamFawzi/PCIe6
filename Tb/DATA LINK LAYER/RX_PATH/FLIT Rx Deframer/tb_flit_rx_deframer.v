@@ -1,22 +1,8 @@
-// =============================================================================
-// Testbench : tb_flit_rx_deframer
-// DUT       : flit_rx_deframer
-// Coverage  : 
-//   TC1 – NULL FLIT       → flit_null asserted, no TLP/DLLP valid
-//   TC2 – TLP-only FLIT   → flit_tlp_valid, correct payload, correct seq
-//   TC3 – DLLP-only FLIT  → flit_dllp_valid, correct payload
-//   TC4 – MIXED FLIT      → both TLP and DLLP valid
-//   TC5 – CRC error       → flit_crc_err asserted, no data forwarded
-//   TC6 – FEC uncorr err  → flit_uncorr_err asserted
-//   TC7 – FEC corrected   → data forwarded normally
-//   TC8 – Back-to-back FLITs (pipeline stress)
-// =============================================================================
 
 `timescale 1ns/1ps
 
 module tb_flit_rx_deframer;
 
-    // ── DUT ports ─────────────────────────────────────────────────────────────
     reg          clk;
     reg          rst_n;
     reg  [2047:0] rx_flit;
@@ -33,7 +19,6 @@ module tb_flit_rx_deframer;
     wire          flit_null;
     wire          flit_uncorr_err;
 
-    // ── DUT instantiation ─────────────────────────────────────────────────────
     flit_rx_deframer dut (
         .clk            (clk),
         .rst_n          (rst_n),
@@ -51,16 +36,14 @@ module tb_flit_rx_deframer;
         .flit_uncorr_err(flit_uncorr_err)
     );
 
-    // ── Clock generator: 250 MHz (4 ns period) ───────────────────────────────
     initial clk = 0;
     always #2 clk = ~clk;
 
-    // ── Test scoreboard ───────────────────────────────────────────────────────
     integer pass_count = 0;
     integer fail_count = 0;
 
     task check;
-        input [255:0] label;   // test case description (string packed)
+        input [255:0] label;
         input         expected;
         input         actual;
         begin
@@ -74,19 +57,11 @@ module tb_flit_rx_deframer;
         end
     endtask
 
-    // ── Helper: build a well-formed FLIT with correct CRC ────────────────────
-    // Since CRC is computed by the sub-module flit_crc24, we simply set the
-    // CRC field to all-zeros in these tests and rely on the fact that the
-    // testbench injects the computed value from the same logic.
-    // For error-injection tests we corrupt the CRC manually.
-
-    // Localparams matching the DUT
     localparam [3:0] TYPE_NULL  = 4'h0;
     localparam [3:0] TYPE_TLP   = 4'h1;
     localparam [3:0] TYPE_DLLP  = 4'h2;
     localparam [3:0] TYPE_MIXED = 4'h3;
 
-    // Build a FLIT and compute its CRC via the same function used in the DUT.
     function [23:0] compute_crc24;
         input [2023:0] data_in;
         integer i;
@@ -120,16 +95,16 @@ module tb_flit_rx_deframer;
         reg [2047:0]  flit_word;
         reg [23:0]    crc_val;
         begin
-            // Assemble without CRC
+
             flit_word = 2048'b0;
             flit_word[1023:0]    = tlp_data;
             flit_word[2007:1944] = dllp_data;
             flit_word[2011:2008] = ftype;
             flit_word[2023:2012] = seq;
-            // Compute CRC over bits [2023:0]
+
             crc_val = compute_crc24(flit_word[2023:0]);
             if (inject_crc_err)
-                crc_val = ~crc_val;   // corrupt CRC
+                crc_val = ~crc_val;
             flit_word[2047:2024] = crc_val;
 
             @(posedge clk);
@@ -144,12 +119,10 @@ module tb_flit_rx_deframer;
         end
     endtask
 
-    // ── Test sequence ─────────────────────────────────────────────────────────
     initial begin
         $dumpfile("tb_flit_rx_deframer.vcd");
         $dumpvars(0, tb_flit_rx_deframer);
 
-        // ── Reset ──────────────────────────────────────────────────────────
         rst_n         = 0;
         rx_flit       = 2048'b0;
         rx_flit_valid = 1'b0;
@@ -159,7 +132,6 @@ module tb_flit_rx_deframer;
         rst_n = 1;
         repeat(2) @(posedge clk);
 
-        // ── TC1: NULL FLIT ─────────────────────────────────────────────────
         $display("\n--- TC1: NULL FLIT ---");
         send_flit(TYPE_NULL, 12'h001, 1024'hDEAD, 64'hBEEF, 0, 16'h0, 0);
         @(posedge clk);
@@ -169,7 +141,6 @@ module tb_flit_rx_deframer;
         check("TC1 flit_crc_err",    1'b0, flit_crc_err);
         repeat(2) @(posedge clk);
 
-        // ── TC2: TLP-only FLIT ─────────────────────────────────────────────
         $display("\n--- TC2: TLP-only FLIT ---");
         send_flit(TYPE_TLP, 12'h042, 1024'hCAFE_BABE, 64'h0, 0, 16'h0, 0);
         @(posedge clk);
@@ -179,7 +150,6 @@ module tb_flit_rx_deframer;
         check("TC2 flit_seq==0x042", 1'b1, (flit_seq === 12'h042));
         repeat(2) @(posedge clk);
 
-        // ── TC3: DLLP-only FLIT ────────────────────────────────────────────
         $display("\n--- TC3: DLLP-only FLIT ---");
         send_flit(TYPE_DLLP, 12'h007, 1024'h0, 64'hDEAD_BEEF_1234_5678, 0, 16'h0, 0);
         @(posedge clk);
@@ -188,7 +158,6 @@ module tb_flit_rx_deframer;
         check("TC3 flit_seq==0x007", 1'b1, (flit_seq === 12'h007));
         repeat(2) @(posedge clk);
 
-        // ── TC4: MIXED FLIT ────────────────────────────────────────────────
         $display("\n--- TC4: MIXED (TLP+DLLP) FLIT ---");
         send_flit(TYPE_MIXED, 12'hFFF, 1024'hAA55, 64'h12345678AABBCCDD, 0, 16'h0, 0);
         @(posedge clk);
@@ -197,31 +166,27 @@ module tb_flit_rx_deframer;
         check("TC4 flit_seq==0xFFF", 1'b1, (flit_seq === 12'hFFF));
         repeat(2) @(posedge clk);
 
-        // ── TC5: CRC error ─────────────────────────────────────────────────
         $display("\n--- TC5: CRC error injection ---");
-        send_flit(TYPE_TLP, 12'h100, 1024'h5A5A, 64'h0, 1/*inject_crc_err*/, 16'h0, 0);
+        send_flit(TYPE_TLP, 12'h100, 1024'h5A5A, 64'h0, 1, 16'h0, 0);
         @(posedge clk);
         check("TC5 flit_crc_err",   1'b1, flit_crc_err);
         check("TC5 flit_tlp_valid", 1'b0, flit_tlp_valid);
         repeat(2) @(posedge clk);
 
-        // ── TC6: FEC uncorrectable error ───────────────────────────────────
         $display("\n--- TC6: FEC uncorrectable error ---");
-        send_flit(TYPE_TLP, 12'h200, 1024'h1234, 64'h0, 0, 16'hABCD/*syndrome≠0*/, 0/*not corrected*/);
+        send_flit(TYPE_TLP, 12'h200, 1024'h1234, 64'h0, 0, 16'hABCD, 0);
         @(posedge clk);
         check("TC6 flit_uncorr_err", 1'b1, flit_uncorr_err);
         check("TC6 flit_tlp_valid",  1'b0, flit_tlp_valid);
         repeat(2) @(posedge clk);
 
-        // ── TC7: FEC corrected (should forward normally) ───────────────────
         $display("\n--- TC7: FEC corrected (data valid) ---");
-        send_flit(TYPE_TLP, 12'h300, 1024'hFEED, 64'h0, 0, 16'hABCD/*syndrome*/, 1/*corrected*/);
+        send_flit(TYPE_TLP, 12'h300, 1024'hFEED, 64'h0, 0, 16'hABCD, 1);
         @(posedge clk);
         check("TC7 flit_uncorr_err", 1'b0, flit_uncorr_err);
         check("TC7 flit_tlp_valid",  1'b1, flit_tlp_valid);
         repeat(2) @(posedge clk);
 
-        // ── TC8: Back-to-back FLITs ────────────────────────────────────────
         $display("\n--- TC8: Back-to-back FLITs ---");
         begin : bb
             integer i;
@@ -233,7 +198,6 @@ module tb_flit_rx_deframer;
         $display("TC8: back-to-back complete (visual inspection of waveform)");
         repeat(4) @(posedge clk);
 
-        // ── Summary ───────────────────────────────────────────────────────
         $display("\n========================================");
         $display("  FLIT Rx Deframer TB: %0d PASS / %0d FAIL", pass_count, fail_count);
         $display("========================================\n");
@@ -246,7 +210,6 @@ module tb_flit_rx_deframer;
         $finish;
     end
 
-    // ── Timeout watchdog ─────────────────────────────────────────────────────
     initial begin
         #100000;
         $display("[TIMEOUT] Testbench exceeded 100 us — aborting");

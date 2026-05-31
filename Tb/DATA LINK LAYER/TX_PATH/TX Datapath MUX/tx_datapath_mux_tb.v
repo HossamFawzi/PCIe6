@@ -1,19 +1,3 @@
-// =============================================================================
-// Module   : tx_datapath_mux_tb
-// Project  : PCIe 6.0 Data Link Layer — TX Datapath MUX Testbench
-//
-// Test Plan:
-//   TC1  – Reset: all PHY outputs = 0
-//   TC2  – DLLP only: 1 beat, SOP+EOP same cycle
-//   TC3  – New TLP only: 5 beats, correct per-beat data
-//   TC4  – Retry TLP only: 5 beats
-//   TC5  – Priority: retry > new TLP
-//   TC6  – Priority: new TLP > DLLP
-//   TC7  – Priority: retry > DLLP
-//   TC8  – Back-to-back: DLLP -> TLP -> Retry
-//   TC9  – retry_req high, retry_valid=0: arb selects retry over new TLP
-//   TC10 – DLLP queued during TLP; sent immediately after
-// =============================================================================
 
 `timescale 1ns / 1ps
 
@@ -74,7 +58,6 @@ module tx_datapath_mux_tb;
         end
     endtask
 
-    // Collect one complete packet (SOP..EOP). All sampling is blocking.
     task collect;
         output integer    nb;
         output reg        sop, eop;
@@ -84,7 +67,7 @@ module tx_datapath_mux_tb;
             nb=0; sop=0; eop=0;
             b0=0;b1=0;b2=0;b3=0;b4=0;
             tout=0;
-            // wait for SOP
+
             while(!sop && tout<500) begin
                 @(posedge clk); #0.1;
                 if(phy_tx_valid && phy_tx_sop) begin
@@ -97,7 +80,7 @@ module tx_datapath_mux_tb;
                 tout=tout+1;
             end
             if(!sop) $display("[TIMEOUT] no SOP  t=%0t",$time);
-            // collect rest
+
             tout=0;
             while(!eop && tout<500) begin
                 @(posedge clk); #0.1;
@@ -143,9 +126,6 @@ module tx_datapath_mux_tb;
         repeat(4) @(posedge clk);
         rst_n=1; @(posedge clk); #0.1;
 
-        // ------------------------------------------------------------------
-        // TC1 Reset
-        // ------------------------------------------------------------------
         rst_n=0; @(posedge clk); #0.1;
         check(1, phy_tx_valid===0, "phy_tx_valid=0 during reset");
         check(1, phy_tx_sop  ===0, "phy_tx_sop=0 during reset");
@@ -153,9 +133,6 @@ module tx_datapath_mux_tb;
         check(1, phy_tx_data ===0, "phy_tx_data=0 during reset");
         rst_n=1; @(posedge clk); #0.1;
 
-        // ------------------------------------------------------------------
-        // TC2 DLLP only
-        // ------------------------------------------------------------------
         clear_all();
         dllp_out=DLLP_C; dllp_valid=1;
         collect(nb,sop_ok,eop_ok,b0,b1,b2,b3,b4);
@@ -167,9 +144,6 @@ module tx_datapath_mux_tb;
         check(2, b0[191:0]===192'h0,   "DLLP: padding zeros");
         wait_idle();
 
-        // ------------------------------------------------------------------
-        // TC3 New TLP only (5 beats)
-        // ------------------------------------------------------------------
         clear_all();
         tlp_tx=TLP_A; tlp_tx_valid=1;
         collect(nb,sop_ok,eop_ok,b0,b1,b2,b3,b4);
@@ -185,9 +159,6 @@ module tx_datapath_mux_tb;
         check(3, b4===exp,             "TLP beat4 padded");
         wait_idle();
 
-        // ------------------------------------------------------------------
-        // TC4 Retry TLP only
-        // ------------------------------------------------------------------
         clear_all();
         retry_tlp=TLP_B; retry_valid=1;
         collect(nb,sop_ok,eop_ok,b0,b1,b2,b3,b4);
@@ -199,9 +170,6 @@ module tx_datapath_mux_tb;
         check(4, b3===TLP_B[1023:768], "Retry beat3");
         wait_idle();
 
-        // ------------------------------------------------------------------
-        // TC5 Priority: retry > new TLP
-        // ------------------------------------------------------------------
         clear_all();
         tlp_tx=TLP_A; tlp_tx_valid=1;
         retry_tlp=TLP_B; retry_valid=1;
@@ -211,9 +179,6 @@ module tx_datapath_mux_tb;
         check(5, nb==5,             "Priority retry>TLP: 5 beats");
         wait_idle();
 
-        // ------------------------------------------------------------------
-        // TC6 Priority: new TLP > DLLP
-        // ------------------------------------------------------------------
         clear_all();
         tlp_tx=TLP_A; tlp_tx_valid=1;
         dllp_out=DLLP_C; dllp_valid=1;
@@ -223,9 +188,6 @@ module tx_datapath_mux_tb;
         check(6, b0===TLP_A[255:0], "Priority TLP>DLLP: beat0=TLP_A");
         wait_idle();
 
-        // ------------------------------------------------------------------
-        // TC7 Priority: retry > DLLP
-        // ------------------------------------------------------------------
         clear_all();
         retry_tlp=TLP_B; retry_valid=1;
         dllp_out=DLLP_C; dllp_valid=1;
@@ -235,16 +197,11 @@ module tx_datapath_mux_tb;
         check(7, b0===TLP_B[255:0], "Priority retry>DLLP: beat0=TLP_B");
         wait_idle();
 
-        // ------------------------------------------------------------------
-        // TC8 Back-to-back DLLP -> TLP -> Retry
-        // Present each source sequentially; collect each packet separately.
-        // ------------------------------------------------------------------
         clear_all();
 
-        // --- DLLP packet ---
         dllp_out=DLLP_C; dllp_valid=1;
-        @(posedge clk); #0.1;   // FSM: IDLE->DLLP_SEND, outputs valid NOW
-        // Capture this single beat directly
+        @(posedge clk); #0.1;
+
         b0 = phy_tx_data;
         sop_ok = phy_tx_sop;
         eop_ok = phy_tx_eop;
@@ -256,26 +213,20 @@ module tx_datapath_mux_tb;
         check(8, b0[255:192]===DLLP_C,  "B2B: DLLP data correct");
         wait_idle();
 
-        // --- New TLP packet (present alone so it wins arbitration) ---
-        // Do NOT advance clock here; let collect() catch the SOP
         tlp_tx=TLP_A; tlp_tx_valid=1;
         collect(nb,sop_ok,eop_ok,b0,b1,b2,b3,b4);
         tlp_tx_valid=0;
-        // Queue retry after TLP has been fully transmitted
+
         retry_tlp=TLP_B; retry_valid=1;
         check(8, nb==5,              "B2B: TLP 2nd (5 beats)");
         check(8, b0===TLP_A[255:0], "B2B: TLP_A beat0 correct");
 
-        // --- Retry packet ---
         collect(nb,sop_ok,eop_ok,b0,b1,b2,b3,b4);
         retry_valid=0;
         check(8, nb==5,              "B2B: Retry 3rd (5 beats)");
         check(8, b0===TLP_B[255:0], "B2B: TLP_B beat0 correct");
         wait_idle();
 
-        // ------------------------------------------------------------------
-        // TC9 retry_req=1, retry_valid=0 -> arb selects SRC_RETRY (not TLP)
-        // ------------------------------------------------------------------
         clear_all();
         retry_req=1; retry_valid=0;
         tlp_tx=TLP_A; tlp_tx_valid=1;
@@ -284,9 +235,6 @@ module tx_datapath_mux_tb;
         retry_req=0; tlp_tx_valid=0;
         wait_idle();
 
-        // ------------------------------------------------------------------
-        // TC10 DLLP queued during TLP -> follows without bubble
-        // ------------------------------------------------------------------
         clear_all();
         tlp_tx=TLP_A; tlp_tx_valid=1;
         dllp_out=DLLP_C; dllp_valid=1;
@@ -303,9 +251,6 @@ module tx_datapath_mux_tb;
         check(10, b0[191:0]===192'h0,    "Post-TLP: DLLP padding zeros");
         wait_idle();
 
-        // ------------------------------------------------------------------
-        // Summary
-        // ------------------------------------------------------------------
         $display("\n========================================");
         $display(" TX Datapath MUX Testbench Summary");
         $display("========================================");

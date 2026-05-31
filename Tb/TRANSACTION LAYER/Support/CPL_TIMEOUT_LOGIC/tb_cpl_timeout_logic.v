@@ -1,13 +1,4 @@
-// =============================================================
-//  TESTBENCH : tb_cpl_timeout_logic
-//  DUT       : cpl_timeout_logic
-//  TESTS:
-//    T1 — Alloc tag 1, complete before timeout → no fire
-//    T2 — Alloc tag 2, let it expire → timeout_fired + abort
-//    T3 — err_to_aer code = 0xE on timeout
-//    T4 — 3 tags alloc; tag 1 & 3 complete OK, tag 2 times out
-//    T5 — Re-alloc tag after prior timeout → works correctly
-// =============================================================
+
 `timescale 1ns/1ps
 
 module tb_cpl_timeout_logic;
@@ -98,7 +89,6 @@ module tb_cpl_timeout_logic;
         end
     endtask
 
-    // Wait for timeout_fired or give up after N cycles
     task wait_for_timeout(input integer max_cyc, output got_it);
         integer k;
         begin
@@ -107,7 +97,7 @@ module tb_cpl_timeout_logic;
                 @(posedge clk);
                 if (timeout_fired) begin
                     got_it = 1;
-                    k = max_cyc; // break
+                    k = max_cyc;
                 end
             end
         end
@@ -118,9 +108,6 @@ module tb_cpl_timeout_logic;
     initial begin
         $display("=== cpl_timeout_logic Testbench ===");
 
-        // --------------------------------------------------
-        // T1: Tag 1 completes before timeout → no fire
-        // --------------------------------------------------
         $display("\n[T1] Tag 1 completes before timeout");
         do_reset;
         cpl_timeout_val = 20'd20;
@@ -131,9 +118,6 @@ module tb_cpl_timeout_logic;
         check(timeout_fired, 1'b0, "no timeout_fired");
         check(cpl_abort_req, 1'b0, "no abort");
 
-        // --------------------------------------------------
-        // T2: Tag 2 expires → timeout_fired + abort
-        // --------------------------------------------------
         $display("\n[T2] Tag 2 expires → timeout_fired");
         do_reset;
         cpl_timeout_val = 20'd8;
@@ -142,11 +126,8 @@ module tb_cpl_timeout_logic;
         check(got,           1'b1, "timeout_fired detected");
         check(cpl_abort_req, 1'b1, "cpl_abort_req set");
 
-        // --------------------------------------------------
-        // T3: err_to_aer = 0xE on timeout
-        // --------------------------------------------------
         $display("\n[T3] err_to_aer code on timeout");
-        // (timeout still firing from T2 same edge)
+
         do_reset;
         cpl_timeout_val = 20'd8;
         alloc(10'd3);
@@ -161,9 +142,6 @@ module tb_cpl_timeout_logic;
             end
         end
 
-        // --------------------------------------------------
-        // T4: Tags 4,5,6 alloc; 4 & 6 complete, 5 times out
-        // --------------------------------------------------
         $display("\n[T4] Tag 5 times out while 4 & 6 OK");
         do_reset;
         cpl_timeout_val = 20'd12;
@@ -177,9 +155,6 @@ module tb_cpl_timeout_logic;
         check(got, 1'b1, "timeout fired for remaining tag");
         check_tag(timeout_tag, 10'd5, "timeout_tag=5");
 
-        // --------------------------------------------------
-        // T5: Re-alloc same tag after its timeout
-        // --------------------------------------------------
         $display("\n[T5] Re-alloc tag 5 after timeout");
         cpl_timeout_val = 20'd15;
         alloc(10'd5);

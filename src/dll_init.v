@@ -1,9 +1,4 @@
-// =============================================================================
-// PCIe Gen6 DLL Support Block: DLL Link State / Init FSM (DLL_INIT)
-// FIX C: Added SIM_INIT_TIMEOUT so that in simulation (where no link partner
-// drives FC Init DLLPs back) dll_up_to_tl still asserts after a short wait.
-// Real hardware continues to use fc_init_done from fc_init_fsm.v.
-// =============================================================================
+
 module dll_init (
     input  wire clk,
     input  wire rst_n,
@@ -22,12 +17,10 @@ module dll_init (
     localparam DL_ACTIVE   = 2'd2;
     localparam DL_ERROR    = 2'd3;
 
-    // FIX C: After this many cycles in DL_INIT without fc_init_done
-    // (i.e., no link partner), auto-promote to DL_ACTIVE for simulation.
-    localparam SIM_INIT_TIMEOUT = 16'd100;  // FIX-DLL_INIT: reduced for faster sim (was 500)
+    localparam SIM_INIT_TIMEOUT = 16'd100;
 
     reg [1:0]  state;
-    reg [15:0] init_timer;  // counts cycles spent in DL_INIT
+    reg [15:0] init_timer;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -57,7 +50,7 @@ module dll_init (
                     if (ltssm_dl_down || dll_link_down) begin
                         state      <= DL_INACTIVE;
                         init_timer <= 16'd0;
-                    // FIX C: fc_init_done from real handshake OR sim timeout
+
                     end else if (fc_init_done ||
                                  init_timer >= SIM_INIT_TIMEOUT) begin
                         state        <= DL_ACTIVE;

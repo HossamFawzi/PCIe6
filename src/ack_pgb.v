@@ -1,6 +1,4 @@
-// =============================================================================
-// PCIe Gen6 DLL Support Block: DLLP NOP/ACK Piggyback Controller (ACK_PGB)
-// =============================================================================
+
 module ack_pgb (
     input  wire        clk,
     input  wire        rst_n,

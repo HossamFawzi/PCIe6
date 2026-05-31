@@ -1,6 +1,4 @@
-// =============================================================================
-// PCIe Gen6 DLL Support Block: FLIT Sequence Tracker (FLIT_SEQ)
-// =============================================================================
+
 module flit_seq (
     input  wire        clk,
     input  wire        rst_n,
@@ -33,25 +31,20 @@ module flit_seq (
             seq_err      <= 1'b0;
             seq_wrap_det <= 1'b0;
 
-            // Detect wrap: tx_seq goes from 4095 to 0
             if (prev_tx_seq == 12'd4095 && flit_tx_seq == 12'd0)
                 seq_wrap_det <= 1'b1;
             prev_tx_seq <= flit_tx_seq;
 
-            // Track oldest unacked: advance when new ACK arrives
             if (ack_seq != last_acked) begin
                 last_acked         <= ack_seq;
                 oldest_unacked_seq <= ack_seq + 1'b1;
             end
 
-            // Window full
             seq_window_full <= (unacked_count >= SEQ_WINDOW);
 
-            // Sequence error: nak points behind oldest unacked
             if (nak_seq == (oldest_unacked_seq - 1'b1))
                 seq_err <= 1'b1;
 
-            // RX out-of-order check
             if (flit_rx_seq != 12'd0 &&
                 flit_rx_seq != flit_tx_seq &&
                 flit_rx_seq != (oldest_unacked_seq + unacked_count))

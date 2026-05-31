@@ -1,33 +1,4 @@
-//============================================================
-// PCIe 6.0 Physical Link Layer
-// Module: flit_deframer_rx
-// FLIT Deframer RX
-//
-// flit_in[2303:0] field map
-//   [2303:2048]  FEC parity      (256b) — stripped, cross-checked
-//                                         against fec_syndrome port
-//   [2047:2016]  FLIT CRC-32     (32b)  — CRC-32/MPEG-2 over [2015:0]
-//   [2015:2004]  Sequence number (12b)  -> flit_seq
-//   [2003:2000]  FLIT type       (4b)
-//                  4'h0 = Null
-//                  4'h1 = Data   (TLP + DLLP)
-//                  4'h2 = TLP-only
-//                  4'h3 = DLLP-only
-//                  others -> flit_sync_err
-//   [1999:1936]  DLLP payload    (64b)  -> dllp_out
-//   [1935:912]   TLP payload     (1024b)-> tlp_out
-//   [911:0]      Reserved        (912b)
-//
-// flit_crc_err  : computed CRC != stored CRC
-// flit_null     : FLIT type == 4'h0
-// flit_sync_err : invalid FLIT type OR uncorrectable FEC error
-//                 (fec_syndrome != 0 and fec_corrected == 0)
-// tlp_valid     : type in {1,2} AND no CRC error AND flit_valid AND flit_mode_en
-// dllp_valid    : type in {1,3} AND no CRC error AND flit_valid AND flit_mode_en
-//
-// CRC-32/MPEG-2 : poly=0x04C11DB7, init=0xFFFFFFFF,
-//                 no reflection, no final XOR
-//============================================================
+
 module flit_deframer_rx (
     input  wire           clk,
     input  wire           rst_n,
@@ -51,11 +22,6 @@ module flit_deframer_rx (
     localparam [3:0] FTYPE_TLP  = 4'h2;
     localparam [3:0] FTYPE_DLLP = 4'h3;
 
-    // -----------------------------------------------------------------
-    // CRC-32/MPEG-2 over flit_in[2015:0] (2016 bits, MSB-first)
-    // Poly=0x04C11DB7, Init=0xFFFFFFFF, RefIn=false, RefOut=false,
-    // XorOut=0x00000000
-    // -----------------------------------------------------------------
     function [31:0] crc32_mpeg2;
         input [2015:0] data;
         reg   [31:0]   crc;
@@ -72,9 +38,6 @@ module flit_deframer_rx (
         end
     endfunction
 
-    // -----------------------------------------------------------------
-    // Combinational field extraction
-    // -----------------------------------------------------------------
     wire [255:0]  fec_embedded    = flit_in[2303:2048];
     wire [31:0]   crc_stored      = flit_in[2047:2016];
     wire [11:0]   seq_w           = flit_in[2015:2004];
@@ -94,9 +57,6 @@ module flit_deframer_rx (
     wire          tlp_present     = (ftype_w == FTYPE_DATA) || (ftype_w == FTYPE_TLP);
     wire          dllp_present    = (ftype_w == FTYPE_DATA) || (ftype_w == FTYPE_DLLP);
 
-    // -----------------------------------------------------------------
-    // Registered outputs
-    // -----------------------------------------------------------------
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             tlp_out       <= 1024'h0;

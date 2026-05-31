@@ -1,7 +1,4 @@
-// =============================================================
-//  TESTBENCH : tb_aer_error_logger  (fixed)
-//  DUT       : aer_error_logger
-// =============================================================
+
 `timescale 1ns/1ps
 module tb_aer_error_logger;
 
@@ -54,14 +51,12 @@ module tb_aer_error_logger;
         end
     endtask
 
-    // Pulse capture regs
     reg cap_valid, cap_int;
     reg [255:0] cap_tlp;
 
     initial begin
         $display("=== aer_error_logger Testbench ===");
 
-        // T1: Malformed TLP → BIT_MTLP(18), NONFATAL, aer_int
         $display("\n[T1] Malformed TLP error");
         do_reset;
         @(negedge clk); err_from_mal=1; err_severity=2'b01;
@@ -74,7 +69,6 @@ module tb_aer_error_logger;
         chk1(cap_int,   1'b1, "aer_int pulse");
         chk8(cap_tlp[231:224], 8'h31, "msg_code=0x31 NONFATAL");
 
-        // T2: Poisoned TLP → BIT_PTLP(12), aer_int
         $display("\n[T2] Poisoned TLP error");
         do_reset;
         @(negedge clk); err_from_psnd=1;
@@ -84,7 +78,6 @@ module tb_aer_error_logger;
         chk_bits(aer_status, 32'h0000_1000, "BIT_PTLP(12)");
         chk1(cap_int, 1'b1, "aer_int raised");
 
-        // T3: DLL error → BIT_DLPE(4)
         $display("\n[T3] DLL protocol error");
         do_reset;
         @(negedge clk); dll_err=4'h1;
@@ -94,7 +87,6 @@ module tb_aer_error_logger;
         chk_bits(aer_status, 32'h0000_0010, "BIT_DLPE(4)");
         chk1(cap_int, 1'b1, "aer_int for DLL err");
 
-        // T4: Gen6 FLIT CRC → BIT_FLIT(24)
         $display("\n[T4] FLIT CRC error (Gen6) — BIT_FLIT[24]");
         do_reset;
         @(negedge clk); err_from_flit=1;
@@ -104,7 +96,6 @@ module tb_aer_error_logger;
         chk_bits(aer_status, 32'h0100_0000, "BIT_FLIT(24)");
         chk1(cap_int, 1'b1, "aer_int for FLIT err");
 
-        // T5: Severity=FATAL → msg_code=0x33
         $display("\n[T5] FATAL severity → msg_code=0x33");
         do_reset;
         @(negedge clk); err_from_mal=1; err_severity=2'b10;
@@ -113,14 +104,12 @@ module tb_aer_error_logger;
         chk8(cap_tlp[231:224], 8'h33, "msg_code=0x33 FATAL");
         chk1(cap_valid, 1'b1, "err_msg_valid");
 
-        // T6: No errors → no interrupt
         $display("\n[T6] No errors → no interrupt");
         do_reset;
         repeat(5) @(posedge clk); #1;
         chk1(aer_int,       1'b0, "aer_int=0");
         chk1(err_msg_valid, 1'b0, "err_msg_valid=0");
 
-        // T7: Multiple simultaneous errors
         $display("\n[T7] Multiple simultaneous errors");
         do_reset;
         @(negedge clk); err_from_mal=1; err_from_psnd=1; dll_err=4'h1;

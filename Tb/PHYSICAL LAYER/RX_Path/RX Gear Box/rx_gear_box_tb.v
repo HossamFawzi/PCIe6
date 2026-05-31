@@ -2,9 +2,6 @@
 
 module rx_gear_box_tb;
 
-    // -----------------------------------------------------------------------
-    // DUT ports
-    // -----------------------------------------------------------------------
     reg         clk_ser;
     reg         clk_par;
     reg         rst_n;
@@ -26,20 +23,12 @@ module rx_gear_box_tb;
         .par_valid  (par_valid)
     );
 
-    // -----------------------------------------------------------------------
-    // Clocks
-    // clk_ser  = 250 MHz  (period  4 ns)
-    // clk_par  =  62.5 MHz (period 16 ns)  →  4× slower  (ratio-4 use-case)
-    // -----------------------------------------------------------------------
     initial clk_ser = 1'b0;
-    always  #2 clk_ser = ~clk_ser;         // 4 ns period
+    always  #2 clk_ser = ~clk_ser;
 
     initial clk_par = 1'b0;
-    always  #8 clk_par = ~clk_par;         // 16 ns period
+    always  #8 clk_par = ~clk_par;
 
-    // -----------------------------------------------------------------------
-    // Bookkeeping
-    // -----------------------------------------------------------------------
     integer      fail_count;
     integer      i;
 
@@ -47,7 +36,6 @@ module rx_gear_box_tb;
     reg          captured_valid;
     integer      par_valid_count;
 
-    // Capture every par_valid pulse
     always @(posedge clk_par) begin
         if (par_valid) begin
             captured_data  <= par_data_out;
@@ -58,9 +46,6 @@ module rx_gear_box_tb;
         end
     end
 
-    // -----------------------------------------------------------------------
-    // Task: wait for N par_valid pulses (timeout safe)
-    // -----------------------------------------------------------------------
     task wait_par_valid;
         input integer n_pulses;
         input integer timeout_cycles;
@@ -79,9 +64,6 @@ module rx_gear_box_tb;
         end
     endtask
 
-    // -----------------------------------------------------------------------
-    // Task: drive one 64-bit serial word
-    // -----------------------------------------------------------------------
     task drive_ser_word;
         input [63:0] data;
         begin
@@ -92,9 +74,6 @@ module rx_gear_box_tb;
         end
     endtask
 
-    // -----------------------------------------------------------------------
-    // Task: deassert valid for N serial cycles
-    // -----------------------------------------------------------------------
     task ser_idle;
         input integer n;
         integer k;
@@ -105,9 +84,6 @@ module rx_gear_box_tb;
         end
     endtask
 
-    // -----------------------------------------------------------------------
-    // Task: full reset
-    // -----------------------------------------------------------------------
     task do_reset;
         begin
             @(negedge clk_ser);
@@ -123,9 +99,6 @@ module rx_gear_box_tb;
         end
     endtask
 
-    // -----------------------------------------------------------------------
-    // MAIN
-    // -----------------------------------------------------------------------
     initial begin
         $dumpfile("rx_gear_box_tb.vcd");
         $dumpvars(0, rx_gear_box_tb);
@@ -142,15 +115,11 @@ module rx_gear_box_tb;
         rst_n = 1'b1;
         @(posedge clk_par);
 
-        // ================================================================
-        // TEST 1 — gear_ratio=4 : 4 × 64-bit → 256-bit
-        // Expected par_data_out = {W0, W1, W2, W3}
-        // ================================================================
         gear_ratio = 3'd4;
-        drive_ser_word(64'hAAAA_AAAA_AAAA_AAAA);   // W0
-        drive_ser_word(64'hBBBB_BBBB_BBBB_BBBB);   // W1
-        drive_ser_word(64'hCCCC_CCCC_CCCC_CCCC);   // W2
-        drive_ser_word(64'hDDDD_DDDD_DDDD_DDDD);   // W3
+        drive_ser_word(64'hAAAA_AAAA_AAAA_AAAA);
+        drive_ser_word(64'hBBBB_BBBB_BBBB_BBBB);
+        drive_ser_word(64'hCCCC_CCCC_CCCC_CCCC);
+        drive_ser_word(64'hDDDD_DDDD_DDDD_DDDD);
         ser_idle(1);
 
         wait_par_valid(1, 60);
@@ -161,9 +130,6 @@ module rx_gear_box_tb;
             fail_count = fail_count + 1;
         end
 
-        // ================================================================
-        // TEST 2 — gear_ratio=4 : second back-to-back pack
-        // ================================================================
         do_reset;
         gear_ratio = 3'd4;
         drive_ser_word(64'h1111_1111_1111_1111);
@@ -180,14 +146,10 @@ module rx_gear_box_tb;
             fail_count = fail_count + 1;
         end
 
-        // ================================================================
-        // TEST 3 — gear_ratio=2 : 2 × 64-bit → lower 128-bit of par_data_out
-        // Expected par_data_out = {128'd0, W0, W1}
-        // ================================================================
         do_reset;
         gear_ratio = 3'd2;
-        drive_ser_word(64'hFACE_CAFE_BABE_DEAD);   // W0
-        drive_ser_word(64'hBEEF_1234_5678_ABCD);   // W1
+        drive_ser_word(64'hFACE_CAFE_BABE_DEAD);
+        drive_ser_word(64'hBEEF_1234_5678_ABCD);
         ser_idle(1);
 
         wait_par_valid(1, 60);
@@ -198,10 +160,6 @@ module rx_gear_box_tb;
             fail_count = fail_count + 1;
         end
 
-        // ================================================================
-        // TEST 4 — gear_ratio=1 : 1 × 64-bit → lower 64-bit of par_data_out
-        // Expected par_data_out = {192'd0, W0}
-        // ================================================================
         do_reset;
         gear_ratio = 3'd1;
         drive_ser_word(64'hDEAD_BEEF_CAFE_BABE);
@@ -215,10 +173,6 @@ module rx_gear_box_tb;
             fail_count = fail_count + 1;
         end
 
-        // ================================================================
-        // TEST 5 — ser_valid deasserted mid-stream does NOT trigger output
-        // Drive 3 words, idle 1, then complete the 4th word
-        // ================================================================
         do_reset;
         gear_ratio = 3'd4;
         par_valid_count = 0;
@@ -226,7 +180,7 @@ module rx_gear_box_tb;
         drive_ser_word(64'hAAAA_0000_0000_0001);
         drive_ser_word(64'hAAAA_0000_0000_0002);
         drive_ser_word(64'hAAAA_0000_0000_0003);
-        ser_idle(4);   // gap — no output yet
+        ser_idle(4);
 
         repeat(8) @(posedge clk_par);
         if (par_valid_count === 0)
@@ -236,7 +190,6 @@ module rx_gear_box_tb;
             fail_count = fail_count + 1;
         end
 
-        // Now send the 4th word — output should fire
         par_valid_count = 0;
         drive_ser_word(64'hAAAA_0000_0000_0004);
         ser_idle(1);
@@ -250,9 +203,6 @@ module rx_gear_box_tb;
             fail_count = fail_count + 1;
         end
 
-        // ================================================================
-        // TEST 6 — back-to-back packs with ratio=4, 2 consecutive packs
-        // ================================================================
         do_reset;
         gear_ratio = 3'd4;
         par_valid_count = 0;
@@ -275,16 +225,12 @@ module rx_gear_box_tb;
             fail_count = fail_count + 1;
         end
 
-        // ================================================================
-        // TEST 7 — async reset clears output
-        // ================================================================
         do_reset;
         gear_ratio = 3'd4;
 
         drive_ser_word(64'hDEAD_1111_1111_1111);
         drive_ser_word(64'hDEAD_2222_2222_2222);
 
-        // Assert reset mid-stream
         @(negedge clk_ser);
         rst_n = 1'b0;
         repeat(3) @(posedge clk_par); #0.5;
@@ -298,11 +244,8 @@ module rx_gear_box_tb;
         end
         rst_n = 1'b1;
 
-        // ================================================================
-        // TEST 8 — gear_ratio=0 treated as ratio=1 (default)
-        // ================================================================
         do_reset;
-        gear_ratio = 3'd0;   // invalid → module maps to 1
+        gear_ratio = 3'd0;
         drive_ser_word(64'hCAFE_BABE_1234_5678);
         ser_idle(1);
 
@@ -314,9 +257,6 @@ module rx_gear_box_tb;
             fail_count = fail_count + 1;
         end
 
-        // ================================================================
-        // TEST 9 — par_valid de-asserts after one clk_par cycle
-        // ================================================================
         do_reset;
         gear_ratio = 3'd4;
         drive_ser_word(64'h1234_5678_9ABC_DEF0);
@@ -326,7 +266,7 @@ module rx_gear_box_tb;
         ser_idle(1);
 
         wait_par_valid(1, 60);
-        // par_valid is high this clk_par cycle; check next cycle it deasserts
+
         @(posedge clk_par); #0.5;
         if (par_valid === 1'b0)
             $display("PASS TEST 9: par_valid de-asserts after one clk_par cycle");
@@ -335,9 +275,6 @@ module rx_gear_box_tb;
             fail_count = fail_count + 1;
         end
 
-        // ================================================================
-        // SUMMARY
-        // ================================================================
         repeat(8) @(posedge clk_par);
         if (fail_count == 0)
             $display("ALL TESTS PASSED");

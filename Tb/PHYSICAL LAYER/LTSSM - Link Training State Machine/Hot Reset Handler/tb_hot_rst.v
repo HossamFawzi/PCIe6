@@ -1,6 +1,4 @@
-// ============================================================
-// Testbench for Module 48 : Hot Reset Handler
-// ============================================================
+
 `timescale 1ns/1ps
 
 module tb_hot_rst;
@@ -56,7 +54,6 @@ module tb_hot_rst;
         ts1_detected=0; ltssm_state=6'd0;
         repeat(4) @(posedge clk); rst_n=1; @(posedge clk);
 
-        // TC1: Two consecutive TS1s with HR bit → hot reset triggers
         send_ts1_with_hr(1);
         send_ts1_with_hr(1);
         wait_done;
@@ -66,10 +63,9 @@ module tb_hot_rst;
             $display("FAIL [TC1_two_ts1_hr]"); fail_count=fail_count+1;
         end
 
-        // TC2: Only one TS1 with HR bit → no reset
         send_ts1_with_hr(1);
         repeat(5) @(posedge clk);
-        send_ts1_with_hr(0);  // Break the sequence
+        send_ts1_with_hr(0);
         repeat(10) @(posedge clk);
         if (!hot_reset_done && !hot_reset_active) begin
             $display("PASS [TC2_one_ts1_no_rst]"); pass_count=pass_count+1;
@@ -78,7 +74,6 @@ module tb_hot_rst;
             fail_count=fail_count+1;
         end
 
-        // TC3: SW-initiated hot reset
         @(posedge clk); #1; hot_reset_req_sw=1;
         @(posedge clk); #1; hot_reset_req_sw=0;
         wait_done;
@@ -88,7 +83,6 @@ module tb_hot_rst;
             $display("FAIL [TC3_sw_hot_reset]"); fail_count=fail_count+1;
         end
 
-        // TC4: pipe_reset_out asserted during hot reset
         begin : TC4
             integer seen; seen=0;
             send_ts1_with_hr(1);
@@ -99,7 +93,6 @@ module tb_hot_rst;
             else          begin $display("FAIL [TC4_pipe_reset]"); fail_count=fail_count+1; end
         end
 
-        // TC5: send_ts1_hot_reset propagated
         begin : TC5
             integer seen; seen=0;
             send_ts1_with_hr(1);
@@ -110,7 +103,6 @@ module tb_hot_rst;
             else          begin $display("FAIL [TC5_send_ts1_hr]"); fail_count=fail_count+1; end
         end
 
-        // TC6: hot_reset_done is a pulse
         begin : TC6
             integer cnt; cnt=0;
             send_ts1_with_hr(1);
@@ -120,7 +112,6 @@ module tb_hot_rst;
             else         begin $display("FAIL [TC6_done_pulse] cnt=%0d",cnt); fail_count=fail_count+1; end
         end
 
-        // TC7: Reset clears all
         rst_n=0; repeat(3) @(posedge clk); #1;
         if (!hot_reset_active && !send_ts1_hot_reset && !pipe_reset_out) begin
             $display("PASS [TC7_reset]"); pass_count=pass_count+1;
@@ -129,7 +120,6 @@ module tb_hot_rst;
         end
         rst_n=1;
 
-        // TC8: Non-HR TS1 does not trigger
         send_ts1_with_hr(0);
         send_ts1_with_hr(0);
         repeat(10) @(posedge clk);

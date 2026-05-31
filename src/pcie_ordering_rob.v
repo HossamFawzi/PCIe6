@@ -1,27 +1,3 @@
-// ============================================================================
-// FILE        : pcie_ordering_rob.v
-// DESCRIPTION : PCIe Transaction Layer - Ordering / ROB Logic
-//               Enforces PCIe Spec Rev 4.0 Table 2-38 Ordering Rules
-//
-// FIXES vs previous version:
-//   FIX-1: posted_pending clear/set race — restructured so set takes priority
-//          over clear within the same always block (if/else chain).
-//   FIX-2: ordering_ok output no longer gated by req_valid in the registered
-//          stage. The combinational signals order_ok_comb/order_stall_comb/
-//          order_err_comb are computed including req_valid in the combo block,
-//          then registered directly — so the flop captures the correct value
-//          at the posedge the stimulus arrives, and the output is stable for
-//          the full next cycle regardless of when req_valid deasserts.
-//
-// Ordering Rules (Table 2-38) enforced per TC/VC:
-//   P  behind P   -> MUST PASS
-//   NP behind P   -> MAY PASS (RO=1) | MUST NOT PASS (RO=0)
-//   Cpl behind P  -> MUST PASS
-//   P  behind NP  -> MUST NOT PASS
-//   NP behind NP  -> MAY PASS (RO=1) | MUST NOT PASS (RO=0)
-//   Cpl behind NP -> MUST PASS
-//   *  behind Cpl -> MUST PASS
-// ============================================================================
 
 `timescale 1ns/1ps
 
@@ -47,9 +23,6 @@ module pcie_ordering_rob #(
     output wire        ordering_err
 );
 
-    // -------------------------------------------------------------------------
-    // TLP type encoding
-    // -------------------------------------------------------------------------
     localparam TYPE_MWR32  = 4'h0;
     localparam TYPE_MWR64  = 4'h1;
     localparam TYPE_MSG    = 4'h2;
@@ -72,14 +45,6 @@ module pcie_ordering_rob #(
     localparam CLASS_CPL = 2'b10;
     localparam CLASS_INV = 2'b11;
 
-    // -------------------------------------------------------------------------
-    // ROB entry layout [22:0]
-    //   [22]      valid
-    //   [21:20]   class (always CLASS_NP)
-    //   [19]      req_attr_ro
-    //   [18:16]   req_tc
-    //   [15:0]    req_id
-    // -------------------------------------------------------------------------
     localparam ROB_W = 23;
 
     reg [ROB_W-1:0]         rob_mem  [0:ROB_DEPTH-1];
@@ -87,9 +52,6 @@ module pcie_ordering_rob #(
     reg [ROB_PTR_WIDTH:0]   rob_count;
     reg [NUM_TC-1:0]        posted_pending;
 
-    // -------------------------------------------------------------------------
-    // TLP class decoder
-    // -------------------------------------------------------------------------
     function automatic [1:0] get_tlp_class;
         input [3:0] t;
         case (t)
@@ -110,9 +72,6 @@ module pcie_ordering_rob #(
     wire [1:0] req_class = get_tlp_class(req_type);
     wire posted_pend_this_tc = posted_pending[req_tc];
 
-    // -------------------------------------------------------------------------
-    // Combinational: NP in ROB for same TC?
-    // -------------------------------------------------------------------------
     reg np_pend_this_tc;
     always @(*) begin : np_scan
         integer k;
@@ -124,9 +83,6 @@ module pcie_ordering_rob #(
                 np_pend_this_tc = 1'b1;
     end
 
-    // -------------------------------------------------------------------------
-    // Combinational: CPL matches a ROB entry?
-    // -------------------------------------------------------------------------
     reg cpl_found_np;
     always @(*) begin : cpl_scan
         integer k;
@@ -138,29 +94,21 @@ module pcie_ordering_rob #(
                 cpl_found_np = 1'b1;
     end
 
-    // -------------------------------------------------------------------------
-    // Combinational ordering decision — Table 2-38
-    // FIX-2: three separate combinational outputs (ok/stall/err) are computed
-    //        here INCLUDING the req_valid gate, then registered directly.
-    //        This means the flop captures the right value at the stimulus
-    //        posedge, and holds it stably for the next cycle.
-    // -------------------------------------------------------------------------
     reg order_ok_comb;
     reg order_stall_comb;
     reg order_err_comb;
 
     always @(*) begin : ordering_logic
-        order_ok_comb    = 1'b1;   // default: free to send when idle
+        order_ok_comb    = 1'b1;
         order_stall_comb = 1'b0;
         order_err_comb   = 1'b0;
 
         if (req_valid) begin
-            // synthesis full_case
+
             case (req_class)
 
                 CLASS_P: begin
-                    // Posted TLPs can always pass NP (PCIe spec Table 2-38)
-                    // No ordering stall for Posted writes/messages
+
                     order_ok_comb    = 1'b1;
                     order_stall_comb = 1'b0;
                 end
@@ -190,12 +138,6 @@ module pcie_ordering_rob #(
         end
     end
 
-    // -------------------------------------------------------------------------
-    // Sequential: ROB + posted_pending management
-    // FIX-1: posted_pending set/clear restructured as if/else so set wins.
-    //        Previously both the "set" and "clear" blocks could execute in the
-    //        same posedge (Verilog last-assignment wins → clear always won).
-    // -------------------------------------------------------------------------
     always @(posedge clk or negedge rst_n) begin : rob_seq
         integer k;
         if (!rst_n) begin
@@ -206,21 +148,16 @@ module pcie_ordering_rob #(
                 rob_mem[k] <= {ROB_W{1'b0}};
         end else begin
 
-            // --- Allocate ROB entry for accepted NP --------------------------
             if (req_valid && !order_stall_comb && (req_class == CLASS_NP)) begin
                 rob_mem[rob_tail] <= {1'b1, CLASS_NP, req_attr_ro, req_tc, req_id};
                 rob_tail          <= rob_tail + 1'b1;
                 rob_count         <= rob_count + 1'b1;
             end
 
-            // --- posted_pending: FIX-1 if/else so set takes priority ---------
-            // If a Posted is accepted this cycle → SET the flag for its TC
-            // Else if no valid request (or it is not Posted) → CLEAR all flags
             if (req_valid && !order_stall_comb && (req_class == CLASS_P)) begin
-                // SET — a Posted was accepted; mark its TC
+
                 posted_pending[req_tc] <= 1'b1;
-                // Clear all OTHER TCs that have no new Posted this cycle
-                // (keep only the one just set; others decay to 0)
+
                 begin : clear_other_tc
                     integer j;
                     for (j = 0; j < NUM_TC; j = j + 1)
@@ -228,11 +165,10 @@ module pcie_ordering_rob #(
                             posted_pending[j] <= 1'b0;
                 end
             end else begin
-                // CLEAR — no Posted accepted this cycle → decay all flags
+
                 posted_pending <= {NUM_TC{1'b0}};
             end
 
-            // --- Retire ROB entry on completion ------------------------------
             if (cpl_valid && !rob_empty) begin
                 for (k = 0; k < ROB_DEPTH; k = k + 1) begin
                     if (rob_mem[k][22] &&
@@ -247,9 +183,6 @@ module pcie_ordering_rob #(
         end
     end
 
-    // -------------------------------------------------------------------------
-    // Combinational outputs — directly from ordering logic (no register lag)
-    // -------------------------------------------------------------------------
     assign ordering_ok    = order_ok_comb;
     assign ordering_stall = order_stall_comb;
     assign ordering_err   = order_err_comb;

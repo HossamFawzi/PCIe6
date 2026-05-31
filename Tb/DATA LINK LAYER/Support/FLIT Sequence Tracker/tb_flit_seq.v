@@ -24,33 +24,28 @@ module tb_flit_seq;
     initial begin
         $display("=== TB: flit_seq ===");
 
-        // TC1: Reset
         $display("[TC1] Reset clears state");
         rst; @(posedge clk); #1;
         chk12(12'd0,oldest_unacked_seq,"oldest_unacked=0 after reset");
         chk1(0,seq_window_full,"seq_window_full=0 after reset");
         chk1(0,seq_wrap_det,"seq_wrap_det=0 after reset");
 
-        // TC2: link_reset clears oldest_unacked
-        // Key fix: clear ack_seq simultaneously with link_reset so oldest stays at 0
         $display("[TC2] link_reset clears tracker");
         rst;
         flit_tx_seq=12'd100; ack_seq=12'd50;
         @(posedge clk); #1; @(posedge clk); #1;
-        // Assert link_reset AND clear ack_seq at same time
+
         link_reset=1; ack_seq=12'd0; flit_tx_seq=12'd0;
         @(posedge clk); #1; link_reset=0;
         @(posedge clk); #1;
         chk12(12'd0,oldest_unacked_seq,"oldest_unacked=0 after link_reset");
 
-        // TC3: ACK advances oldest_unacked
         $display("[TC3] ACK advances oldest_unacked_seq");
         rst;
         flit_tx_seq=12'd10; ack_seq=12'd5;
         @(posedge clk); #1; @(posedge clk); #1;
         chk12(12'd6,oldest_unacked_seq,"oldest_unacked=ack+1=6");
 
-        // TC4: Sequential ACKs
         $display("[TC4] Sequential ACKs advance tracker");
         rst;
         flit_tx_seq=12'd20; ack_seq=12'd10;
@@ -58,21 +53,18 @@ module tb_flit_seq;
         ack_seq=12'd15; @(posedge clk); #1; @(posedge clk); #1;
         chk12(12'd16,oldest_unacked_seq,"oldest_unacked=16 after ack=15");
 
-        // TC5: seq_window_full at 2048
         $display("[TC5] seq_window_full at 2048 outstanding");
         rst;
         ack_seq=12'd0; flit_tx_seq=12'd2048;
         @(posedge clk); #1; @(posedge clk); #1;
         chk1(1,seq_window_full,"seq_window_full=1 at 2048");
 
-        // TC6: Not full below threshold
         $display("[TC6] seq_window_full=0 below threshold");
         rst;
         ack_seq=12'd0; flit_tx_seq=12'd100;
         @(posedge clk); #1; @(posedge clk); #1;
         chk1(0,seq_window_full,"seq_window_full=0 at 100");
 
-        // TC7: Window clears when ACK catches up
         $display("[TC7] Window clears as ACKs arrive");
         rst;
         ack_seq=12'd0; flit_tx_seq=12'd2048;
@@ -81,15 +73,10 @@ module tb_flit_seq;
         ack_seq=12'd2000; @(posedge clk); #1; @(posedge clk); #1;
         chk1(0,seq_window_full,"window cleared after ACK catchup");
 
-        // TC8: seq_wrap_det on 4095->0
-        // Trace shows: wrap fires at the posedge AFTER tx goes to 0.
-        // At posedge when tx=4095: prev_tx_seq<=4095 registered
-        // At posedge when tx=0: prev==4095 && curr==0 -> seq_wrap_det<=1 registered
-        // Check at that same posedge+#1
         $display("[TC8] seq_wrap_det on rollover");
         rst;
-        flit_tx_seq=12'd4095; @(posedge clk); #1;  // prev_tx_seq registers 4095
-        flit_tx_seq=12'd0;    @(posedge clk); #1;  // seq_wrap_det registers 1
+        flit_tx_seq=12'd4095; @(posedge clk); #1;
+        flit_tx_seq=12'd0;    @(posedge clk); #1;
         chk1(1,seq_wrap_det,"seq_wrap_det=1 on 4095->0 rollover");
 
         $display("=== flit_seq: %0d PASSED, %0d FAILED ===",pass_count,fail_count);

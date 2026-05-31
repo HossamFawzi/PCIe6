@@ -1,11 +1,4 @@
-// =============================================================================
-// PCIe Gen6 DLL Support Block: Flow Control Watchdog (FC_WDG) 🔴 MUST
-// From HTML: grp="support", tag="FC_WDG"
-// Inputs : credit_grant_p, credit_grant_np, credit_grant_cpl, tlp_pending,
-//          fc_watchdog_limit[15:0], dll_active, clk, rst_n
-// Outputs: fc_deadlock_det, fc_watchdog_err, fc_recovery_req
-// Behavior: Detects FC deadlock — credits never arrive & TLP queue stalls.
-// =============================================================================
+
 module fc_wdg (
     input  wire        clk,
     input  wire        rst_n,
@@ -23,7 +16,6 @@ module fc_wdg (
     reg [15:0] wdg_cnt;
     wire       any_credit = credit_grant_p | credit_grant_np | credit_grant_cpl;
 
-    // Watchdog counter: increments while TLP pending and no credits arriving
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             wdg_cnt <= 16'd0;

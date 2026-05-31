@@ -1,31 +1,7 @@
-// =============================================================================
-// Module: fec_encoder_rs
-// PCIe Gen6 — RS(544,514) Parallel Encoder  (BUG-10 FIX)
-//
-// Fully parallel: 1-cycle latency. All 30 parity symbols computed in one clock.
-// GF(2^10): primitive poly x^10+x^3+1 (0x409), alpha=2
-//
-// SYNTHESIS NOTE:
-//   This module is a fully correct RTL implementation of the RS(544,514) encoder.
-//   In simulation it compiles and runs with 1-cycle latency — BUG-10 fixed.
-//
-//   For FPGA/ASIC synthesis the 6226-line GF matrix will infer a large
-//   combinational network (~800K gates in 7nm). Two options:
-//
-//   Option A — Use as-is for Xilinx UltraScale+ (tool LUT-packs GF XORs well,
-//               fits in ~12 DSP-equivalent area, ~2 ns critical path at 500 MHz).
-//
-//   Option B — Replace with a vendor FEC IP core (e.g. Xilinx Reed-Solomon
-//               LogiCORE, Intel RS IP) and connect via the same port interface:
-//               flit_in[2047:0], flit_valid, fec_en →
-//               flit_fec_out[2347:0], fec_parity[299:0], fec_valid.
-//
-//   The parameter BYPASS_FEC=0 (default). Set BYPASS_FEC=1 to pass flit_in
-//   through with zeroed parity for bring-up without the FEC block.
-// =============================================================================
+
 `timescale 1ns/1ps
 module fec_encoder_rs #(
-    // Set BYPASS_FEC=1 to disable FEC and pass flit through (synthesis bring-up)
+
     parameter BYPASS_FEC = 0
 ) (
     input  wire          clk,
@@ -38,7 +14,6 @@ module fec_encoder_rs #(
     output reg           fec_valid
 );
 
-// GF multiply-by-constant function
 function [9:0] gf_mulc;
     input [9:0] cv; input [9:0] a;
     reg [9:0] r,aa,bb; integer k;
@@ -51,7 +26,6 @@ function [9:0] gf_mulc;
     end
 endfunction
 
-// Symbol extraction
 wire [9:0] info [0:204];
 genvar gi;
 generate
@@ -61,7 +35,6 @@ generate
 endgenerate
 assign info[204]={2'b00,flit_in[7:0]};
 
-// Combinational parity: p[j] = XOR_i( M[i][j] * info[i] )
 wire [9:0] par [0:29];
 
 assign par[0] = gf_mulc(10'h1AB, info[0])
@@ -6244,8 +6217,6 @@ assign par[29] = gf_mulc(10'h264, info[0])
              ^ gf_mulc(10'h266, info[203])
              ^ gf_mulc(10'h23F, info[204]);
 
-// Registered output — 1 cycle latency
-// BYPASS_FEC mux: in bypass mode output=input with zero parity, fec_valid=flit_valid
 wire [2347:0] fec_out_real;
 wire [299:0]  par_out_real;
 
@@ -6256,11 +6227,11 @@ always @(posedge clk or negedge rst_n) begin
         fec_valid <= flit_valid & fec_en;
         if(flit_valid) begin
             if(BYPASS_FEC) begin
-                // BYPASS MODE: pass flit through with zero parity (synthesis bring-up)
+
                 flit_fec_out <= {flit_in, 300'b0};
                 fec_parity   <= 300'b0;
             end else if(fec_en) begin
-                // FULL RS ENCODING (simulation + synthesis)
+
                 fec_parity  <= {par[29],par[28],par[27],par[26],par[25],par[24],
                                par[23],par[22],par[21],par[20],par[19],par[18],
                                par[17],par[16],par[15],par[14],par[13],par[12],

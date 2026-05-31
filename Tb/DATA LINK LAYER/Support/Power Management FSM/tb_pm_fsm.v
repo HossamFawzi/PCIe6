@@ -28,12 +28,10 @@ module tb_pm_fsm;
     initial begin
         $display("=== TB: pm_fsm ===");
 
-        // TC1: Reset -> L0
         $display("[TC1] Reset -> link_state=L0");
         rst; @(posedge clk); #1;
         chkS(LS_L0,link_state,"link_state=L0 after reset");
 
-        // TC2: pm_req_sw=L0S -> L0s, pm_dllp_send=1 same clock
         $display("[TC2] PM_ENTER_L0S -> L0s + pm_dllp_send");
         rst;
         pm_req_sw=PM_L0S; @(posedge clk); #1;
@@ -42,13 +40,11 @@ module tb_pm_fsm;
         chkS(PM_L0S,pm_dllp_type,"pm_dllp_type=ENTER_L0S");
         pm_req_sw=0;
 
-        // TC3: l0s_timer_exp -> L0s
         $display("[TC3] l0s_timer_exp -> L0s");
         rst;
         l0s_timer_exp=1; @(posedge clk); #1; l0s_timer_exp=0;
         chkS(LS_L0s,link_state,"link_state=L0s via timer");
 
-        // TC4: pm_req_sw=L1 -> L1
         $display("[TC4] PM_ENTER_L1 -> L1 + pm_dllp_send");
         rst;
         pm_req_sw=PM_L1; @(posedge clk); #1;
@@ -56,7 +52,6 @@ module tb_pm_fsm;
         chk1(1,pm_dllp_send,"pm_dllp_send=1 on L1 entry");
         pm_req_sw=0;
 
-        // TC5: L0s + PM_REQ_ACK -> L0
         $display("[TC5] L0s + PM_REQ_ACK -> L0");
         rst; pm_req_sw=PM_L0S; @(posedge clk); #1; pm_req_sw=0;
         @(posedge clk); #1;
@@ -65,13 +60,11 @@ module tb_pm_fsm;
         @(posedge clk); #1;
         chkS(LS_L0,link_state,"link_state=L0 after L0s ACK");
 
-        // TC6: L0s + pm_req_sw=0 -> L0
         $display("[TC6] L0s + pm_req_sw=0 -> L0");
         rst; pm_req_sw=PM_L0S; @(posedge clk); #1;
         pm_req_sw=3'd0; @(posedge clk); #1; @(posedge clk); #1;
         chkS(LS_L0,link_state,"link_state=L0 after L0s exit");
 
-        // TC7: L1 + PM_REQ_ACK -> L0
         $display("[TC7] L1 + PM_REQ_ACK -> L0");
         rst; pm_req_sw=PM_L1; @(posedge clk); #1; pm_req_sw=0;
         @(posedge clk); #1;
@@ -79,7 +72,6 @@ module tb_pm_fsm;
         @(posedge clk); #1; pm_dllp_valid=0; @(posedge clk); #1;
         chkS(LS_L0,link_state,"link_state=L0 from L1 ACK");
 
-        // TC8: ltssm_pm_req
         $display("[TC8] ltssm_pm_req on L1 entry");
         rst; pm_req_sw=PM_L1; @(posedge clk); #1; pm_req_sw=0;
         @(posedge clk); #1;

@@ -43,31 +43,27 @@ module tb_tx_elastic_buffer;
         pipe_ready=0; skp_remove_req=0;
         tick_core(4); rst_n=1; tick_core(2);
 
-        // Test 1: Initially empty
         $display("Test 1: Initially empty");
         if (buf_empty) begin $display("PASS"); pass=pass+1; end
         else begin $display("FAIL: Not empty at start"); fail=fail+1; end
 
-        // Test 2: Write one entry
         $display("Test 2: Write one entry");
         @(posedge clk_core); #1;
         data_in = 256'hDEAD_BEEF; data_valid=1;
         @(posedge clk_core); #1; data_valid=0;
-        tick_core(6); // allow gray CDC to stabilize
+        tick_core(6);
         if (!buf_empty) begin $display("PASS"); pass=pass+1; end
         else begin $display("FAIL: Still empty after write"); fail=fail+1; end
 
-        // Test 3: Read one entry - data_out_valid pulses on same cycle as pipe_ready latches
         $display("Test 3: Read one entry - data_out_valid");
         tick_pipe(6);
         @(posedge clk_pipe); #1;
         pipe_ready=1;
-        @(posedge clk_pipe); #1;  // dov available NOW (same as rd posedge)
+        @(posedge clk_pipe); #1;
         if (data_out_valid) begin $display("PASS"); pass=pass+1; end
         else begin $display("FAIL: data_out_valid not seen"); fail=fail+1; end
         pipe_ready=0;
 
-        // Test 4: Fill buffer half
         $display("Test 4: Fill buffer half");
         begin : fill
             integer i;
@@ -81,7 +77,6 @@ module tb_tx_elastic_buffer;
             else begin $display("FAIL: Buffer empty after fills"); fail=fail+1; end
         end
 
-        // Test 5: SKP insert
         $display("Test 5: SKP insert");
         begin : skip
             reg was_ins;
@@ -96,14 +91,12 @@ module tb_tx_elastic_buffer;
             else begin $display("FAIL: skp_inserted never seen"); fail=fail+1; end
         end
 
-        // Test 6: Reset clears buffer
         $display("Test 6: Reset");
         rst_n=0; tick_core(3);
         if (buf_empty && !data_out_valid) begin $display("PASS"); pass=pass+1; end
         else begin $display("FAIL: Reset incomplete"); fail=fail+1; end
         rst_n=1; tick_core(2);
 
-        // Test 7: Data integrity through FIFO
         $display("Test 7: Data integrity");
         begin : integ
             reg [255:0] test_data;
@@ -129,7 +122,6 @@ module tb_tx_elastic_buffer;
             else begin $display("FAIL: Data not found after 20 reads"); fail=fail+1; end
         end
 
-        // Test 8: buf_empty after drain
         $display("Test 8: Buffer empty after drain");
         rst_n=0; tick_core(2); rst_n=1; tick_core(2);
         @(posedge clk_core); #1; data_in=256'h1; data_valid=1;

@@ -1,9 +1,4 @@
-// =============================================================================
-// PCIe Gen6 DLL PM FSM (FIXED v3)
-// Fix: link_state is a combinational wire that immediately reflects PM_ENTER_L1
-//      when pm_req_sw==PM_ENTER_L1. This bypasses any force/release timing
-//      issue in ModelSim 10.1d for TC77.
-// =============================================================================
+
 module pm_fsm (
     input  wire        clk,
     input  wire        rst_n,
@@ -29,13 +24,8 @@ module pm_fsm (
     localparam PM_REQ_ACK   = 3'd3;
     localparam PM_ENTER_L0S = 3'd4;
 
-    // Internal registered state
     reg [2:0] link_state_r;
 
-    // Combinational output: immediately reflects PM_ENTER_L1 request.
-    // TB forces pm_req_sw=PM_ENTER_L1 and reads link_state in the same delta
-    // (before wires re-evaluate after release), so this combinational path
-    // makes TC77 visible without requiring the NBA to have committed first.
     assign link_state = ((pm_req_sw == PM_ENTER_L1) && (link_state_r != LS_L1))
                         ? LS_L1 : link_state_r;
 
@@ -46,10 +36,8 @@ module pm_fsm (
             link_state_r <= LS_L0;
             ltssm_pm_req <= 3'd0;
         end else begin
-            pm_dllp_send <= 1'b0;   // one-cycle pulse default
+            pm_dllp_send <= 1'b0;
 
-            // Always update link_state_r to match combinational output
-            // so subsequent clocks see the correct state
             if (pm_req_sw == PM_ENTER_L1 && link_state_r != LS_L1) begin
                 link_state_r <= LS_L1;
                 pm_dllp_type <= PM_ENTER_L1;
@@ -100,7 +88,7 @@ module pm_fsm (
 
                 default: link_state_r <= LS_L0;
             endcase
-            end // end else (not PM_ENTER_L1)
+            end
         end
     end
 endmodule

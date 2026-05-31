@@ -1,39 +1,25 @@
-// ============================================================
-// Module 46 : SKP Ordered Set Generator / Receiver (SKP)
-// PCIe Gen6 Physical Layer
-// SKP ordered sets compensate for spread-spectrum clock
-// differences between TX and RX.
-// Insert/remove every 1180-1538 symbols.
-// ============================================================
+
 module skp (
     input  wire        clk,
     input  wire        rst_n,
 
-    // TX side
-    input  wire        skp_send_req,       // Request to insert SKP OS
-    input  wire [11:0] skp_interval,       // SKP interval (symbols between inserts)
+    input  wire        skp_send_req,
+    input  wire [11:0] skp_interval,
 
-    // RX side
     input  wire [255:0] rx_data,
     input  wire         rx_valid,
 
-    // TX outputs
-    output reg  [255:0] skp_data,          // SKP OS data
-    output reg          skp_tx_valid,      // SKP data valid
+    output reg  [255:0] skp_data,
+    output reg          skp_tx_valid,
 
-    // RX outputs
-    output wire         skp_detected,      // SKP OS detected in RX
-    output wire         skp_removed,       // SKP has been stripped (pulse)
-    output wire         skp_err            // SKP format error
+    output wire         skp_detected,
+    output wire         skp_removed,
+    output wire         skp_err
 );
 
-// SKP symbol = K28.0 = 0x1C per PCIe spec
-// SKP OS: COM SKP SKP SKP (4 symbols), can appear multiple times
-localparam [7:0] COM_SYMBOL = 8'hBC;  // K28.5
-localparam [7:0] SKP_SYMBOL = 8'h1C;  // K28.0
+localparam [7:0] COM_SYMBOL = 8'hBC;
+localparam [7:0] SKP_SYMBOL = 8'h1C;
 
-// Build SKP TX word: 4-symbol pattern repeated
-// COM SKP SKP SKP | COM SKP SKP SKP | ...  (32 symbols total)
 wire [255:0] skp_tx_word;
 genvar gi;
 generate
@@ -45,11 +31,9 @@ generate
     end
 endgenerate
 
-// TX interval counter
 reg [11:0] interval_cnt;
 reg        auto_send;
 
-// TX FSM
 reg [1:0] tx_state;
 localparam TX_IDLE = 2'd0;
 localparam TX_SEND = 2'd1;
@@ -65,7 +49,6 @@ always @(posedge clk or negedge rst_n) begin
     end else begin
         auto_send <= 1'b0;
 
-        // Interval counter — auto SKP generation
         if (skp_interval > 12'd0) begin
             if (interval_cnt >= skp_interval - 12'd1) begin
                 interval_cnt <= 12'd0;
@@ -99,24 +82,18 @@ always @(posedge clk or negedge rst_n) begin
     end
 end
 
-// RX: detect SKP OS
-// SKP OS starts with COM then SKP symbols
-// Check first 4 bytes: BC 1C 1C 1C
 wire is_skp_os = (rx_data[ 7: 0] == COM_SYMBOL) &&
                  (rx_data[15: 8] == SKP_SYMBOL) &&
                  (rx_data[23:16] == SKP_SYMBOL) &&
                  (rx_data[31:24] == SKP_SYMBOL);
 
-// Error: COM is present but followed by wrong pattern (not FTS/SKP/TS)
-// Simplified: COM byte present but second byte is not SKP, IDL, or known OS
 wire is_bad_com = (rx_data[7:0] == COM_SYMBOL) &&
                   (rx_data[15:8] != SKP_SYMBOL) &&
-                  (rx_data[15:8] != 8'h7C)  &&   // IDL
-                  (rx_data[55:48] != 8'h4A) &&   // TS1
-                  (rx_data[55:48] != 8'h45) &&   // TS2
-                  (rx_data[7:0]  != 8'h3C);      // FTS
+                  (rx_data[15:8] != 8'h7C)  &&
+                  (rx_data[55:48] != 8'h4A) &&
+                  (rx_data[55:48] != 8'h45) &&
+                  (rx_data[7:0]  != 8'h3C);
 
-// Combinational RX outputs — immediately reflect input state
 assign skp_detected = rx_valid && is_skp_os;
 assign skp_removed  = rx_valid && is_skp_os;
 assign skp_err      = rx_valid && is_bad_com;

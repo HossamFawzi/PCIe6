@@ -1,105 +1,79 @@
-// =============================================================================
-// File   : pcie_gen6_phy_top.v
-// Project: PCIe Gen6 Physical Layer
-// Purpose: TOP-LEVEL wrapper that instantiates and connects all 53 Physical
-//          Layer modules exactly as mapped in the block diagram:
-//
-//   LTSSM Group (19 modules)  – Mods  2-10, 43-52
-//   TX Path      (9 modules)  – Mods 11-19
-//   RX Path     (10 modules)  – Mods 20-29
-//   Link Mgmt   (10 modules)  – Mods 30-37, 53-54
-//   Gen6 Specific (5 modules) – Mods 38-42
-//
-// Standard : PCIe Base Specification 6.0
-// Language : Verilog-2001  (no SystemVerilog)
-// =============================================================================
+
 `timescale 1ns/1ps
 
 module pcie_gen6_phy_top #(
     parameter NUM_LANES  = 16,
     parameter DATA_WIDTH = 256,
-    // FIX-STUB-4: BYPASS_FEC now a top-level parameter for bring-up flexibility.
-    // Set to 1 to skip RS encoding/decoding (zero parity, pass-through).
-    // NOTE: must set same value for both TX encoder and RX decoder to avoid mismatch.
+
     parameter BYPASS_FEC = 0
 )(
-    // ── Clocks & Resets ────────────────────────────────────────────────────
-    input  wire        clk,              // Core clock
-    input  wire        clk_pipe,         // PIPE clock from PHY macro
-    input  wire        clk_ser,          // High-speed serialiser clock
-    input  wire        rst_n,            // Active-low system reset
-    input  wire        perst_n,          // PCIe PERST# (fundamental reset)
-    input  wire        power_good,       // Power-rail stable indication
-    input  wire        clk_valid,        // Reference clock valid
-    input  wire        ssc_ref_clk,      // SSC reference clock
 
-    // ── PIPE PHY interface – RX (from analog PHY macro) ────────────────────
-    input  wire [255:0] pipe_rxd,            // PHY RX data (256-bit Gen6)
-    input  wire [31:0]  pipe_rxdatak,        // PHY RX K-char flags
-    input  wire         pipe_rx_valid,       // PHY RxValid
-    input  wire [2:0]   pipe_rx_status,      // PHY RxStatus[2:0]
-    input  wire         pipe_rx_elec_idle,   // PHY RxElecIdle
-    input  wire         pipe_phystatus,      // PHY PhyStatus strobe
+    input  wire        clk,
+    input  wire        clk_pipe,
+    input  wire        clk_ser,
+    input  wire        rst_n,
+    input  wire        perst_n,
+    input  wire        power_good,
+    input  wire        clk_valid,
+    input  wire        ssc_ref_clk,
 
-    // ── PIPE PHY interface – TX (to analog PHY macro) ──────────────────────
-    output wire [255:0] pipe_txd_o,           // PHY TX data
-    output wire [31:0]  pipe_txdatak_o,       // PHY TX K-char flags
-    output wire         pipe_tx_elec_idle_o,  // PHY TXElecIdle
-    output wire         pipe_tx_compliance_o, // PHY TXCompliance
-    output wire         pipe_tx_swing_o,      // PHY TXSwing
-    output wire [1:0]   pipe_powerdown_o,     // PHY PowerDown[1:0]
-    output wire [3:0]   pipe_rate_o,          // PHY Rate[3:0]
-    output wire         pipe_txdetectrx_o,    // PHY TxDetectRx/Loopback
-    output wire         pipe_pclkchangeack_o, // PHY PCLK-change acknowledge
-    output wire [1:0]   pipe_width_o,         // PHY bus-width select
+    input  wire [255:0] pipe_rxd,
+    input  wire [31:0]  pipe_rxdatak,
+    input  wire         pipe_rx_valid,
+    input  wire [2:0]   pipe_rx_status,
+    input  wire         pipe_rx_elec_idle,
+    input  wire         pipe_phystatus,
 
-    // ── DLL / Transaction Layer interface ──────────────────────────────────
-    input  wire [1023:0] tlp_data,       // TLP payload from TL (TX)
-    input  wire          tlp_valid,      // TLP valid
-    input  wire [63:0]   dllp_data,      // DLLP from DLL (TX)
-    input  wire          dllp_valid,     // DLLP valid
-    input  wire          dll_up_req,     // DLL DL_Init done, request link-up
-    input  wire          link_down_req,  // DLL replay rollover / fatal error
+    output wire [255:0] pipe_txd_o,
+    output wire [31:0]  pipe_txdatak_o,
+    output wire         pipe_tx_elec_idle_o,
+    output wire         pipe_tx_compliance_o,
+    output wire         pipe_tx_swing_o,
+    output wire [1:0]   pipe_powerdown_o,
+    output wire [3:0]   pipe_rate_o,
+    output wire         pipe_txdetectrx_o,
+    output wire         pipe_pclkchangeack_o,
+    output wire [1:0]   pipe_width_o,
 
-    output wire [1023:0] tlp_rx_out,     // Recovered TLP to TL  (RX)
-    output wire          tlp_rx_valid,   // TLP RX valid
-    output wire [63:0]   dllp_rx_out,    // Recovered DLLP to DLL (RX)
-    output wire          dllp_rx_valid,  // DLLP RX valid
-    output wire          dl_up,          // DL_Up  → DLL
-    output wire          dl_down,        // DL_Down → DLL
+    input  wire [1023:0] tlp_data,
+    input  wire          tlp_valid,
+    input  wire [63:0]   dllp_data,
+    input  wire          dllp_valid,
+    input  wire          dll_up_req,
+    input  wire          link_down_req,
 
-    // ── Power Management & Control ─────────────────────────────────────────
-    input  wire [2:0]   pm_req,           // PM request (L0s/L1/L1.1/L1.2)
-    input  wire         hot_reset_req_sw, // Software-triggered hot reset
-    input  wire         disable_req_sw,   // Software link-disable request
-    input  wire         compliance_req,   // Compliance test entry request
-    input  wire [11:0]  l0s_entry_limit,  // L0s entry timer limit (cycles)
-    input  wire [15:0]  l1_entry_limit,   // L1  entry timer limit (cycles)
+    output wire [1023:0] tlp_rx_out,
+    output wire          tlp_rx_valid,
+    output wire [63:0]   dllp_rx_out,
+    output wire          dllp_rx_valid,
+    output wire          dl_up,
+    output wire          dl_down,
 
-    // ── SSC control ────────────────────────────────────────────────────────
-    input  wire [1:0]   ssc_profile,      // 00=off,01=down-spread,10=center
-    input  wire         ssc_en,           // Enable SSC
+    input  wire [2:0]   pm_req,
+    input  wire         hot_reset_req_sw,
+    input  wire         disable_req_sw,
+    input  wire         compliance_req,
+    input  wire [11:0]  l0s_entry_limit,
+    input  wire [15:0]  l1_entry_limit,
 
-    // ── Local device configuration ─────────────────────────────────────────
-    input  wire [7:0]   local_speed_cap,  // This device's supported speeds
-    input  wire [5:0]   local_width_cap,  // This device's supported widths
-    input  wire [7:0]   local_lane_id,    // Physical lane ID (0-15)
+    input  wire [1:0]   ssc_profile,
+    input  wire         ssc_en,
 
-    // ── Status / Debug outputs ─────────────────────────────────────────────
-    output wire [5:0]   ltssm_state_o,    // Current LTSSM state
-    output wire [3:0]   link_speed_o,     // Negotiated link speed
-    output wire [5:0]   link_width_o,     // Active lane count
-    output wire         rst_done_o,       // Reset sequence complete
-    output wire [7:0]   fec_err_count_o,  // FEC uncorrected error count
-    output wire         ssc_active_o,     // SSC operating
-    // FIX-STUB-1: FEC syndrome bus exposed for DLL error handling
-    output wire [15:0]  fec_syndrome_o,   // RS syndrome per flit (0 = clean)
-    output wire         fec_corrected_o   // 1 = errors were corrected this flit
+    input  wire [7:0]   local_speed_cap,
+    input  wire [5:0]   local_width_cap,
+    input  wire [7:0]   local_lane_id,
+
+    output wire [5:0]   ltssm_state_o,
+    output wire [3:0]   link_speed_o,
+    output wire [5:0]   link_width_o,
+    output wire         rst_done_o,
+    output wire [7:0]   fec_err_count_o,
+    output wire         ssc_active_o,
+
+    output wire [15:0]  fec_syndrome_o,
+    output wire         fec_corrected_o
 );
 
-// =============================================================================
-// [A]  PARAMETERS – STATE ENCODING (mirrors ltssm_top.v localparam)
-// =============================================================================
 localparam [5:0]
     ST_DETECT_QUIET       = 6'd0,
     ST_DETECT_ACTIVE      = 6'd1,
@@ -123,7 +97,6 @@ localparam [5:0]
     ST_LOOPBACK_ACTIVE    = 6'd25,
     ST_LOOPBACK_EXIT      = 6'd26;
 
-// Default timer periods (clock cycles; tune per design frequency)
 localparam [15:0] TMO_DETECT   = 16'd200;
 localparam [15:0] TMO_CFG      = 16'd2000;
 localparam [15:0] TMO_RECOVERY = 16'd2000;
@@ -134,15 +107,9 @@ localparam [15:0] TMO_LB       = 16'd500;
 localparam [15:0] TMO_EQ       = 16'd1000;
 localparam [15:0] TMO_LOCK     = 16'd512;
 
-// =============================================================================
-// [B]  INTERNAL WIRE DECLARATIONS
-// =============================================================================
-
-// ── B1: Reset sequencing (Mod 51 – fund_rst) ────────────────────────────────
 wire sys_rst_n_w, dl_rst_n_w, phy_rst_n_w, rst_done_w;
 wire [2:0] rst_seq_state_w;
 
-// ── B2: LTSSM top outputs (Mod 2 – ltssm_top) ───────────────────────────────
 wire [5:0] ltssm_state_w;
 wire       dl_up_w, dl_down_w;
 wire [1:0] ltssm_pipe_power_down_w;
@@ -151,7 +118,6 @@ wire [3:0] link_speed_w;
 wire [5:0] link_width_w;
 wire       ltssm_reset_out_w;
 
-// ── B3: LTSSM sub-FSM request signals (derived from ltssm_state) ─────────────
 wire detect_req_w   = (ltssm_state_w == ST_DETECT_QUIET) | (ltssm_state_w == ST_DETECT_ACTIVE);
 wire polling_req_w  = (ltssm_state_w >= ST_POLLING_ACTIVE) & (ltssm_state_w <= ST_POLLING_CONFIG);
 wire cfg_req_w      = (ltssm_state_w >= ST_CFG_LINKWD_START) & (ltssm_state_w <= ST_CFG_IDLE);
@@ -159,107 +125,86 @@ wire recv_req_w     = (ltssm_state_w >= ST_RECOVERY_RCVLOCK) & (ltssm_state_w <=
 wire l0s_req_w      = (ltssm_state_w == ST_L0S_TX) | (ltssm_state_w == ST_L0S_RX);
 wire l1_req_w       = (ltssm_state_w >= ST_L1_ENTRY) & (ltssm_state_w <= ST_L1_EXIT);
 wire lb_req_w       = (ltssm_state_w >= ST_LOOPBACK_ENTRY) & (ltssm_state_w <= ST_LOOPBACK_EXIT);
-wire gen6_mode_w    = (link_speed_w == 4'd6);  // Gen6 → FLIT/PAM4 mode
+wire gen6_mode_w    = (link_speed_w == 4'd6);
 wire flit_mode_en_w = gen6_mode_w;
 
-// ── B4: Detect FSM wires (Mod 3) ────────────────────────────────────────────
 wire       detect_done_w, receiver_detected_w, detect_timeout_w;
 wire [15:0] lanes_detected_w;
 
-// ── B5: RX Detect wires (Mod 49) ────────────────────────────────────────────
 wire       rx_det_done_w, rx_det_timeout_w, rx_receiver_detected_w;
 wire [15:0] rx_lanes_det_w;
 
-// ── B6: Polling FSM wires (Mod 4) ───────────────────────────────────────────
 wire       poll_send_ts1_w, poll_send_ts2_w;
 wire       poll_enter_compliance_w, poll_rx_polarity_w;
 wire       poll_done_w, poll_success_w, poll_timeout_w;
 wire       poll_tx_elec_idle_w;
 
-// ── B7: Config FSM wires (Mod 5) ────────────────────────────────────────────
 wire [7:0] cfg_link_num_w, cfg_lane_num_w;
 wire       cfg_send_ts2_w, cfg_done_w, cfg_timeout_err_w;
 wire [5:0] cfg_neg_width_w;
 
-// ── B8: Recovery FSM wires (Mod 6) ──────────────────────────────────────────
 wire       recv_send_ts1_w, recv_send_ts2_w;
 wire       recv_speed_change_en_w, recv_eq_start_w;
 wire       recv_done_w, recv_timeout_err_w, recv_retrain_req_w;
 
-// ── B9: L0/L0s FSM wires (Mod 7) ────────────────────────────────────────────
 wire       l0_send_fts_w, l0_send_eios_w;
 wire       l0_active_w, l0s_tx_active_w, l0s_rx_active_w, l0s_exit_w;
 
-// ── B10: L1 FSM wires (Mod 8) ───────────────────────────────────────────────
 wire       l1_send_eios_w, l1_active_w, l1_exit_w;
 wire [1:0] l1_pipe_power_down_w;
 wire       l1_timeout_err_w;
-wire       l1_ack_w = 1'b0;   // Connect to PM DLLP ACK when DLL is present
-wire       pm_dllp_rx_w = 1'b0; // Connect to DLL PM DLLP received signal
+wire       l1_ack_w = 1'b0;
+wire       pm_dllp_rx_w = 1'b0;
 
-// ── B11: Loopback FSM wires (Mod 9) ─────────────────────────────────────────
 wire       lb_active_w, lb_send_ts1_w, lb_data_en_w, lb_exit_w;
 
-// ── B12: Hot-Reset / Disabled FSM wires (Mod 10) ────────────────────────────
 wire       hrst_send_ts1_hr_w, hrst_send_ts1_dis_w;
 wire       hrst_hot_reset_done_w, hrst_disabled_done_w;
 wire [1:0] hrst_pipe_power_down_w;
-wire       hot_reset_req_comb_w;  // OR of SW request and TS1 HR bit
+wire       hot_reset_req_comb_w;
 
-// ── B13: Hot Reset controller wires (Mod 50) ────────────────────────────────
 wire       hot_reset_active_w, send_ts1_hot_reset_w, hot_reset_done_w;
 wire       pipe_reset_out_w;
 
-// ── B14: Fundamental Reset wires (Mod 51) ────────────────────────────────────
-// (declared in B1 above)
-
-// ── B15: TS1 / TS2 generator wires (Mods 43,44) ─────────────────────────────
 wire [255:0] ts1_data_w;
 wire         ts1_valid_w, ts1_done_w;
 wire [255:0] ts2_data_w;
 wire         ts2_valid_w, ts2_done_w;
 
-// ── B16: TS detector wires (Mod 45) ─────────────────────────────────────────
 wire       ts1_detected_w, ts2_detected_w;
 wire [7:0] ts1_link_num_w, ts1_lane_num_w;
 wire [7:0] ts2_speed_cap_w;
 wire       ts_decode_err_w;
-wire       ts1_hot_reset_bit_w;  // derived in ts_det or tied low for now
+wire       ts1_hot_reset_bit_w;
 wire       ts1_lb_bit_w;
 wire       ts1_hr_bit_w  = ts1_detected_w & hot_reset_active_w;
-wire       ts1_dis_bit_w = 1'b0;  // tie; would come from TS1 field decoder
+wire       ts1_dis_bit_w = 1'b0;
 
-// ── B17: FTS wires (Mod 46) ─────────────────────────────────────────────────
 wire [255:0] fts_data_w;
 wire         fts_tx_valid_w, fts_detected_w;
 wire [7:0]   fts_count_rx_w;
 
-// ── B18: EIOS wires (Mod 47) ────────────────────────────────────────────────
 wire [255:0] eios_data_w;
 wire         eios_tx_valid_w, eios_detected_w, eieos_detected_w;
 wire         send_eios_comb_w = l0_send_eios_w | l1_send_eios_w;
-wire         send_eieos_w     = recv_speed_change_en_w; // EIEOS during speed change
+wire         send_eieos_w     = recv_speed_change_en_w;
 
-// ── B19: SKP OS wires (Mod 48) ──────────────────────────────────────────────
 wire [255:0] skp_data_w;
 wire         skp_tx_valid_w, skp_detected_w, skp_removed_w, skp_err_w;
 
-// ── B20: Compliance generator wires (Mod 52) ────────────────────────────────
 wire [255:0] compl_data_w;
 wire         compl_valid_w, compl_active_w;
 
-// ── B21: Ordered-Set generator wires (Mod 18) ────────────────────────────────
 wire [255:0] os_data_w;
 wire         os_valid_w;
 wire [3:0]   os_type_w;
-// Combined send_ts1/send_ts2 from all LTSSM sources
+
 wire send_ts1_comb_w = poll_send_ts1_w | recv_send_ts1_w
                      | hrst_send_ts1_hr_w | hrst_send_ts1_dis_w
                      | lb_send_ts1_w | send_ts1_hot_reset_w;
 wire send_ts2_comb_w = poll_send_ts2_w | cfg_send_ts2_w | recv_send_ts2_w;
-wire send_sos_w      = 1'b0;  // SOS: driven by Recovery EQ state (Gen6)
+wire send_sos_w      = 1'b0;
 
-// ── B22: Link speed / width negotiation wires (Mods 30,31) ──────────────────
 wire [3:0] target_speed_w;
 wire       speed_change_en_neg_w;
 wire [7:0] adv_speed_cap_w;
@@ -269,29 +214,24 @@ wire       width_neg_done_w;
 wire [15:0] active_lanes_w;
 wire       width_change_req_w;
 
-// ── B23: Equalisation controller wires (Mod 32) ─────────────────────────────
 wire [2:0] pipe_txdeemph_w;
 wire [2:0] pipe_txmargin_w;
 wire       pipe_rxeqeval_out_w;
 wire       eq_done_w, eq_err_w;
 wire [1:0] eq_phase_out_w;
-wire       pipe_rxeqeval_w = 1'b0; // tie; comes from PIPE PHY when EQ eval done
+wire       pipe_rxeqeval_w = 1'b0;
 
-// ── B24: Speed-change FSM wires (Mod 33) ────────────────────────────────────
 wire [3:0] spd_pipe_rate_out_w;
 wire       spd_change_done_w, spd_change_err_w, spd_retrain_req_w;
 
-// ── B25: Lane reversal / polarity wires (Mods 34,35) ────────────────────────
 wire [3:0]  lane_map_w;
 wire        reversal_active_w;
 wire [255:0] rx_data_pol_w;
 wire [15:0]  polarity_inv_w;
 
-// ── B26: Beacon / EI wires (Mod 36) ─────────────────────────────────────────
 wire       beacon_detect_w, ei_detect_w, wakeup_req_w;
 wire       pipe_tx_elec_idle_beacon_w;
 
-// ── B27: PIPE interface controller wires (Mod 37) ────────────────────────────
 wire [1:0] pipe_ctrl_powerdown_w;
 wire [3:0] pipe_ctrl_rate_w;
 wire       pipe_ctrl_txdetectrx_w;
@@ -300,7 +240,6 @@ wire       pipe_ctrl_txcompliance_w;
 wire       pipe_ctrl_pclkchangeack_w;
 wire [1:0] pipe_ctrl_width_w;
 
-// ── B28: PIPE RX interface wires (Mod 20) ────────────────────────────────────
 wire [255:0] rx_data_raw_w;
 wire [31:0]  rx_datak_w;
 wire         rx_valid_w;
@@ -309,60 +248,47 @@ wire [2:0]   rx_status_w;
 wire         phystatus_sync_w;
 wire         pipe_up_w, rate_change_busy_w;
 
-// ── B29: RX Gear Box wires (Mod 28) ─────────────────────────────────────────
 wire [255:0] rx_gear_data_w;
 wire         rx_gear_valid_w;
 
-// ── B30: Lane Deskew wires (Mod 27) ─────────────────────────────────────────
 wire [255:0] deskewed_data_w;
 wire         deskew_valid_w;
 wire [4:0]   skew_amount_w;
 wire         deskew_err_w;
 
-// ── B31: Block/Symbol lock wires (Mod 22) ────────────────────────────────────
 wire symbol_lock_w, block_lock_w, lock_err_w, lock_lost_w;
 
-// ── B32: Block-align + sync-header checker wires (Mod 29) ────────────────────
 wire [255:0] aligned_data_w;
 wire         aligned_valid_w;
 wire [1:0]   sync_hdr_rx_w;
 wire         align_err_w;
 
-// ── B33: RX Elastic Buffer wires (Mod 21) ────────────────────────────────────
 wire [255:0] rx_buf_data_w;
 wire         rx_buf_valid_w;
 wire         rx_buf_empty_w, rx_buf_full_w, rx_buf_slip_done_w, rx_buf_center_w;
 wire [5:0]   rx_buf_fill_level_w;
 
-// ── B34: 8b10b decoder wires (Mod 23) ────────────────────────────────────────
 wire [7:0]   dec_8b10b_data_w;
 wire         dec_8b10b_datak_w;
 wire         dec_8b10b_disp_w;
 wire         dec_8b10b_err_w, dec_8b10b_disp_err_w;
 
-// ── B35: 128b/130b decoder wires (Mod 24) ────────────────────────────────────
 wire [127:0] dec_128b_data_w;
 wire         dec_128b_block_type_w;
 wire         dec_128b_err_w, dec_128b_sync_err_w;
 
-// ── B36: PAM4 Gray decoder wires (Mod 39) ────────────────────────────────────
 wire [255:0] pam4_dec_data_w;
 wire         pam4_dec_valid_w, pam4_dec_err_w;
 
-// ── B37: FEC RS decoder wires (Mod 26) ───────────────────────────────────────
-// flit_corrected_w = [2047:0]: FEC RS decoder corrects and outputs 2048-bit FLIT data.
-// (flit_fec_in is 2348 bits including parity; corrected output is the data portion only)
 wire [2047:0] flit_corrected_w;
 wire          fec_corrected_w;
-wire [15:0]   fec_syndrome_dec_w; // FIX-1: matched to fec_rs_decoder port [15:0]
+wire [15:0]   fec_syndrome_dec_w;
 wire          fec_uncorrectable_w;
 wire [7:0]    fec_err_count_w;
 
-// ── B38: FEC Syndrome Calculator wires (Mod 40) ──────────────────────────────
 wire [255:0] syndrome_w;
 wire         syndrome_valid_w, zero_syndrome_w;
 
-// ── B39: FLIT deframer RX wires (Mod 25) ────────────────────────────────────
 wire [1023:0] tlp_rx_w;
 wire          tlp_rx_valid_w;
 wire [63:0]   dllp_rx_w;
@@ -370,102 +296,80 @@ wire          dllp_rx_valid_w;
 wire [11:0]   flit_seq_rx_w;
 wire          flit_crc_err_w, flit_null_w, flit_sync_err_w;
 
-// ── B40: FLIT sync-header gen/checker wires (Mod 41) ────────────────────────
 wire [2049:0] flit_tx_with_hdr_w;
 wire [1:0]    sync_hdr_tx_w;
 wire          sync_hdr_rx_ok_w, sync_hdr_rx_err_w, flit_lock_w;
 
-// ── B41: FLIT framer TX wires (Mod 15) ────────────────────────────────────────
 wire [2047:0] flit_out_w;
 wire          flit_framer_valid_w;
 wire [1:0]    flit_sync_hdr_w;
 wire [11:0]   flit_seq_tx_w;
-wire [31:0]   flit_crc_w; // FIX-2: widened to match flit_framer_tx port [31:0]
+wire [31:0]   flit_crc_w;
 wire [3:0]    flit_null_slots_w;
 
-// ── B42: FEC RS encoder wires (Mod 16) ────────────────────────────────────────
 wire [2347:0] flit_fec_out_w;
 
-// ── BUG-8 FIX: TX Serialiser — 2348-bit FEC codeword → ten 256-bit PAM4 words ──
-// FEC encoder produces 2348 bits. We need to clock them out as 10 × 256-bit
-// beats (10×256=2560 bits; zero-pad upper 212 bits of the shift register).
 reg  [2559:0] tx_ser_reg;
-reg  [3:0]    tx_ser_cnt;    // 0..9 (10 beats per FLIT)
+reg  [3:0]    tx_ser_cnt;
 reg           tx_ser_busy;
-reg  [255:0]  tx_ser_data;   // current 256-bit beat to PAM4 encoder
+reg  [255:0]  tx_ser_data;
 reg           tx_ser_valid;
 
-// ── BUG-9 FIX: RX Accumulator — ten 256-bit PAM4 words → 2348-bit FEC input ──
 reg  [2559:0] rx_acc_reg;
-reg  [3:0]    rx_acc_cnt;    // 0..9
-reg  [2347:0] rx_fec_data;   // assembled 2348-bit codeword
+reg  [3:0]    rx_acc_cnt;
+reg  [2347:0] rx_fec_data;
 reg           rx_fec_valid;
 
 wire [299:0]  fec_parity_w;
 wire          fec_enc_valid_w;
 
-// ── B43: 128b/130b encoder wires (Mod 14) ────────────────────────────────────
 wire [129:0]  enc_128b_data_w;
 wire          enc_128b_valid_w, enc_128b_err_w;
 
-// ── B44: 8b10b encoder wires (Mod 13) ─────────────────────────────────────────
 wire [9:0]    enc_8b10b_data_w;
 wire          enc_8b10b_valid_w, enc_8b10b_rd_w, enc_8b10b_err_w;
 
-// ── B45: PAM4 Gray encoder wires (Mod 38) ────────────────────────────────────
-wire [255:0]  pam4_symbols_w; // FIX-3: widened to match pam4_gray_enc port [255:0]
+wire [255:0]  pam4_symbols_w;
 wire          pam4_enc_valid_w;
 
-// ── B46: TX Elastic Buffer wires (Mod 12) ────────────────────────────────────
 wire [255:0]  tx_buf_data_w;
 wire          tx_buf_valid_w;
 wire          tx_buf_full_w, tx_buf_empty_w, tx_buf_half_w;
 wire          tx_buf_skp_inserted_w, tx_buf_skp_removed_w;
 
-// ── B47: TX Datapath MUX wires (Mod 19) ──────────────────────────────────────
 wire [255:0]  tx_mux_out_w;
 wire          tx_mux_valid_w, tx_mux_elec_idle_w;
 wire [1:0]    tx_mux_sel_w;
-// enc_data to MUX: 128b130b in Gen3-5, 8b10b (zero-extended) in Gen1/2
+
 wire [255:0]  enc_data_mux_w  = (link_speed_w <= 4'd2)
                                 ? {{246{1'b0}}, enc_8b10b_data_w}
                                 : {{126{1'b0}}, enc_128b_data_w};
 wire          enc_valid_mux_w = (link_speed_w <= 4'd2)
                                 ? enc_8b10b_valid_w : enc_128b_valid_w;
 
-// ── B48: TX Gear Box wires (Mod 17) ──────────────────────────────────────────
-wire [31:0]   tx_gear_out_w;     // NARROW_W=32 default
+wire [31:0]   tx_gear_out_w;
 wire          tx_gear_valid_w;
 wire          tx_gear_full_w, tx_gear_empty_w;
 
-// ── B49: Data Rate Advertisement wires (Mod 42) ──────────────────────────────
 wire [7:0]    adv_speed_cap_rate_w;
 wire [7:0]    negotiated_speed_w;
 wire [2:0]    negotiated_gen_w;
 wire          negotiation_done_w, speed_change_req_adv_w;
 
-// ── B50: SSC controller wires (Mod 53) ────────────────────────────────────────
 wire [7:0]    ssc_mod_req_w;
 wire          ssc_active_w, ssc_center_spread_w, ssc_down_spread_w;
 
-// ── B51: Power State Timer wires (Mod 54) ─────────────────────────────────────
 wire          l0s_entry_timer_exp_w, l1_entry_timer_exp_w;
 wire          l0s_exit_timer_exp_w,  l1_exit_timer_exp_w;
 
-// ── B52: Misc helper wires ────────────────────────────────────────────────────
-wire [255:0]  rx_for_ts_w;    // RX data fed to TS detector & OS detectors
+wire [255:0]  rx_for_ts_w;
 wire          rx_for_ts_valid_w;
-// After lane correction, feed the aligned/buffered data for TS/OS detection
+
 assign rx_for_ts_w       = rx_buf_data_w;
 assign rx_for_ts_valid_w = rx_buf_valid_w;
-// Master reset: AND of fundamental reset and system reset
+
 wire          phy_rst_n_comb = rst_n & phy_rst_n_w;
 
-// =============================================================================
-// [C]  PER-FSM TIMER LOGIC  (simple down-counters; one-cycle exp pulse)
-// =============================================================================
-
-// --- C1: Detect timer ---
 reg [15:0] detect_tmr;
 wire detect_timer_exp_w = (detect_tmr == 16'd1);
 always @(posedge clk or negedge phy_rst_n_comb) begin
@@ -474,7 +378,6 @@ always @(posedge clk or negedge phy_rst_n_comb) begin
     else if (detect_tmr  != 16'd0) detect_tmr <= detect_tmr - 1'b1;
 end
 
-// --- C2: Config timer ---
 reg [15:0] cfg_tmr;
 wire cfg_timer_exp_w = (cfg_tmr == 16'd1);
 always @(posedge clk or negedge phy_rst_n_comb) begin
@@ -483,7 +386,6 @@ always @(posedge clk or negedge phy_rst_n_comb) begin
     else if (cfg_tmr   != 16'd0) cfg_tmr <= cfg_tmr - 1'b1;
 end
 
-// --- C3: Recovery timer ---
 reg [15:0] recv_tmr;
 wire recv_timer_exp_w = (recv_tmr == 16'd1);
 always @(posedge clk or negedge phy_rst_n_comb) begin
@@ -492,7 +394,6 @@ always @(posedge clk or negedge phy_rst_n_comb) begin
     else if (recv_tmr   != 16'd0) recv_tmr <= recv_tmr - 1'b1;
 end
 
-// --- C4: L0s timer ---
 reg [15:0] l0s_tmr;
 wire l0s_timer_exp_w = (l0s_tmr == 16'd1);
 always @(posedge clk or negedge phy_rst_n_comb) begin
@@ -501,7 +402,6 @@ always @(posedge clk or negedge phy_rst_n_comb) begin
     else if (l0s_tmr   != 16'd0) l0s_tmr <= l0s_tmr - 1'b1;
 end
 
-// --- C5: L1 timer ---
 reg [15:0] l1_tmr;
 wire l1_timer_exp_w = (l1_tmr == 16'd1);
 always @(posedge clk or negedge phy_rst_n_comb) begin
@@ -510,7 +410,6 @@ always @(posedge clk or negedge phy_rst_n_comb) begin
     else if (l1_tmr   != 16'd0) l1_tmr <= l1_tmr - 1'b1;
 end
 
-// --- C6: Hot-Reset / Disabled timer ---
 reg [15:0] hrst_tmr;
 wire hrst_timer_exp_w = (hrst_tmr == 16'd1);
 always @(posedge clk or negedge phy_rst_n_comb) begin
@@ -520,7 +419,6 @@ always @(posedge clk or negedge phy_rst_n_comb) begin
     else if (hrst_tmr != 16'd0) hrst_tmr <= hrst_tmr - 1'b1;
 end
 
-// --- C7: Loopback timer ---
 reg [15:0] lb_tmr;
 wire lb_timer_exp_w = (lb_tmr == 16'd1);
 always @(posedge clk or negedge phy_rst_n_comb) begin
@@ -529,7 +427,6 @@ always @(posedge clk or negedge phy_rst_n_comb) begin
     else if (lb_tmr   != 16'd0) lb_tmr <= lb_tmr - 1'b1;
 end
 
-// --- C8: Equalisation timer ---
 reg [15:0] eq_tmr;
 wire eq_timer_exp_w = (eq_tmr == 16'd1);
 always @(posedge clk or negedge phy_rst_n_comb) begin
@@ -538,7 +435,6 @@ always @(posedge clk or negedge phy_rst_n_comb) begin
     else if (eq_tmr  != 16'd0) eq_tmr <= eq_tmr - 1'b1;
 end
 
-// --- C9: Block/Symbol lock timer ---
 reg [15:0] lock_tmr;
 wire lock_timer_exp_w = (lock_tmr == 16'd1);
 always @(posedge clk or negedge phy_rst_n_comb) begin
@@ -547,19 +443,10 @@ always @(posedge clk or negedge phy_rst_n_comb) begin
     else if (lock_tmr != 16'd0) lock_tmr <= lock_tmr - 1'b1;
 end
 
-// Combined hot-reset request
 assign hot_reset_req_comb_w = hot_reset_req_sw | hot_reset_active_w;
-// ts1_lb_bit: simplified tie (full decode requires TS1 field parser)
+
 assign ts1_lb_bit_w = lb_req_w & ts1_detected_w;
 
-// =============================================================================
-// [D]  MODULE INSTANTIATIONS
-// Ordering: Reset → LTSSM → Sub-FSMs → TX path → RX path → Link Mgmt → Gen6
-// =============================================================================
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 51 – fund_rst  (Fundamental Reset Sequencer)
-// ─────────────────────────────────────────────────────────────────────────────
 fund_rst u_fund_rst (
     .clk             (clk),
     .rst_n           (rst_n),
@@ -574,9 +461,6 @@ fund_rst u_fund_rst (
     .rst_seq_state   (rst_seq_state_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 2 – ltssm_top  (LTSSM Top Controller)
-// ─────────────────────────────────────────────────────────────────────────────
 ltssm_top u_ltssm_top (
     .clk                (clk),
     .rst_n              (phy_rst_n_comb),
@@ -597,9 +481,6 @@ ltssm_top u_ltssm_top (
     .ltssm_reset_out    (ltssm_reset_out_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 3 – detect_fsm  (Detect State FSM)
-// ─────────────────────────────────────────────────────────────────────────────
 detect_fsm u_detect_fsm (
     .clk                  (clk),
     .rst_n                (phy_rst_n_comb),
@@ -613,9 +494,6 @@ detect_fsm u_detect_fsm (
     .detect_timeout       (detect_timeout_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 49 – rx_det  (PIPE Receiver Detection)
-// ─────────────────────────────────────────────────────────────────────────────
 rx_det u_rx_det (
     .clk                  (clk),
     .rst_n                (phy_rst_n_comb),
@@ -629,9 +507,6 @@ rx_det u_rx_det (
     .detect_timeout       (rx_det_timeout_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 4 – polling_fsm  (Polling State FSM)
-// ─────────────────────────────────────────────────────────────────────────────
 polling_fsm u_polling_fsm (
     .clk                (clk),
     .rst_n              (phy_rst_n_comb),
@@ -641,7 +516,7 @@ polling_fsm u_polling_fsm (
     .rx_datak           (|rx_datak_w),
     .rx_data            (rx_buf_data_w[31:0]),
     .rx_elec_idle       (rx_elec_idle_w),
-    // BUG-12 FIX: connect decoded TS pulses from ts_det (multi-lane aware)
+
     .ts1_det_in         (ts1_detected_w),
     .ts2_det_in         (ts2_detected_w),
     .compliance_req     (compliance_req),
@@ -655,9 +530,6 @@ polling_fsm u_polling_fsm (
     .polling_timeout    (poll_timeout_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 5 – cfg_fsm  (Configuration State FSM)
-// ─────────────────────────────────────────────────────────────────────────────
 cfg_fsm u_cfg_fsm (
     .clk                (clk),
     .rst_n              (phy_rst_n_comb),
@@ -674,9 +546,6 @@ cfg_fsm u_cfg_fsm (
     .cfg_timeout_err    (cfg_timeout_err_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 6 – recv_fsm  (Recovery State FSM)
-// ─────────────────────────────────────────────────────────────────────────────
 recv_fsm u_recv_fsm (
     .clk                (clk),
     .rst_n              (phy_rst_n_comb),
@@ -696,9 +565,6 @@ recv_fsm u_recv_fsm (
     .retrain_req        (recv_retrain_req_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 7 – l0_fsm  (L0 / L0s State FSM)
-// ─────────────────────────────────────────────────────────────────────────────
 l0_fsm u_l0_fsm (
     .clk                (clk),
     .rst_n              (phy_rst_n_comb),
@@ -715,9 +581,6 @@ l0_fsm u_l0_fsm (
     .l0s_exit           (l0s_exit_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 8 – l1_fsm  (L1 State FSM)
-// ─────────────────────────────────────────────────────────────────────────────
 l1_fsm u_l1_fsm (
     .clk                (clk),
     .rst_n              (phy_rst_n_comb),
@@ -733,9 +596,6 @@ l1_fsm u_l1_fsm (
     .l1_timeout_err     (l1_timeout_err_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 9 – lb_fsm  (Loopback State FSM)
-// ─────────────────────────────────────────────────────────────────────────────
 lb_fsm u_lb_fsm (
     .clk                (clk),
     .rst_n              (phy_rst_n_comb),
@@ -749,9 +609,6 @@ lb_fsm u_lb_fsm (
     .lb_exit            (lb_exit_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 10 – hrst_fsm  (Hot Reset / Disabled FSM)
-// ─────────────────────────────────────────────────────────────────────────────
 hrst_fsm u_hrst_fsm (
     .clk                (clk),
     .rst_n              (phy_rst_n_comb),
@@ -767,9 +624,6 @@ hrst_fsm u_hrst_fsm (
     .pipe_power_down    (hrst_pipe_power_down_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 50 – hot_rst  (Hot Reset Controller)
-// ─────────────────────────────────────────────────────────────────────────────
 hot_rst u_hot_rst (
     .clk                  (clk),
     .rst_n                (phy_rst_n_comb),
@@ -783,9 +637,6 @@ hot_rst u_hot_rst (
     .pipe_reset_out       (pipe_reset_out_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 43 – ts1_gen  (TS1 Ordered Set Generator)
-// ─────────────────────────────────────────────────────────────────────────────
 ts1_gen u_ts1_gen (
     .clk                (clk),
     .rst_n              (phy_rst_n_comb),
@@ -800,9 +651,6 @@ ts1_gen u_ts1_gen (
     .ts1_done           (ts1_done_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 44 – ts2_gen  (TS2 Ordered Set Generator)
-// ─────────────────────────────────────────────────────────────────────────────
 ts2_gen u_ts2_gen (
     .clk                (clk),
     .rst_n              (phy_rst_n_comb),
@@ -816,18 +664,12 @@ ts2_gen u_ts2_gen (
     .ts2_done           (ts2_done_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 45 – ts_det  (TS1/TS2 Ordered Set Detector)
-// ─────────────────────────────────────────────────────────────────────────────
 ts_det u_ts_det (
     .clk                (clk),
     .rst_n              (phy_rst_n_comb),
     .rx_data            (rx_for_ts_w),
     .rx_valid           (rx_for_ts_valid_w),
-    // BUG-TC2 FIX: During Gen1/training (Detect/Polling states) the link uses
-    // 8b/10b encoding which has NO 128b/130b sync headers → block_lock never
-    // asserts → ts_det never fires. Force block_lock=1 in non-Gen6 mode so
-    // ts_det can detect TS1/TS2 ordered sets during LTSSM training.
+
     .block_lock         (block_lock_w | !gen6_mode_w),
     .ts1_detected       (ts1_detected_w),
     .ts2_detected       (ts2_detected_w),
@@ -837,9 +679,6 @@ ts_det u_ts_det (
     .ts_decode_err      (ts_decode_err_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 46 – fts  (Fast Training Sequence Generator / Detector)
-// ─────────────────────────────────────────────────────────────────────────────
 fts u_fts (
     .clk                (clk),
     .rst_n              (phy_rst_n_comb),
@@ -853,9 +692,6 @@ fts u_fts (
     .fts_count_rx       (fts_count_rx_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 47 – eios  (EIOS / EIEOS Generator / Detector)
-// ─────────────────────────────────────────────────────────────────────────────
 eios u_eios (
     .clk                (clk),
     .rst_n              (phy_rst_n_comb),
@@ -869,14 +705,11 @@ eios u_eios (
     .eieos_detected     (eieos_detected_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 48 – skp  (SKP Ordered Set Generator / Detector)
-// ─────────────────────────────────────────────────────────────────────────────
 skp u_skp (
     .clk                (clk),
     .rst_n              (phy_rst_n_comb),
-    .skp_send_req       (l0_active_w),    // insert SKP in L0
-    .skp_interval       (12'd1180),       // ~1180 symbols per PCIe spec
+    .skp_send_req       (l0_active_w),
+    .skp_interval       (12'd1180),
     .rx_data            (rx_for_ts_w),
     .rx_valid           (rx_for_ts_valid_w),
     .skp_data           (skp_data_w),
@@ -886,9 +719,6 @@ skp u_skp (
     .skp_err            (skp_err_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 52 – compl_gen  (Compliance Pattern Generator)
-// ─────────────────────────────────────────────────────────────────────────────
 compl_gen u_compl_gen (
     .clk                  (clk),
     .rst_n                (phy_rst_n_comb),
@@ -900,9 +730,6 @@ compl_gen u_compl_gen (
     .compl_active         (compl_active_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 18 – compliance_eieos_sos_gen  (OS/Compliance Mux – TX Ordered Sets)
-// ─────────────────────────────────────────────────────────────────────────────
 compliance_eieos_sos_gen u_os_gen (
     .clk                (clk),
     .rst_n              (phy_rst_n_comb),
@@ -923,29 +750,12 @@ compliance_eieos_sos_gen u_os_gen (
     .os_type            (os_type_w)
 );
 
-// =============================================================================
-// LINK MANAGEMENT MODULES
-// =============================================================================
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 30 – link_speed_neg  (Speed Negotiation)
-// ─────────────────────────────────────────────────────────────────────────────
-// FIX #1: ts1_speed_cap was incorrectly wired to ts2_speed_cap_w.
-// ts1_speed_cap must carry the speed capability advertised in received TS1 OSes,
-// which comes from ts_det (ts2_speed_cap_w is the TS2 field).
-// ts_det exposes ts2_speed_cap_w from the TS2 ordered set; for TS1 speed cap
-// we reuse the same detector output (ts_det captures both TS1 and TS2 fields
-// into ts2_speed_cap_w when a TS2 is seen, and ts1_link/lane for TS1).
-// A dedicated ts1_speed_cap wire is added here; it mirrors adv_speed_cap_w
-// (the locally advertised capability) until a separate TS1 speed field decoder
-// is implemented in ts_det.  This removes the copy-paste error of using the
-// TS2 field for both ports.
-wire [7:0] ts1_speed_cap_w = adv_speed_cap_w;  // placeholder: local cap until ts_det exports TS1 field
+wire [7:0] ts1_speed_cap_w = adv_speed_cap_w;
 
 link_speed_neg u_spd_neg (
     .clk                (clk),
     .rst_n              (phy_rst_n_comb),
-    .ts1_speed_cap      (ts1_speed_cap_w),       // FIX #1: was ts2_speed_cap_w (copy-paste bug)
+    .ts1_speed_cap      (ts1_speed_cap_w),
     .ts2_speed_cap      (ts2_speed_cap_w),
     .local_speed_cap    (local_speed_cap),
     .speed_change_req   (speed_change_req_adv_w),
@@ -956,9 +766,6 @@ link_speed_neg u_spd_neg (
     .speed_neg_done     (speed_neg_done_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 31 – link_width_neg  (Width Negotiation)
-// ─────────────────────────────────────────────────────────────────────────────
 link_width_neg u_wid_neg (
     .clk                (clk),
     .rst_n              (phy_rst_n_comb),
@@ -972,9 +779,6 @@ link_width_neg u_wid_neg (
     .width_change_req   (width_change_req_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 32 – eq_ctrl  (Link Equalisation Controller)
-// ─────────────────────────────────────────────────────────────────────────────
 eq_ctrl u_eq_ctrl (
     .clk                 (clk),
     .rst_n               (phy_rst_n_comb),
@@ -992,9 +796,6 @@ eq_ctrl u_eq_ctrl (
     .eq_err              (eq_err_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 33 – spd_chg  (Speed-Change FSM)
-// ─────────────────────────────────────────────────────────────────────────────
 spd_chg u_spd_chg (
     .clk                  (clk),
     .rst_n                (phy_rst_n_comb),
@@ -1008,14 +809,11 @@ spd_chg u_spd_chg (
     .retrain_req          (spd_retrain_req_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 42 – data_rate_adv  (Data Rate Advertisement – Gen6 Specific)
-// ─────────────────────────────────────────────────────────────────────────────
 data_rate_adv u_data_rate_adv (
     .clk                  (clk),
     .rst_n                (phy_rst_n_comb),
     .local_speed_cap      (local_speed_cap),
-    .target_speed_req     (8'd6),               // target Gen6 if supported
+    .target_speed_req     (8'd6),
     .partner_speed_cap    ({ts2_speed_cap_w}),
     .partner_cap_valid    (ts2_detected_w),
     .adv_speed_cap        (adv_speed_cap_rate_w),
@@ -1025,9 +823,6 @@ data_rate_adv u_data_rate_adv (
     .speed_change_req     (speed_change_req_adv_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 53 – ssc_ctrl  (Spread Spectrum Clock Controller)
-// ─────────────────────────────────────────────────────────────────────────────
 ssc_ctrl u_ssc_ctrl (
     .clk                  (clk),
     .rst_n                (phy_rst_n_comb),
@@ -1040,9 +835,6 @@ ssc_ctrl u_ssc_ctrl (
     .ssc_down_spread      (ssc_down_spread_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 54 – pwr_tmr  (Power State Timer)
-// ─────────────────────────────────────────────────────────────────────────────
 pwr_tmr u_pwr_tmr (
     .clk                    (clk),
     .rst_n                  (phy_rst_n_comb),
@@ -1058,9 +850,6 @@ pwr_tmr u_pwr_tmr (
     .l1_exit_timer_exp      (l1_exit_timer_exp_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 36 – beacon_ei_logic  (Beacon / Electrical Idle Controller)
-// ─────────────────────────────────────────────────────────────────────────────
 beacon_ei_logic u_beacon_ei (
     .clk                    (clk),
     .rst_n                  (phy_rst_n_comb),
@@ -1074,13 +863,6 @@ beacon_ei_logic u_beacon_ei (
     .wakeup_req             (wakeup_req_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 37 – pipe_interface_ctrl  (PIPE Interface Controller)
-// FIX #5: power_down_req was a raw bitwise OR of three 2-bit sources with no
-// priority.  If hrst requests P2 (2'b10) and ltssm requests P1 (2'b01),
-// the OR yields 2'b11 = an undefined PIPE PowerDown state.
-// Priority order (highest first): hrst/disabled > L1 > LTSSM default.
-// ─────────────────────────────────────────────────────────────────────────────
 wire [1:0] power_down_req_w =
     (hrst_pipe_power_down_w  != 2'b00) ? hrst_pipe_power_down_w  :
     (l1_pipe_power_down_w    != 2'b00) ? l1_pipe_power_down_w    :
@@ -1093,7 +875,7 @@ pipe_interface_ctrl u_pipe_ctrl (
     .pipe_rxvalid           (pipe_rx_valid),
     .pipe_rxstatus          (pipe_rx_status),
     .ltssm_state            (ltssm_state_w),
-    .power_down_req         (power_down_req_w),           // FIX #5: priority-encoded
+    .power_down_req         (power_down_req_w),
     .pipe_powerdown         (pipe_ctrl_powerdown_w),
     .pipe_rate              (pipe_ctrl_rate_w),
     .pipe_txdetectrx        (pipe_ctrl_txdetectrx_w),
@@ -1103,13 +885,6 @@ pipe_interface_ctrl u_pipe_ctrl (
     .pipe_width             (pipe_ctrl_width_w)
 );
 
-// =============================================================================
-// RX PATH MODULES
-// =============================================================================
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 20 – pipe_rx_interface_ctrl  (PIPE RX Interface)
-// ─────────────────────────────────────────────────────────────────────────────
 pipe_rx_interface_ctrl u_pipe_rx (
     .clk                    (clk),
     .rst_n                  (phy_rst_n_comb),
@@ -1127,13 +902,13 @@ pipe_rx_interface_ctrl u_pipe_rx (
     .tx_compliance_req      (pipe_ctrl_txcompliance_w),
     .pclk_change_req        (1'b0),
     .pipe_width_req         (pipe_ctrl_width_w),
-    .pipe_powerdown         (/* nc – driven back to pipe_ctrl */),
-    .pipe_rate              (/* nc */),
-    .pipe_txdetectrx        (/* nc */),
-    .pipe_txelecidle        (/* nc */),
-    .pipe_txcompliance      (/* nc */),
-    .pipe_pclkchangeack     (/* nc */),
-    .pipe_width             (/* nc */),
+    .pipe_powerdown         (),
+    .pipe_rate              (),
+    .pipe_txdetectrx        (),
+    .pipe_txelecidle        (),
+    .pipe_txcompliance      (),
+    .pipe_pclkchangeack     (),
+    .pipe_width             (),
     .rx_data                (rx_data_raw_w),
     .rx_datak               (rx_datak_w),
     .rx_valid               (rx_valid_w),
@@ -1144,9 +919,6 @@ pipe_rx_interface_ctrl u_pipe_rx (
     .rate_change_busy       (rate_change_busy_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 28 – rx_gear_box  (RX Gear Box: narrow serial → wide parallel)
-// ─────────────────────────────────────────────────────────────────────────────
 rx_gear_box u_rx_gear (
     .clk_ser                (clk_ser),
     .clk_par                (clk),
@@ -1158,9 +930,6 @@ rx_gear_box u_rx_gear (
     .par_valid              (rx_gear_valid_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 34 – lane_rev  (Lane Reversal Correction)
-// ─────────────────────────────────────────────────────────────────────────────
 lane_rev u_lane_rev (
     .clk                    (clk),
     .rst_n                  (phy_rst_n_comb),
@@ -1171,9 +940,6 @@ lane_rev u_lane_rev (
     .reversal_active        (reversal_active_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 35 – lane_pol  (Lane Polarity Correction)
-// ─────────────────────────────────────────────────────────────────────────────
 lane_pol u_lane_pol (
     .clk                    (clk),
     .rst_n                  (phy_rst_n_comb),
@@ -1183,12 +949,6 @@ lane_pol u_lane_pol (
     .polarity_inv           (polarity_inv_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 27 – lane_deskew  (Multi-Lane Deskew / Gear Box)
-// ─────────────────────────────────────────────────────────────────────────────
-// FIX: DATA_WIDTH corrected from 32→16 to match lane_pol output width.
-// lane_pol drives rx_data_pol_w as [255:0] = 16 lanes × 16 bits/lane.
-// With DATA_WIDTH=32 the port expected 16*32=512 bits; now 16*16=256 ✓
 lane_deskew #(
     .DATA_WIDTH (16),
     .NUM_LANES  (NUM_LANES),
@@ -1203,14 +963,11 @@ lane_deskew #(
     .skp_detected           ({NUM_LANES{skp_detected_w}}),
     .deskew_en              (block_lock_w),
     .deskewed_data          (deskewed_data_w),
-    .deskew_valid           (/* per-lane valid; OR for top */),
+    .deskew_valid           (),
     .skew_amount            (skew_amount_w),
     .deskew_err             (deskew_err_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 22 – symbol_block_lock_fsm  (Symbol / Block Lock FSM)
-// ─────────────────────────────────────────────────────────────────────────────
 symbol_block_lock_fsm #(
     .LOCK_THRESH (4'd4),
     .MISS_THRESH (4'd4)
@@ -1228,9 +985,6 @@ symbol_block_lock_fsm #(
     .lock_lost              (lock_lost_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 29 – block_align_sync_hdr_checker  (Block Align + Sync Header)
-// ─────────────────────────────────────────────────────────────────────────────
 block_align_sync_hdr_checker u_blk_align (
     .clk                    (clk),
     .rst_n                  (phy_rst_n_comb),
@@ -1243,9 +997,6 @@ block_align_sync_hdr_checker u_blk_align (
     .align_err              (align_err_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 21 – rx_elastic_buffer_slip  (RX Elastic Buffer – CDC & SKP removal)
-// ─────────────────────────────────────────────────────────────────────────────
 rx_elastic_buffer_slip #(
     .DATA_WIDTH (256),
     .DEPTH      (32),
@@ -1267,9 +1018,6 @@ rx_elastic_buffer_slip #(
     .buf_center             (rx_buf_center_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 23 – decoder_8b10b  (8b/10b Symbol Decoder – Gen1/Gen2)
-// ─────────────────────────────────────────────────────────────────────────────
 decoder_8b10b u_dec_8b10b (
     .clk                    (clk),
     .rst_n                  (phy_rst_n_comb),
@@ -1283,9 +1031,6 @@ decoder_8b10b u_dec_8b10b (
     .disparity_err          (dec_8b10b_disp_err_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 24 – decoder_128b130b  (128b/130b Block Decoder – Gen3-Gen5)
-// ─────────────────────────────────────────────────────────────────────────────
 decoder_128b130b #(
     .PCIE_GEN (6)
 ) u_dec_128b130b (
@@ -1300,9 +1045,6 @@ decoder_128b130b #(
     .sync_hdr_err           (dec_128b_sync_err_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 39 – pam4_gray_code_decoder  (PAM4 Gray-Code Decoder – Gen6)
-// ─────────────────────────────────────────────────────────────────────────────
 pam4_gray_code_decoder u_pam4_dec (
     .clk                    (clk),
     .rst_n                  (phy_rst_n_comb),
@@ -1314,20 +1056,10 @@ pam4_gray_code_decoder u_pam4_dec (
     .decode_err             (pam4_dec_err_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 26 – fec_rs_decoder  (Reed-Solomon FEC Decoder)
-// ─────────────────────────────────────────────────────────────────────────────
-// FIX #4: flit_fec_in concatenation was 2140 bits (wrong math).
-// fec_rs_decoder expects [2347:0] = 2348 bits:
-//   [2347:300] = 2048-bit FLIT data  (9 PAM4 words × 256 bits = 2304 bits → upper 2048 used as data)
-//   [299:0]    = 300-bit RS parity placeholder (44 pad + 256 bits from final PAM4 symbol)
-// Corrected: {pam4_dec_data_w ×9, 44'b0} = 256×9 + 44 = 2348 bits ✓
-// Old wrong: {44'b0, pam4×8, pam4[47:0]}  = 44 + 2048 + 48 = 2140 bits ✗
 fec_rs_decoder #(.BYPASS_FEC(BYPASS_FEC)) u_fec_dec (
     .clk                    (clk),
     .rst_n                  (phy_rst_n_comb),
-    // BUG-9 FIX: was same 256-bit word repeated 9 times (wrong).
-    // Now uses rx_fec_data: 2348-bit word accumulated over 10 PAM4 beats.
+
     .flit_fec_in            (rx_fec_data),
     .flit_valid             (rx_fec_valid),
     .fec_en                 (gen6_mode_w),
@@ -1338,9 +1070,6 @@ fec_rs_decoder #(.BYPASS_FEC(BYPASS_FEC)) u_fec_dec (
     .fec_err_count          (fec_err_count_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 40 – fec_syndrome_calculator  (FEC Syndrome Calculator)
-// ─────────────────────────────────────────────────────────────────────────────
 fec_syndrome_calculator u_fec_syndrome (
     .clk                    (clk),
     .rst_n                  (phy_rst_n_comb),
@@ -1351,13 +1080,10 @@ fec_syndrome_calculator u_fec_syndrome (
     .zero_syndrome          (zero_syndrome_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 25 – flit_deframer_rx  (FLIT De-framer → TLP/DLLP extraction)
-// ─────────────────────────────────────────────────────────────────────────────
 flit_deframer_rx u_flit_deframer (
     .clk                    (clk),
     .rst_n                  (phy_rst_n_comb),
-    .flit_in                ({{256{1'b0}}, flit_corrected_w}),  // pad upper 256b; decoder outputs 2048b data
+    .flit_in                ({{256{1'b0}}, flit_corrected_w}),
     .flit_valid             (fec_corrected_w),
     .fec_corrected          (fec_corrected_w),
     .fec_syndrome           (syndrome_w),
@@ -1372,9 +1098,6 @@ flit_deframer_rx u_flit_deframer (
     .flit_sync_err          (flit_sync_err_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 41 – flit_sync_hdr_gen_checker  (FLIT Sync-Header TX Gen + RX Check)
-// ─────────────────────────────────────────────────────────────────────────────
 flit_sync_hdr_gen_checker u_flit_sync_hdr (
     .clk                    (clk),
     .rst_n                  (phy_rst_n_comb),
@@ -1390,13 +1113,6 @@ flit_sync_hdr_gen_checker u_flit_sync_hdr (
     .flit_lock              (flit_lock_w)
 );
 
-// =============================================================================
-// TX PATH MODULES
-// =============================================================================
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 15 – flit_framer_tx  (FLIT Framer: TLP/DLLP → FLIT)
-// ─────────────────────────────────────────────────────────────────────────────
 flit_framer_tx u_flit_framer (
     .clk                    (clk),
     .rst_n                  (phy_rst_n_comb),
@@ -1404,7 +1120,7 @@ flit_framer_tx u_flit_framer (
     .tlp_valid              (tlp_valid),
     .dllp_data              (dllp_data),
     .dllp_valid             (dllp_valid),
-    .fec_parity             (fec_parity_w[255:0]),   // feedback from FEC encoder
+    .fec_parity             (fec_parity_w[255:0]),
     .flit_mode_en           (flit_mode_en_w),
     .link_reset             (ltssm_reset_out_w),
     .flit_out               (flit_out_w),
@@ -1415,9 +1131,6 @@ flit_framer_tx u_flit_framer (
     .flit_null_slots        (flit_null_slots_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 16 – fec_encoder_rs  (Reed-Solomon FEC Encoder)
-// ─────────────────────────────────────────────────────────────────────────────
 fec_encoder_rs #(.BYPASS_FEC(BYPASS_FEC)) u_fec_enc (
     .clk                    (clk),
     .rst_n                  (phy_rst_n_comb),
@@ -1429,19 +1142,10 @@ fec_encoder_rs #(.BYPASS_FEC(BYPASS_FEC)) u_fec_enc (
     .fec_valid              (fec_enc_valid_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 14 – encoder_128b130b  (128b/130b Block Encoder – Gen3-Gen5)
-// FIX #3: .data_in was wired to tlp_data[127:0] (raw TLP input), bypassing
-// flit_framer_tx entirely.  In Gen3-Gen5 the TX data path is:
-//   TLP/DLLP → flit_framer_tx (adds seq#, CRC, null FLIT slots)
-//           → flit_out_w[127:0] → encoder_128b130b → tx_elastic_buffer
-// Connecting directly to tlp_data caused the encoder to transmit raw
-// payloads without FLIT framing, sequence numbers, or CRC protection.
-// ─────────────────────────────────────────────────────────────────────────────
 encoder_128b130b u_enc_128b130b (
     .clk                    (clk),
     .rst_n                  (phy_rst_n_comb),
-    .data_in                (flit_out_w[127:0]),          // FIX #3: was tlp_data[127:0]
+    .data_in                (flit_out_w[127:0]),
     .is_ordered_set         (os_valid_w),
     .data_valid             (flit_framer_valid_w & (link_speed_w >= 4'd3) & (link_speed_w <= 4'd5)),
     .data_out               (enc_128b_data_w),
@@ -1449,9 +1153,6 @@ encoder_128b130b u_enc_128b130b (
     .enc_err                (enc_128b_err_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 13 – encoder_8b10b  (8b/10b Symbol Encoder – Gen1/Gen2)
-// ─────────────────────────────────────────────────────────────────────────────
 encoder_8b10b u_enc_8b10b (
     .clk                    (clk),
     .rst_n                  (phy_rst_n_comb),
@@ -1464,14 +1165,6 @@ encoder_8b10b u_enc_8b10b (
     .enc_err                (enc_8b10b_err_w)
 );
 
-// =============================================================================
-// BUG-8 FIX: TX FEC Serialiser
-// The FEC encoder outputs 2348 bits in one cycle. The PAM4 encoder accepts
-// 256 bits per cycle. This always-block serialises the 2348-bit codeword
-// into 10 × 256-bit beats (packed MSB-first; last beat zero-padded to 256b).
-// 10 × 256 = 2560 bits; the codeword is loaded into bits [2347:0] of a
-// 2560-bit shift register; upper 212 bits are zero.
-// =============================================================================
 always @(posedge clk or negedge phy_rst_n_comb) begin
     if (!phy_rst_n_comb) begin
         tx_ser_reg   <= {2560{1'b0}};
@@ -1482,13 +1175,13 @@ always @(posedge clk or negedge phy_rst_n_comb) begin
     end else begin
         tx_ser_valid <= 1'b0;
         if (fec_enc_valid_w && gen6_mode_w && !tx_ser_busy) begin
-            // Load: place 2348-bit codeword in upper portion, zero-pad below
+
             tx_ser_reg  <= {flit_fec_out_w, 212'b0};
             tx_ser_cnt  <= 4'd0;
             tx_ser_busy <= 1'b1;
         end else if (tx_ser_busy) begin
-            tx_ser_data  <= tx_ser_reg[2559:2304];          // MSB 256 bits
-            tx_ser_reg   <= {tx_ser_reg[2303:0], 256'b0};  // shift left
+            tx_ser_data  <= tx_ser_reg[2559:2304];
+            tx_ser_reg   <= {tx_ser_reg[2303:0], 256'b0};
             tx_ser_valid <= 1'b1;
             tx_ser_cnt   <= tx_ser_cnt + 4'd1;
             if (tx_ser_cnt == 4'd9)
@@ -1497,11 +1190,6 @@ always @(posedge clk or negedge phy_rst_n_comb) begin
     end
 end
 
-// =============================================================================
-// BUG-9 FIX: RX FEC Accumulator
-// The PAM4 decoder outputs one 256-bit word per cycle. We need 10 consecutive
-// words to assemble the 2348-bit FEC codeword for the RS decoder.
-// =============================================================================
 always @(posedge clk or negedge phy_rst_n_comb) begin
     if (!phy_rst_n_comb) begin
         rx_acc_reg  <= {2560{1'b0}};
@@ -1511,11 +1199,11 @@ always @(posedge clk or negedge phy_rst_n_comb) begin
     end else begin
         rx_fec_valid <= 1'b0;
         if (pam4_dec_valid_w && gen6_mode_w) begin
-            // Shift new 256-bit word into accumulator (MSB-first order)
+
             rx_acc_reg <= {rx_acc_reg[2303:0], pam4_dec_data_w};
             rx_acc_cnt <= rx_acc_cnt + 4'd1;
             if (rx_acc_cnt == 4'd9) begin
-                // 10 words collected — upper 2348 bits are the FEC codeword
+
                 rx_fec_data  <= rx_acc_reg[2559:212];
                 rx_fec_valid <= 1'b1;
                 rx_acc_cnt   <= 4'd0;
@@ -1524,24 +1212,16 @@ always @(posedge clk or negedge phy_rst_n_comb) begin
     end
 end
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 38 – pam4_gray_enc  (PAM4 Gray-Code Encoder – Gen6)
-// BUG-8 FIX: now driven by tx_ser_data/tx_ser_valid (serialised FEC output)
-//            instead of flit_fec_out_w[255:0] (which was only 256 of 2348 bits)
-// ─────────────────────────────────────────────────────────────────────────────
 pam4_gray_enc u_pam4_enc (
     .clk                    (clk),
     .rst_n                  (phy_rst_n_comb),
-    .data_in                (tx_ser_data),             // BUG-8 FIX: was flit_fec_out_w[255:0]
+    .data_in                (tx_ser_data),
     .data_valid             (tx_ser_valid & gen6_mode_w),
     .pam4_en                (gen6_mode_w),
     .pam4_symbols           (pam4_symbols_w),
     .pam4_valid             (pam4_enc_valid_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 12 – tx_elastic_buffer  (TX Elastic Buffer – SKP insertion & CDC)
-// ─────────────────────────────────────────────────────────────────────────────
 tx_elastic_buffer #(
     .DATA_WIDTH (256),
     .DEPTH      (16),
@@ -1562,12 +1242,9 @@ tx_elastic_buffer #(
     .buf_half               (tx_buf_half_w),
     .skp_inserted           (tx_buf_skp_inserted_w),
     .skp_removed            (tx_buf_skp_removed_w),
-    .fill_level             (/* debug */)
+    .fill_level             ()
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 19 – tx_datapath_mux  (TX Datapath Multiplexer)
-// ─────────────────────────────────────────────────────────────────────────────
 tx_datapath_mux u_tx_mux (
     .clk                    (clk),
     .rst_n                  (phy_rst_n_comb),
@@ -1585,9 +1262,6 @@ tx_datapath_mux u_tx_mux (
     .mux_sel                (tx_mux_sel_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 17 – tx_gear_box  (TX Gear Box: wide parallel → narrow PIPE)
-// ─────────────────────────────────────────────────────────────────────────────
 tx_gear_box #(
     .WIDE_W   (256),
     .NARROW_W (32)
@@ -1603,9 +1277,6 @@ tx_gear_box #(
     .gear_empty             (tx_gear_empty_w)
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOD 11 – pipe_tx  (PIPE TX Interface Controller)
-// ─────────────────────────────────────────────────────────────────────────────
 pipe_tx u_pipe_tx (
     .pipe_clk               (clk_pipe),
     .clk                    (clk),
@@ -1623,10 +1294,6 @@ pipe_tx u_pipe_tx (
     .pipe_tx_swing          (pipe_tx_swing_o)
 );
 
-// =============================================================================
-// [E]  TOP-LEVEL OUTPUT ASSIGNMENTS
-// =============================================================================
-
 assign dl_up            = dl_up_w;
 assign dl_down          = dl_down_w;
 assign ltssm_state_o    = ltssm_state_w;
@@ -1635,7 +1302,7 @@ assign link_width_o     = link_width_w;
 assign rst_done_o       = rst_done_w;
 assign fec_err_count_o  = fec_err_count_w;
 assign ssc_active_o     = ssc_active_w;
-// FIX-STUB-1: export FEC syndrome to system_top so DLL can detect/suppress UE flits
+
 assign fec_syndrome_o   = fec_syndrome_dec_w;
 assign fec_corrected_o  = fec_corrected_w;
 
@@ -1650,7 +1317,3 @@ assign pipe_pclkchangeack_o = pipe_ctrl_pclkchangeack_w;
 assign pipe_width_o         = pipe_ctrl_width_w;
 
 endmodule
-// =============================================================================
-// End of pcie_gen6_phy_top.v
-// =============================================================================
-

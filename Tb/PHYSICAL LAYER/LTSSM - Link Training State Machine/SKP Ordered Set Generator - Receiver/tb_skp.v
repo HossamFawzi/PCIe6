@@ -1,6 +1,4 @@
-// ============================================================
-// Testbench for Module 46 : SKP Ordered Set Generator/Receiver
-// ============================================================
+
 `timescale 1ns/1ps
 
 module tb_skp;
@@ -41,7 +39,7 @@ module tb_skp;
     initial begin
         skp_rx_word = 256'd0;
         normal_data = 256'hA5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5;
-        // SKP OS: BC 1C 1C 1C repeated
+
         for (i=0; i<8; i=i+1) begin
             skp_rx_word[i*32 +  0 +: 8] = 8'hBC;
             skp_rx_word[i*32 +  8 +: 8] = 8'h1C;
@@ -55,19 +53,17 @@ module tb_skp;
         rx_data=0; rx_valid=0;
         repeat(4) @(posedge clk); rst_n=1; @(posedge clk);
 
-        // TC1: Manual send request
-        skp_interval = 12'd0;  // disable auto
+        skp_interval = 12'd0;
         @(posedge clk); #1; skp_send_req=1;
         @(posedge clk); #1; skp_send_req=0;
         repeat(5) @(posedge clk);
-        // Check TX valid was asserted and now off
+
         if (!skp_tx_valid) begin
             $display("PASS [TC1_manual_send]"); pass_count=pass_count+1;
         end else begin
             $display("FAIL [TC1_manual_send]"); fail_count=fail_count+1;
         end
 
-        // TC2: SKP TX data first symbol = COM, second = SKP
         @(posedge clk); #1; skp_send_req=1;
         @(posedge clk); #1; skp_send_req=0;
         @(posedge clk); #1;
@@ -79,8 +75,7 @@ module tb_skp;
         end
         repeat(5) @(posedge clk);
 
-        // TC3: Auto send at interval
-        skp_interval = 12'd8;  // Auto every 8 cycles
+        skp_interval = 12'd8;
         begin : TC3
             integer valid_seen; valid_seen=0;
             repeat(30) begin
@@ -95,11 +90,10 @@ module tb_skp;
         end
         skp_interval = 12'd0;
 
-        // TC4: RX SKP detection
         rx_data = skp_rx_word;
         @(posedge clk); #1;
         rx_valid=1;
-        @(posedge clk); #1;  // sample now
+        @(posedge clk); #1;
         if (skp_detected && skp_removed) begin
             $display("PASS [TC4_rx_skp_det]"); pass_count=pass_count+1;
         end else begin
@@ -108,7 +102,6 @@ module tb_skp;
         end
         rx_valid=0;
 
-        // TC5: Normal data → no SKP detection
         rx_data = normal_data;
         @(posedge clk); #1; rx_valid=1;
         @(posedge clk); #1; rx_valid=0;
@@ -119,7 +112,6 @@ module tb_skp;
             $display("FAIL [TC5_normal_no_det]"); fail_count=fail_count+1;
         end
 
-        // TC6: No RX detection without rx_valid
         rx_data = skp_rx_word; rx_valid=0;
         @(posedge clk); #1; @(posedge clk); #1;
         if (!skp_detected) begin
@@ -128,7 +120,6 @@ module tb_skp;
             $display("FAIL [TC6_no_valid_no_det]"); fail_count=fail_count+1;
         end
 
-        // TC7: Reset clears
         rst_n=0; repeat(3) @(posedge clk); #1;
         if (!skp_tx_valid && !skp_detected && !skp_removed && !skp_err) begin
             $display("PASS [TC7_reset]"); pass_count=pass_count+1;
@@ -137,13 +128,12 @@ module tb_skp;
         end
         rst_n=1;
 
-        // TC8: skp_removed is a pulse (1 cycle)
         begin : TC8
             integer cnt; cnt=0;
             rx_data = skp_rx_word;
             @(posedge clk); #1;
             rx_valid=1;
-            @(posedge clk); #1; // sample; skp_removed=1 here
+            @(posedge clk); #1;
             if(skp_removed) cnt=cnt+1;
             rx_valid=0;
             repeat(4) begin @(posedge clk); #1; if(skp_removed) cnt=cnt+1; end

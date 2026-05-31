@@ -1,11 +1,4 @@
-// =============================================================================
-// PCIe Gen6 DLL Support Block: Link State Power Timer (PM_TMR) 🔴 MUST
-// From HTML: grp="support", tag="PM_TMR"
-// Inputs : l0s_entry_req, l1_entry_req, l0s_exit_req, l1_exit_req,
-//          l0s_limit[15:0], l1_limit[15:0], clk, rst_n
-// Outputs: l0s_timer_exp, l1_timer_exp, pm_timeout_err
-// Behavior: Generates L0s and L1 entry/exit timing signals.
-// =============================================================================
+
 module pm_tmr (
     input  wire        clk,
     input  wire        rst_n,
@@ -25,7 +18,6 @@ module pm_tmr (
     reg        l0s_active;
     reg        l1_active;
 
-    // L0s timer
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             l0s_cnt    <= 16'd0;
@@ -41,7 +33,6 @@ module pm_tmr (
         end
     end
 
-    // L1 timer
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             l1_cnt    <= 16'd0;
@@ -65,7 +56,7 @@ module pm_tmr (
         end else begin
             l0s_timer_exp  <= l0s_active && (l0s_cnt >= l0s_limit);
             l1_timer_exp   <= l1_active  && (l1_cnt  >= l1_limit);
-            // Timeout error: both timers fire simultaneously (illegal state)
+
             pm_timeout_err <= (l0s_active && (l0s_cnt >= l0s_limit)) &&
                               (l1_active  && (l1_cnt  >= l1_limit));
         end

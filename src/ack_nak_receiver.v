@@ -1,7 +1,3 @@
-// =============================================================================
-// Module: ack_nak_receiver
-// Final Fixed Version - passes out-of-window + wrap-around tests
-// =============================================================================
 
 `timescale 1ns/1ps
 
@@ -32,13 +28,8 @@ wire        in_window;
 assign rx_type_flag = ack_out[23:16];
 assign rx_seq       = ack_out[15:4];
 
-// modulo distance
 assign seq_distance = (rx_seq - oldest_unacked) & 12'hFFF;
 
-// BUG FIX: Pure 12-bit modular window check (0..2047 ahead of oldest_unacked)
-// The special-case OR conditions were incorrect - they allowed arbitrary seqs
-// near 0xFFF/0x000 regardless of oldest_unacked, accepting out-of-window ACKs.
-// Correct: seq is valid if it is within 2048 positions ahead of oldest_unacked.
 assign in_window = (seq_distance <= 12'd2047);
 
 always @(posedge clk or negedge rst_n) begin

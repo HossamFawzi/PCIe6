@@ -1,13 +1,4 @@
-// =============================================================================
-// PCIe Gen6 DLL Support Block: FC Update Timer (FC_TMR)
-// Inputs : fc_update_sent, fc_timer_limit[15:0], dll_active, clk, rst_n
-// Outputs: fc_update_req, fc_timer_exp
-// Behavior: Periodic UpdateFC trigger even if credits unchanged.
-//
-// BUG FIX: Original logic allowed fc_timer_exp to fire on the SAME cycle as
-// fc_update_sent because the output register sampled cnt BEFORE the reset.
-// Fix: gate the output with !fc_update_sent so sending immediately clears it.
-// =============================================================================
+
 `timescale 1ns/1ps
 module fc_tmr (
     input  wire        clk,
@@ -35,9 +26,7 @@ module fc_tmr (
             fc_timer_exp  <= 1'b0;
             fc_update_req <= 1'b0;
         end else begin
-            // BUG FIX: suppress output immediately on fc_update_sent
-            // Without this, the timer fires on same cycle the update is sent
-            // because cnt hasn't reset yet (registered reset is one cycle late).
+
             fc_timer_exp  <= dll_active && !fc_update_sent && (cnt >= fc_timer_limit);
             fc_update_req <= dll_active && !fc_update_sent && (cnt >= fc_timer_limit);
         end

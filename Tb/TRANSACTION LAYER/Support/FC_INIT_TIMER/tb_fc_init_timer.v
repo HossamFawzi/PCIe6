@@ -1,6 +1,4 @@
-// =============================================================
-//  TESTBENCH : tb_fc_init_timer (clean)
-// =============================================================
+
 `timescale 1ns/1ps
 module tb_fc_init_timer;
 
@@ -67,7 +65,6 @@ module tb_fc_init_timer;
     initial begin
         $display("=== fc_init_timer Testbench ===");
 
-        // T1: normal — done before timeout
         $display("\n[T1] Start then done before timeout");
         do_reset;
         fc_init_timeout_val = 16'd20;
@@ -78,7 +75,6 @@ module tb_fc_init_timer;
         chk1(fc_init_timeout, 1'b0, "no timeout");
         chk1(fc_init_err,     1'b0, "no err");
 
-        // T2: one timeout → retry fires
         $display("\n[T2] One timeout → retry requested");
         do_reset;
         fc_init_timeout_val = 16'd8;
@@ -95,11 +91,10 @@ module tb_fc_init_timer;
             if (fc_init_retry_req) begin found=1; kk=5; end
         end
         chk1(found[0], 1'b1, "fc_init_retry_req");
-        pulse_done;  // complete on retry
+        pulse_done;
         repeat(3) @(posedge clk); #1;
         chk1(fc_init_err, 1'b0, "no permanent err after 1 retry");
 
-        // T3: 3 timeouts → fc_init_err sticky
         $display("\n[T3] 3 timeouts in a row → fc_init_err");
         do_reset;
         fc_init_timeout_val = 16'd5;
@@ -107,7 +102,6 @@ module tb_fc_init_timer;
         repeat(100) @(posedge clk); #1;
         chk1(fc_init_err, 1'b1, "fc_init_err after 3 retries");
 
-        // T4: immediate done on same cycle as start
         $display("\n[T4] Immediate done");
         do_reset;
         fc_init_timeout_val = 16'd20;
@@ -118,12 +112,11 @@ module tb_fc_init_timer;
         chk1(fc_init_timeout, 1'b0, "no timeout");
         chk1(fc_init_err,     1'b0, "no err");
 
-        // T5: fc_init_err clears on reset
         $display("\n[T5] fc_init_err clears on rst_n");
         do_reset;
         fc_init_timeout_val = 16'd5;
         pulse_start;
-        repeat(100) @(posedge clk); // exhaust retries
+        repeat(100) @(posedge clk);
         chk1(fc_init_err, 1'b1, "err set before reset");
         rst_n=0; repeat(2) @(posedge clk);
         rst_n=1; @(posedge clk); #1;

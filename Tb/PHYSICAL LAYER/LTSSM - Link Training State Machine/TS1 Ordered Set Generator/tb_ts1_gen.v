@@ -1,6 +1,4 @@
-// ============================================================
-// Testbench for Module 41 : TS1 Ordered Set Generator
-// ============================================================
+
 `timescale 1ns/1ps
 
 module tb_ts1_gen;
@@ -12,7 +10,6 @@ module tb_ts1_gen;
     wire [255:0] ts1_data;
     wire         ts1_valid, ts1_done;
 
-    // DUT instantiation
     ts1_gen dut (
         .clk            (clk),
         .rst_n          (rst_n),
@@ -27,7 +24,6 @@ module tb_ts1_gen;
         .ts1_done       (ts1_done)
     );
 
-    // Clock generation: 10ns period
     initial clk = 0;
     always #5 clk = ~clk;
 
@@ -68,7 +64,7 @@ module tb_ts1_gen;
             ts1_send = 1;
             @(posedge clk); #1;
             ts1_send = 0;
-            // Wait for done
+
             repeat(10) begin
                 if (!ts1_done) @(posedge clk);
             end
@@ -77,7 +73,7 @@ module tb_ts1_gen;
     endtask
 
     initial begin
-        // Initialise
+
         rst_n          = 0;
         ts1_send       = 0;
         compliance_mode= 0;
@@ -86,40 +82,34 @@ module tb_ts1_gen;
         speed_cap      = 8'h00;
         fts_count      = 8'h00;
 
-        // Apply reset
         repeat(4) @(posedge clk);
         rst_n = 1;
         @(posedge clk);
 
-        // ── TC1: Normal TS1 (link=1, lane=0, speed=0x3F, fts=48) ──
         link_num  = 8'h01; lane_num = 8'h00;
         speed_cap = 8'h3F; fts_count = 8'h30;
         compliance_mode = 0;
         send_ts1_and_wait;
         check(ts1_data, 8'h01, 8'h00, 8'h30, 8'h3F, 1'b0, "TC1_Normal");
 
-        // ── TC2: PAD link/lane (broadcast) ──
         link_num  = 8'hFF; lane_num = 8'hFF;
         speed_cap = 8'h01; fts_count = 8'h00;
         compliance_mode = 0;
         send_ts1_and_wait;
         check(ts1_data, 8'hFF, 8'hFF, 8'h00, 8'h01, 1'b0, "TC2_PAD_link_lane");
 
-        // ── TC3: Compliance mode enabled ──
         link_num  = 8'h00; lane_num = 8'h00;
         speed_cap = 8'h3F; fts_count = 8'h10;
         compliance_mode = 1;
         send_ts1_and_wait;
         check(ts1_data, 8'h00, 8'h00, 8'h10, 8'h3F, 1'b1, "TC3_Compliance");
 
-        // ── TC4: Gen6 speed capability only ──
         link_num  = 8'h02; lane_num = 8'h01;
         speed_cap = 8'h40; fts_count = 8'hFF;
         compliance_mode = 0;
         send_ts1_and_wait;
         check(ts1_data, 8'h02, 8'h01, 8'hFF, 8'h40, 1'b0, "TC4_Gen6_speed");
 
-        // ── TC5: ts1_done pulses only once per transaction ──
         begin : TC5
             integer done_count;
             done_count = 0;
@@ -139,7 +129,6 @@ module tb_ts1_gen;
             end
         end
 
-        // ── TC6: ts1_valid deasserts after done ──
         begin : TC6
             link_num = 8'h01; lane_num = 8'h00;
             speed_cap = 8'h3F; fts_count = 8'h30;
@@ -153,7 +142,6 @@ module tb_ts1_gen;
             end
         end
 
-        // ── TC7: Reset clears outputs ──
         begin : TC7
             rst_n = 0;
             repeat(3) @(posedge clk); #1;
@@ -165,7 +153,6 @@ module tb_ts1_gen;
             rst_n = 1;
         end
 
-        // ── TC8: Back-to-back sends ──
         begin : TC8
             integer i;
             @(posedge clk);
@@ -180,7 +167,6 @@ module tb_ts1_gen;
             $display("PASS [TC8_back_to_back]"); pass_count=pass_count+1;
         end
 
-        // Summary
         #20;
         $display("===========================================");
         $display("  TS1_GEN Results: PASS=%0d  FAIL=%0d", pass_count, fail_count);
@@ -188,7 +174,6 @@ module tb_ts1_gen;
         $finish;
     end
 
-    // Timeout watchdog
     initial begin
         #10000;
         $display("TIMEOUT: simulation exceeded 10us");

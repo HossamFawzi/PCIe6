@@ -1,19 +1,4 @@
-// =============================================================
-//  MODULE : seq_num_checker_rx  [FIXED]
-//  Fix    : ELAB-303 — The reset condition of the always block
-//           used a compound expression:
-//             always @(posedge clk or negedge rst_n)
-//               if (!rst_n || link_reset) ...
-//
-//           DC requires the if-reset condition to be a SIMPLE
-//           identifier or its negation (e.g. !rst_n).
-//           Compound OR conditions (|| link_reset) cause ELAB-303.
-//
-//  Solution: Move the link_reset branch out of the async-reset
-//           condition into the synchronous else branch with
-//           highest priority (first if in the else block).
-//           This is the standard synthesizable coding style.
-// =============================================================
+
 module seq_num_checker_rx (
     input  wire          clk,
     input  wire          rst_n,
@@ -39,8 +24,6 @@ module seq_num_checker_rx (
     wire [11:0] expected_seq = next_expected;
     wire [11:0] prev_seq     = expected_seq - 12'd1;
 
-    // FIX: link_reset handled synchronously (first priority in else branch)
-    // to satisfy ELAB-303 simple-identifier reset condition rule.
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             next_expected <= 12'h000;
@@ -53,7 +36,7 @@ module seq_num_checker_rx (
             tlp_fwd       <= 1024'b0;
             tlp_fwd_valid <= 1'b0;
         end else begin
-            // Synchronous link reset — highest priority in clocked domain
+
             if (link_reset) begin
                 next_expected <= 12'h000;
                 tlp_seq_ok    <= 1'b0;
@@ -65,7 +48,7 @@ module seq_num_checker_rx (
                 tlp_fwd       <= 1024'b0;
                 tlp_fwd_valid <= 1'b0;
             end else begin
-                // Defaults: clear all pulse outputs
+
                 tlp_seq_ok    <= 1'b0;
                 tlp_dup       <= 1'b0;
                 tlp_seq_err   <= 1'b0;

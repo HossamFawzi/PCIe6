@@ -1,15 +1,8 @@
-//============================================================
-// Testbench: decoder_128b130b_tb
-// PCIe 6.0 Physical Link Layer - 128b/130b Decoder
-// Compatible with ModelSim / QuestaSim / Icarus Verilog
-//============================================================
+
 `timescale 1ns/1ps
 
 module decoder_128b130b_tb;
 
-    // -------------------------------------------------------
-    // DUT ports
-    // -------------------------------------------------------
     reg          clk;
     reg          rst_n;
     reg  [129:0] data_in;
@@ -21,9 +14,6 @@ module decoder_128b130b_tb;
     wire         dec_err;
     wire         sync_hdr_err;
 
-    // -------------------------------------------------------
-    // Instantiate DUT - Gen6 (sync_hdr_err bypassed)
-    // -------------------------------------------------------
     decoder_128b130b #(.PCIE_GEN(6)) DUT_GEN6 (
         .clk         (clk),
         .rst_n       (rst_n),
@@ -36,9 +26,6 @@ module decoder_128b130b_tb;
         .sync_hdr_err(sync_hdr_err)
     );
 
-    // -------------------------------------------------------
-    // Instantiate second DUT - Gen5 (sync_hdr_err active)
-    // -------------------------------------------------------
     wire [127:0] data_out_g5;
     wire         block_type_g5;
     wire         dec_err_g5;
@@ -56,22 +43,13 @@ module decoder_128b130b_tb;
         .sync_hdr_err(sync_hdr_err_g5)
     );
 
-    // -------------------------------------------------------
-    // Clock: 500 MHz (2 ns period)
-    // -------------------------------------------------------
     initial clk = 0;
     always  #1 clk = ~clk;
 
-    // -------------------------------------------------------
-    // Test counters
-    // -------------------------------------------------------
     integer pass_cnt;
     integer fail_cnt;
     integer test_num;
 
-    // -------------------------------------------------------
-    // Task: apply one cycle and check GEN6 DUT outputs
-    // -------------------------------------------------------
     task apply_and_check_g6;
         input [129:0] din;
         input [1:0]   sh;
@@ -109,9 +87,6 @@ module decoder_128b130b_tb;
         end
     endtask
 
-    // -------------------------------------------------------
-    // Task: apply one cycle and check GEN5 DUT outputs
-    // -------------------------------------------------------
     task apply_and_check_g5;
         input [129:0] din;
         input [1:0]   sh;
@@ -149,9 +124,6 @@ module decoder_128b130b_tb;
         end
     endtask
 
-    // -------------------------------------------------------
-    // Task: reset both DUTs
-    // -------------------------------------------------------
     task do_reset;
         begin
             rst_n    = 1'b0;
@@ -165,9 +137,6 @@ module decoder_128b130b_tb;
         end
     endtask
 
-    // -------------------------------------------------------
-    // Helper: build 130-bit block {sh[1:0], payload[127:0]}
-    // -------------------------------------------------------
     function [129:0] make_block;
         input [1:0]   sh;
         input [127:0] payload;
@@ -176,9 +145,6 @@ module decoder_128b130b_tb;
         end
     endfunction
 
-    // -------------------------------------------------------
-    // Main test sequence
-    // -------------------------------------------------------
     initial begin
         pass_cnt = 0;
         fail_cnt = 0;
@@ -192,148 +158,106 @@ module decoder_128b130b_tb;
         do_reset;
         $display("\n--- Reset Complete ---\n");
 
-        // ============================================================
-        // GROUP 1: Valid Data Blocks (sync_hdr = 2'b01)
-        //          GEN6 DUT: no sh_err, no dec_err, block_type=0
-        // ============================================================
         $display("--- Group 1: Valid Data Blocks (SH=01, GEN6) ---");
 
-        // All-zero payload
         apply_and_check_g6(
             make_block(2'b01, 128'h0),
             2'b01, 1,
             128'h0, 0, 0, 0,
             "DATA_all0");
 
-        // All-ones payload
         apply_and_check_g6(
             make_block(2'b01, 128'hFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF),
             2'b01, 1,
             128'hFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF, 0, 0, 0,
             "DATA_allF");
 
-        // Walking-one payload
         apply_and_check_g6(
             make_block(2'b01, 128'hDEAD_BEEF_CAFE_BABE_1234_5678_9ABC_DEF0),
             2'b01, 1,
             128'hDEAD_BEEF_CAFE_BABE_1234_5678_9ABC_DEF0, 0, 0, 0,
             "DATA_pattern");
 
-        // Alternating 0x55/0xAA
         apply_and_check_g6(
             make_block(2'b01, 128'h5555_5555_5555_5555_AAAA_AAAA_AAAA_AAAA),
             2'b01, 1,
             128'h5555_5555_5555_5555_AAAA_AAAA_AAAA_AAAA, 0, 0, 0,
             "DATA_55AA");
 
-        // ============================================================
-        // GROUP 2: Valid Ordered Set Blocks (sync_hdr = 2'b10)
-        //          GEN6 DUT: no sh_err, no dec_err, block_type=1
-        // ============================================================
         $display("\n--- Group 2: Valid Ordered Set Blocks (SH=10, GEN6) ---");
 
-        // SKP ordered set pattern
         apply_and_check_g6(
             make_block(2'b10, 128'hAA55_AA55_AA55_AA55_AA55_AA55_AA55_AA55),
             2'b10, 1,
             128'hAA55_AA55_AA55_AA55_AA55_AA55_AA55_AA55, 1, 0, 0,
             "OS_SKP_pattern");
 
-        // All-zero ordered set
         apply_and_check_g6(
             make_block(2'b10, 128'h0),
             2'b10, 1,
             128'h0, 1, 0, 0,
             "OS_all0");
 
-        // EIEOS pattern (all 0xFF bytes alternating)
         apply_and_check_g6(
             make_block(2'b10, 128'hFF00_FF00_FF00_FF00_FF00_FF00_FF00_FF00),
             2'b10, 1,
             128'hFF00_FF00_FF00_FF00_FF00_FF00_FF00_FF00, 1, 0, 0,
             "OS_EIEOS");
 
-        // ============================================================
-        // GROUP 3: sync_hdr Mismatch (port vs embedded in data_in)
-        //          data_in[129:128] != sync_hdr port -> dec_err=1
-        //          GEN6: sync_hdr_err still=0, dec_err=1 (mismatch)
-        // ============================================================
         $display("\n--- Group 3: Sync Header Mismatch (GEN6) ---");
 
-        // sync_hdr port says 01 but data_in[129:128]=10
         apply_and_check_g6(
             {2'b10, 128'hABCD_EF01_2345_6789_ABCD_EF01_2345_6789},
             2'b01, 1,
             128'hABCD_EF01_2345_6789_ABCD_EF01_2345_6789, 0, 1, 0,
             "MISMATCH_10vs01");
 
-        // sync_hdr port says 10 but data_in[129:128]=01
         apply_and_check_g6(
             {2'b01, 128'h1111_2222_3333_4444_5555_6666_7777_8888},
             2'b10, 1,
             128'h1111_2222_3333_4444_5555_6666_7777_8888, 1, 1, 0,
             "MISMATCH_01vs10");
 
-        // ============================================================
-        // GROUP 4: Invalid Sync Headers - GEN6 (error bypassed)
-        //          sync_hdr=00 or 11 -> GEN6: sh_err=0, dec_err=0
-        //          (only mismatch check active)
-        // ============================================================
         $display("\n--- Group 4: Invalid Sync Header - GEN6 (bypassed) ---");
 
-        // SH=00 consistent (data_in[129:128]=00): no mismatch, sh bypassed -> dec_err=0
         apply_and_check_g6(
             {2'b00, 128'h1234_5678_9ABC_DEF0_FEDC_BA98_7654_3210},
             2'b00, 1,
             128'h1234_5678_9ABC_DEF0_FEDC_BA98_7654_3210, 0, 0, 0,
             "INV_SH00_G6");
 
-        // SH=11 consistent: no mismatch, sh bypassed -> dec_err=0
         apply_and_check_g6(
             {2'b11, 128'hFFFF_0000_FFFF_0000_FFFF_0000_FFFF_0000},
             2'b11, 1,
             128'hFFFF_0000_FFFF_0000_FFFF_0000_FFFF_0000, 0, 0, 0,
             "INV_SH11_G6");
 
-        // ============================================================
-        // GROUP 5: Invalid Sync Headers - GEN5 (error active)
-        //          sync_hdr=00 -> sh_err=1, dec_err=1
-        //          sync_hdr=11 -> sh_err=1, dec_err=1
-        // ============================================================
         $display("\n--- Group 5: Invalid Sync Header - GEN5 (error active) ---");
 
-        // SH=00 consistent: sh_err=1, dec_err=1
         apply_and_check_g5(
             {2'b00, 128'h1234_5678_9ABC_DEF0_FEDC_BA98_7654_3210},
             2'b00, 1,
             128'h1234_5678_9ABC_DEF0_FEDC_BA98_7654_3210, 0, 1, 1,
             "INV_SH00_G5");
 
-        // SH=11 consistent: sh_err=1, dec_err=1
         apply_and_check_g5(
             {2'b11, 128'hFFFF_0000_FFFF_0000_FFFF_0000_FFFF_0000},
             2'b11, 1,
             128'hFFFF_0000_FFFF_0000_FFFF_0000_FFFF_0000, 0, 1, 1,
             "INV_SH11_G5");
 
-        // Valid SH=01 in GEN5: no errors
         apply_and_check_g5(
             make_block(2'b01, 128'hABCD_ABCD_ABCD_ABCD_ABCD_ABCD_ABCD_ABCD),
             2'b01, 1,
             128'hABCD_ABCD_ABCD_ABCD_ABCD_ABCD_ABCD_ABCD, 0, 0, 0,
             "VALID_SH01_G5");
 
-        // Valid SH=10 in GEN5: no errors
         apply_and_check_g5(
             make_block(2'b10, 128'hDEAD_DEAD_DEAD_DEAD_DEAD_DEAD_DEAD_DEAD),
             2'b10, 1,
             128'hDEAD_DEAD_DEAD_DEAD_DEAD_DEAD_DEAD_DEAD, 1, 0, 0,
             "VALID_SH10_G5");
 
-        // ============================================================
-        // GROUP 6: dec_en = 0 (decoder disabled)
-        //          dec_err and sync_hdr_err must be 0
-        // ============================================================
         $display("\n--- Group 6: Decoder Disabled (dec_en=0) ---");
 
         begin
@@ -372,9 +296,6 @@ module decoder_128b130b_tb;
             end
         end
 
-        // ============================================================
-        // GROUP 7: Reset during operation
-        // ============================================================
         $display("\n--- Group 7: Reset During Operation ---");
 
         @(negedge clk);
@@ -401,9 +322,6 @@ module decoder_128b130b_tb;
         rst_n = 1'b1;
         @(posedge clk);
 
-        // ============================================================
-        // GROUP 8: Continuous streaming - interleaved data and OS blocks
-        // ============================================================
         $display("\n--- Group 8: Continuous Streaming (GEN6) ---");
 
         begin : stream_blk
@@ -458,9 +376,6 @@ module decoder_128b130b_tb;
             end
         end
 
-        // ============================================================
-        // GROUP 9: Back-to-back invalid SH in GEN5 (consecutive errors)
-        // ============================================================
         $display("\n--- Group 9: Back-to-Back Invalid SH in GEN5 ---");
 
         begin : bb_blk
@@ -490,9 +405,6 @@ module decoder_128b130b_tb;
             end
         end
 
-        // ============================================================
-        // SUMMARY
-        // ============================================================
         $display("\n========================================================");
         $display(" SIMULATION COMPLETE");
         $display(" Total Tests : %0d", test_num);
@@ -507,14 +419,12 @@ module decoder_128b130b_tb;
         $finish;
     end
 
-    // Timeout watchdog
     initial begin
         #50000;
         $display("[TIMEOUT] Simulation exceeded limit");
         $finish;
     end
 
-    // Waveform dump
     initial begin
         $dumpfile("decoder_128b130b_waves.vcd");
         $dumpvars(0, decoder_128b130b_tb);

@@ -1,26 +1,8 @@
-// =============================================================================
-// tb_dllp_crc_chk.v  — FINAL VERSION (timing fixed)
-// PCIe Gen6 — Module 15: DLLP CRC Checker Testbench
-// =============================================================================
-//
-// ROOT CAUSE OF ALL PREVIOUS FAILURES — TIMING BUG (same as Module 17):
-//   Old send_dllp tasks:
-//     @(negedge)  drive valid=1       ← posedge HERE captures the data
-//     @(negedge)  deassert valid=0    ← task returns here
-//     [caller]    @(posedge); #1      ← this posedge sees valid=0 → DUT outputs nothing
-//
-//   Fix: drive at negedge, wait for the POSEDGE that captures the data,
-//   sample outputs at posedge+1ns BEFORE deasserting, THEN deassert.
-//   This guarantees outputs are sampled in the same cycle the DUT processed.
-//
-// ALL reg declarations at MODULE LEVEL — no unnamed begin/end block errors.
-// =============================================================================
 
 `timescale 1ns/1ps
 
 module tb_dllp_crc_chk;
 
-    // ── DUT ports ─────────────────────────────────────────────────────────────
     reg         clk;
     reg         rst_n;
     reg  [63:0] dllp_raw;
@@ -31,12 +13,10 @@ module tb_dllp_crc_chk;
     wire        dllp_crc_err;
     wire        dllp_valid_out;
 
-    // ── Test infrastructure — ALL at module level ─────────────────────────────
     integer pass_count;
     integer fail_count;
     integer test_num;
 
-    // module-level variables (no declarations inside unnamed blocks)
     reg [47:0]  body_tc2;
     reg [15:0]  crc_tc2;
     reg [47:0]  body_tc3;
@@ -57,7 +37,6 @@ module tb_dllp_crc_chk;
     integer     valid_count;
     integer     err_count;
 
-    // ── DUT instantiation ─────────────────────────────────────────────────────
     dllp_crc_chk u_dut (
         .clk           (clk),
         .rst_n         (rst_n),
@@ -69,20 +48,14 @@ module tb_dllp_crc_chk;
         .dllp_valid_out(dllp_valid_out)
     );
 
-    // ── Clock: 100 MHz ────────────────────────────────────────────────────────
     initial clk = 1'b0;
     always #5 clk = ~clk;
 
-    // ── Waveform dump ─────────────────────────────────────────────────────────
     initial begin
         $dumpfile("dllp_crc_chk.vcd");
         $dumpvars(0, tb_dllp_crc_chk);
     end
 
-    // =========================================================================
-    // REFERENCE CRC-16/CCITT (identical to DUT calc_crc16)
-    // Poly=0x1021, Init=0xFFFF, MSB-first bytes, no final XOR
-    // =========================================================================
     function [15:0] ref_crc16;
         input [47:0] data;
         integer      byte_idx;
@@ -106,9 +79,6 @@ module tb_dllp_crc_chk;
         end
     endfunction
 
-    // =========================================================================
-    // HELPER: check()
-    // =========================================================================
     task check;
         input        condition;
         input [255:0] label;
@@ -127,30 +97,13 @@ module tb_dllp_crc_chk;
         end
     endtask
 
-    // =========================================================================
-    // HELPER: idle(n)
-    // =========================================================================
     task idle;
         input integer n;
         begin repeat(n) @(posedge clk); end
     endtask
 
-    // =========================================================================
-    // CORRECT TIMING PATTERN (used everywhere):
-    //   @(negedge clk)  drive valid=1 + data
-    //   @(posedge clk)  DUT captures here
-    //   #1              sample outputs NOW (registered outputs settled)
-    //   -- do checks here --
-    //   @(negedge clk)  deassert valid=0
-    //
-    // This guarantees outputs are sampled BEFORE valid is deasserted.
-    // =========================================================================
-
-    // =========================================================================
-    // MAIN TEST SEQUENCE
-    // =========================================================================
     initial begin
-        // init all variables
+
         pass_count    = 0;
         fail_count    = 0;
         test_num      = 0;
@@ -186,9 +139,6 @@ module tb_dllp_crc_chk;
         @(posedge clk);
         $display("[RESET] Released. Starting test cases.\n");
 
-        // =====================================================================
-        // TC1: Basic correct DLLP
-        // =====================================================================
         $display("--- TC1: Basic correct DLLP ---");
         @(negedge clk);
         dllp_raw      = {ref_crc16(48'h40_12_34_56_78_9A), 48'h40_12_34_56_78_9A};
@@ -203,13 +153,10 @@ module tb_dllp_crc_chk;
         dllp_raw      = 64'd0;
         idle(2);
 
-        // =====================================================================
-        // TC2: Single bit flip in body → CRC mismatch
-        // =====================================================================
         $display("\n--- TC2: Single bit flip in body ---");
         body_tc2    = 48'h50_AA_BB_CC_DD_EE;
-        crc_tc2     = ref_crc16(body_tc2);   // CRC for ORIGINAL (before flip)
-        body_tc2[7] = ~body_tc2[7];          // flip bit AFTER computing CRC
+        crc_tc2     = ref_crc16(body_tc2);
+        body_tc2[7] = ~body_tc2[7];
         @(negedge clk);
         dllp_raw      = {crc_tc2, body_tc2};
         dllp_rx_valid = 1'b1;
@@ -223,9 +170,6 @@ module tb_dllp_crc_chk;
         dllp_raw      = 64'd0;
         idle(2);
 
-        // =====================================================================
-        // TC3: Correct body, wrong CRC field
-        // =====================================================================
         $display("\n--- TC3: Correct body, wrong CRC field ---");
         body_tc3 = 48'h60_11_22_33_44_55;
         crc_tc3  = ref_crc16(body_tc3) ^ 16'h0001;
@@ -240,9 +184,6 @@ module tb_dllp_crc_chk;
         dllp_raw      = 64'd0;
         idle(2);
 
-        // =====================================================================
-        // TC4: valid=0 → outputs stay zero
-        // =====================================================================
         $display("\n--- TC4: dllp_rx_valid=0 ---");
         @(negedge clk);
         dllp_raw      = 64'hDEAD_BEEF_CAFE_1234;
@@ -256,19 +197,15 @@ module tb_dllp_crc_chk;
         dllp_raw = 64'd0;
         idle(2);
 
-        // =====================================================================
-        // TC5: Back-to-back two correct DLLPs
-        // Drive pkt1, sample at its posedge, then drive pkt2, sample at its posedge
-        // =====================================================================
         $display("\n--- TC5: Back-to-back two correct DLLPs ---");
-        // Packet 1
+
         @(negedge clk);
         dllp_raw      = {ref_crc16(48'hC0_00_10_00_00_00), 48'hC0_00_10_00_00_00};
         dllp_rx_valid = 1'b1;
         @(posedge clk); #1;
         check(dllp_crc_ok    === 1'b1, "TC5 first DLLP: crc_ok");
         check(dllp_valid_out === 1'b1, "TC5 first DLLP: valid_out");
-        // Packet 2
+
         @(negedge clk);
         dllp_raw      = {ref_crc16(48'hD0_00_20_00_00_00), 48'hD0_00_20_00_00_00};
         dllp_rx_valid = 1'b1;
@@ -280,18 +217,15 @@ module tb_dllp_crc_chk;
         dllp_raw      = 64'd0;
         idle(2);
 
-        // =====================================================================
-        // TC6: Alternating pass/fail/pass
-        // =====================================================================
         $display("\n--- TC6: Alternating pass/fail/pass ---");
-        // Pass 1
+
         @(negedge clk);
         dllp_raw      = {ref_crc16(48'h40_01_02_03_04_05), 48'h40_01_02_03_04_05};
         dllp_rx_valid = 1'b1;
         @(posedge clk); #1;
         check(dllp_crc_ok  === 1'b1, "TC6 pass1: crc_ok");
         check(dllp_crc_err === 1'b0, "TC6 pass1: no err");
-        // Fail
+
         @(negedge clk);
         dllp_raw      = {ref_crc16(48'h50_06_07_08_09_0A) ^ 16'hDEAD,
                          48'h50_06_07_08_09_0A};
@@ -299,7 +233,7 @@ module tb_dllp_crc_chk;
         @(posedge clk); #1;
         check(dllp_crc_err === 1'b1, "TC6 fail: crc_err");
         check(dllp_crc_ok  === 1'b0, "TC6 fail: no ok");
-        // Pass 2
+
         @(negedge clk);
         dllp_raw      = {ref_crc16(48'h60_0B_0C_0D_0E_0F), 48'h60_0B_0C_0D_0E_0F};
         dllp_rx_valid = 1'b1;
@@ -311,9 +245,6 @@ module tb_dllp_crc_chk;
         dllp_raw      = 64'd0;
         idle(2);
 
-        // =====================================================================
-        // TC7: All-zero body
-        // =====================================================================
         $display("\n--- TC7: All-zero body ---");
         @(negedge clk);
         dllp_raw      = {ref_crc16(48'h00_00_00_00_00_00), 48'h00_00_00_00_00_00};
@@ -327,9 +258,6 @@ module tb_dllp_crc_chk;
         dllp_raw      = 64'd0;
         idle(2);
 
-        // =====================================================================
-        // TC8: All-ones body
-        // =====================================================================
         $display("\n--- TC8: All-ones body ---");
         @(negedge clk);
         dllp_raw      = {ref_crc16(48'hFF_FF_FF_FF_FF_FF), 48'hFF_FF_FF_FF_FF_FF};
@@ -343,9 +271,6 @@ module tb_dllp_crc_chk;
         dllp_raw      = 64'd0;
         idle(2);
 
-        // =====================================================================
-        // TC9: Reset during operation
-        // =====================================================================
         $display("\n--- TC9: Reset during operation ---");
         crc_tc9 = ref_crc16(48'h40_AA_BB_CC_DD_EE);
         @(negedge clk);
@@ -366,9 +291,6 @@ module tb_dllp_crc_chk;
         $display("[INFO] Reset released.");
         idle(2);
 
-        // =====================================================================
-        // TC10: 1-cycle pulse check
-        // =====================================================================
         $display("\n--- TC10: 1-cycle pulse check ---");
         @(negedge clk);
         dllp_raw      = {ref_crc16(48'h40_11_22_33_44_55), 48'h40_11_22_33_44_55};
@@ -376,7 +298,7 @@ module tb_dllp_crc_chk;
         @(posedge clk); #1;
         check(dllp_crc_ok    === 1'b1, "TC10: crc_ok HIGH at N+1");
         check(dllp_valid_out === 1'b1, "TC10: valid_out HIGH at N+1");
-        // Deassert, check cleared next posedge
+
         @(negedge clk);
         dllp_rx_valid = 1'b0;
         dllp_raw      = 64'd0;
@@ -385,9 +307,6 @@ module tb_dllp_crc_chk;
         check(dllp_valid_out === 1'b0, "TC10: valid_out cleared N+2 (pulse)");
         idle(2);
 
-        // =====================================================================
-        // TC11: MSB of body flipped
-        // =====================================================================
         $display("\n--- TC11: MSB of body flipped ---");
         body_tc11      = 48'h40_00_00_00_00_00;
         crc_orig       = ref_crc16(body_tc11);
@@ -403,9 +322,6 @@ module tb_dllp_crc_chk;
         dllp_raw      = 64'd0;
         idle(2);
 
-        // =====================================================================
-        // TC12: LSB of body flipped
-        // =====================================================================
         $display("\n--- TC12: LSB of body flipped ---");
         body_tc12     = 48'hFF_FF_FF_FF_FF_FE;
         crc_orig      = ref_crc16(body_tc12);
@@ -421,9 +337,6 @@ module tb_dllp_crc_chk;
         dllp_raw      = 64'd0;
         idle(2);
 
-        // =====================================================================
-        // TC13: Only CRC field corrupted
-        // =====================================================================
         $display("\n--- TC13: Only CRC field corrupted ---");
         body_tc13     = 48'h40_DE_AD_BE_EF_CA;
         crc_correct   = ref_crc16(body_tc13);
@@ -439,10 +352,6 @@ module tb_dllp_crc_chk;
         dllp_raw      = 64'd0;
         idle(2);
 
-        // =====================================================================
-        // TC14: Burst of 8 correct DLLPs
-        // Each iteration: drive at negedge, posedge captures, sample at posedge+1ns
-        // =====================================================================
         $display("\n--- TC14: Burst of 8 correct DLLPs ---");
         burst_pass = 0;
         for (i = 0; i < 8; i = i + 1) begin
@@ -460,9 +369,6 @@ module tb_dllp_crc_chk;
         check(burst_pass === 8, "TC14: all 8 DLLPs in burst passed");
         idle(3);
 
-        // =====================================================================
-        // TC15: Mixed burst correct/wrong/correct → 2 valid_outs, 1 err
-        // =====================================================================
         $display("\n--- TC15: correct/wrong/correct burst ---");
         valid_count = 0;
         err_count   = 0;
@@ -497,9 +403,6 @@ module tb_dllp_crc_chk;
         check(err_count   === 1, "TC15: exactly 1 crc_err");
         idle(3);
 
-        // =====================================================================
-        // FINAL RESULTS
-        // =====================================================================
         $display("\n================================================================");
         $display("  DLLP CRC Checker - Final Result");
         $display("  PASS = %0d  |  FAIL = %0d  |  TOTAL = %0d",
@@ -512,7 +415,6 @@ module tb_dllp_crc_chk;
         $finish;
     end
 
-    // ── Watchdog ──────────────────────────────────────────────────────────────
     initial begin
         #100000;
         $display("[WATCHDOG] 100us — force finish.");

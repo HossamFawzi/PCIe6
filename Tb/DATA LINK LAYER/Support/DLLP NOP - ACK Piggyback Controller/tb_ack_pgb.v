@@ -24,28 +24,24 @@ module tb_ack_pgb;
     initial begin
         $display("=== TB: ack_pgb ===");
 
-        // TC1: Reset
         $display("[TC1] Reset clears outputs");
         rst; @(posedge clk); #1;
         chk1(0,ack_piggyback_valid,"ack_piggyback_valid=0 after reset");
         chk1(0,ack_sent,"ack_sent=0 after reset");
 
-        // TC2: No pending ACK -> no piggyback even with nop_send_req
         $display("[TC2] No pending -> no piggyback");
         rst; ack_pending=0;
         nop_send_req=1; @(posedge clk); #1; nop_send_req=0;
         chk1(0,ack_piggyback_valid,"no piggyback when no pending");
 
-        // TC3: nop_send_req + ack_pending both asserted BEFORE posedge -> registered
         $display("[TC3] nop_send_req triggers piggyback");
         rst;
         ack_pending_seq=12'hABC; ack_pending=1; nop_send_req=1;
-        @(posedge clk); #1;  // both inputs high at posedge -> registered
+        @(posedge clk); #1;
         chk1(1,ack_piggyback_valid,"ack_piggyback_valid=1 on nop_req");
         chk1(1,ack_sent,"ack_sent=1 on nop_req");
         nop_send_req=0;
 
-        // TC4: ack_piggyback_seq carries correct value
         $display("[TC4] ack_piggyback_seq == ack_pending_seq");
         rst;
         ack_pending_seq=12'h5A5; ack_pending=1; nop_send_req=1;
@@ -53,7 +49,6 @@ module tb_ack_pgb;
         chk12(12'h5A5,ack_piggyback_seq,"ack_piggyback_seq=0x5A5");
         nop_send_req=0;
 
-        // TC5: Latency limit triggers piggyback
         $display("[TC5] Latency limit triggers piggyback");
         rst; ack_lat_limit=16'd5;
         ack_pending_seq=12'h100; ack_pending=1;
@@ -61,7 +56,6 @@ module tb_ack_pgb;
         chk1(1,ack_piggyback_valid,"piggyback at lat_limit");
         chk1(1,ack_sent,"ack_sent at lat_limit");
 
-        // TC6: ack_sent clears after pending removed
         $display("[TC6] ack_sent clears after pending removed");
         rst; ack_lat_limit=16'd3;
         ack_pending=1; ack_pending_seq=12'd10;
@@ -69,20 +63,18 @@ module tb_ack_pgb;
         ack_pending=0; @(posedge clk); #1; @(posedge clk); #1;
         chk1(0,ack_sent,"ack_sent=0 after pending cleared");
 
-        // TC7: Sequence updates on consecutive piggybacks
         $display("[TC7] Sequence updates on consecutive piggybacks");
         rst;
         ack_pending_seq=12'd7; ack_pending=1; nop_send_req=1;
         @(posedge clk); #1;
         chk12(12'd7,ack_piggyback_seq,"first piggyback seq=7");
-        // Update seq and trigger again
-        nop_send_req=0; @(posedge clk); #1;  // clear valid
+
+        nop_send_req=0; @(posedge clk); #1;
         ack_pending_seq=12'd8; nop_send_req=1;
         @(posedge clk); #1;
         chk12(12'd8,ack_piggyback_seq,"second piggyback seq=8");
         nop_send_req=0;
 
-        // TC8: ack_piggyback_valid clears when no pending
         $display("[TC8] ack_piggyback_valid clears with no pending");
         rst;
         ack_pending=1; ack_pending_seq=12'd5; nop_send_req=1;

@@ -1,66 +1,23 @@
-// =============================================================================
-// File   : pcie_gen6_phy_tb.v
-// Project: PCIe Gen6 Physical Layer – Comprehensive Testbench
-// Tests  : All Physical Layer modules and complete system integration
-//
-// Test Groups:
-//   TC_RST  : Reset sequencing (fund_rst, hot_rst)
-//   TC_DET  : Detect FSM + RX detection
-//   TC_POLL : Polling FSM (TS1/TS2 exchange, compliance)
-//   TC_CFG  : Configuration FSM (link/lane negotiation)
-//   TC_RECV : Recovery FSM (speed change, equalization)
-//   TC_L0   : L0/L0s power states
-//   TC_L1   : L1 power state
-//   TC_LB   : Loopback FSM
-//   TC_HRST : Hot Reset / Disabled FSM
-//   TC_ENC  : 8b10b and 128b130b encoders/decoders
-//   TC_PAM4 : PAM4 Gray encoder/decoder
-//   TC_FEC  : FEC encoder/decoder (RS)
-//   TC_FLIT : FLIT framer/deframer
-//   TC_SKP  : SKP ordered set generator/detector
-//   TC_TS   : TS1/TS2 ordered set generator/detector
-//   TC_FTS  : FTS generator/detector
-//   TC_EIOS : EIOS/EIEOS generator/detector
-//   TC_GEAR : TX/RX gear boxes
-//   TC_EBUF : TX/RX elastic buffers
-//   TC_DSKW : Lane deskew
-//   TC_LOCK : Symbol/block lock FSM
-//   TC_PIPE : PIPE TX/RX interface controllers
-//   TC_SPEED: Speed / width negotiation
-//   TC_EQ   : Equalization controller
-//   TC_SSC  : SSC controller
-//   TC_SYS  : Full system integration (Gen1→Gen6 link bringup)
-//
-// =============================================================================
+
 `timescale 1ns/1ps
 
 module pcie_gen6_phy_tb;
 
-// ---------------------------------------------------------------------------
-// Parameters
-// ---------------------------------------------------------------------------
-parameter CLK_PERIOD     = 4;    // 250 MHz core clock
-parameter CLK_PIPE_PERIOD= 4;    // 250 MHz PIPE clock
-parameter CLK_SER_PERIOD = 1;    // 1 GHz serialiser clock
+parameter CLK_PERIOD     = 4;
+parameter CLK_PIPE_PERIOD= 4;
+parameter CLK_SER_PERIOD = 1;
 parameter NUM_LANES      = 16;
 parameter DATA_WIDTH     = 256;
 
-// ---------------------------------------------------------------------------
-// Test infrastructure
-// ---------------------------------------------------------------------------
 integer pass_count = 0;
 integer fail_count = 0;
 integer test_num   = 0;
 reg [255:0] test_name;
 
-// ---------------------------------------------------------------------------
-// Clocks (declared before tasks for ModelSim compatibility)
-// ---------------------------------------------------------------------------
 reg clk      = 0;
 reg clk_pipe = 0;
 reg clk_ser  = 0;
 reg ssc_ref_clk = 0;
-
 
 task TEST_START;
     input [255:0] name;
@@ -95,24 +52,16 @@ task TICK;
     end
 endtask
 
-// ---------------------------------------------------------------------------
-// Clocks
-// ---------------------------------------------------------------------------
-
 always #(CLK_PERIOD/2)      clk      = ~clk;
 always #(CLK_PIPE_PERIOD/2) clk_pipe = ~clk_pipe;
 always #0.5                  clk_ser  = ~clk_ser;
 always #(CLK_PERIOD)        ssc_ref_clk = ~ssc_ref_clk;
 
-// ---------------------------------------------------------------------------
-// DUT – Top-level ports
-// ---------------------------------------------------------------------------
 reg         rst_n       = 0;
 reg         perst_n     = 0;
 reg         power_good  = 0;
 reg         clk_valid   = 0;
 
-// PIPE RX
 reg [255:0] pipe_rxd          = 0;
 reg [31:0]  pipe_rxdatak      = 0;
 reg         pipe_rx_valid     = 0;
@@ -120,7 +69,6 @@ reg [2:0]   pipe_rx_status    = 0;
 reg         pipe_rx_elec_idle = 1;
 reg         pipe_phystatus    = 0;
 
-// DLL/TL
 reg [1023:0] tlp_data    = 0;
 reg          tlp_valid   = 0;
 reg [63:0]   dllp_data   = 0;
@@ -128,7 +76,6 @@ reg          dllp_valid  = 0;
 reg          dll_up_req  = 0;
 reg          link_down_req = 0;
 
-// PM
 reg [2:0]   pm_req            = 0;
 reg         hot_reset_req_sw  = 0;
 reg         disable_req_sw    = 0;
@@ -136,16 +83,13 @@ reg         compliance_req    = 0;
 reg [11:0]  l0s_entry_limit   = 12'd64;
 reg [15:0]  l1_entry_limit    = 16'd100;
 
-// SSC
 reg [1:0]   ssc_profile = 2'b01;
 reg         ssc_en      = 1;
 
-// Local config
-reg [7:0]   local_speed_cap  = 8'h3F;  // Gen1-Gen6
-reg [5:0]   local_width_cap  = 6'h10;  // x16
+reg [7:0]   local_speed_cap  = 8'h3F;
+reg [5:0]   local_width_cap  = 6'h10;
 reg [7:0]   local_lane_id    = 8'd0;
 
-// DUT outputs
 wire [255:0] pipe_txd_o;
 wire [31:0]  pipe_txdatak_o;
 wire         pipe_tx_elec_idle_o;
@@ -169,9 +113,6 @@ wire          rst_done_o;
 wire [7:0]    fec_err_count_o;
 wire          ssc_active_o;
 
-// ---------------------------------------------------------------------------
-// DUT instantiation
-// ---------------------------------------------------------------------------
 pcie_gen6_phy_top #(
     .NUM_LANES  (NUM_LANES),
     .DATA_WIDTH (DATA_WIDTH)
@@ -231,9 +172,6 @@ pcie_gen6_phy_top #(
     .ssc_active_o      (ssc_active_o)
 );
 
-// ---------------------------------------------------------------------------
-// LTSSM state constants (mirrored from top)
-// ---------------------------------------------------------------------------
 localparam [5:0]
     ST_DETECT_QUIET    = 6'd0,
     ST_DETECT_ACTIVE   = 6'd1,
@@ -257,11 +195,6 @@ localparam [5:0]
     ST_LB_ACTIVE       = 6'd25,
     ST_LB_EXIT         = 6'd26;
 
-// ---------------------------------------------------------------------------
-// Helper tasks
-// ---------------------------------------------------------------------------
-
-// Apply fundamental reset sequence
 task do_fundamental_reset;
     begin
         rst_n      = 0;
@@ -276,22 +209,20 @@ task do_fundamental_reset;
         clk_valid  = 1;
         TICK(5);
         perst_n    = 1;
-        TICK(600);  // wait for rst_done
+        TICK(600);
     end
 endtask
 
-// Simulate PHY receiver detected response
 task sim_receiver_detected;
     begin
         pipe_rx_elec_idle = 0;
-        pipe_rx_status    = 3'b001;  // RxDetected
+        pipe_rx_status    = 3'b001;
         pipe_phystatus    = 1;
         TICK(2);
         pipe_phystatus    = 0;
     end
 endtask
 
-// Simulate electrical idle on all lanes
 task sim_elec_idle;
     begin
         pipe_rx_elec_idle = 1;
@@ -299,12 +230,11 @@ task sim_elec_idle;
     end
 endtask
 
-// Send TS1 ordered set pattern on RX data
 task send_ts1_pattern;
     input [7:0] link_num;
     input [7:0] lane_num;
     begin
-        // TS1 identifier = 0x4A, link, lane, n_fts, speed_cap, training_ctrl, TS identifier
+
         pipe_rxd      = {8'hBC, link_num, lane_num, 8'h04, 8'h0F, 8'h00, 8'h4A,
                          8'hBC, link_num, lane_num, 8'h04, 8'h0F, 8'h00, 8'h4A,
                          8'hBC, link_num, lane_num, 8'h04, 8'h0F, 8'h00, 8'h4A,
@@ -316,7 +246,6 @@ task send_ts1_pattern;
     end
 endtask
 
-// Send TS2 ordered set pattern
 task send_ts2_pattern;
     input [7:0] link_num;
     input [7:0] lane_num;
@@ -332,7 +261,6 @@ task send_ts2_pattern;
     end
 endtask
 
-// Stop sending data
 task rx_idle_data;
     begin
         pipe_rxd      = 0;
@@ -342,7 +270,6 @@ task rx_idle_data;
     end
 endtask
 
-// Wait for LTSSM to reach a target state with timeout
 task wait_for_state;
     input [5:0] target;
     input integer timeout_cycles;
@@ -360,11 +287,6 @@ task wait_for_state;
     end
 endtask
 
-// =============================================================================
-// SUB-MODULE DIRECT TESTBENCHES
-// =============================================================================
-
-// ── encoder_8b10b direct test ─────────────────────────────────────────────
 reg        enc_clk = 0, enc_rst_n = 0;
 reg [7:0]  enc_data_in = 0;
 reg        enc_k_char = 0, enc_data_valid = 0;
@@ -384,7 +306,6 @@ encoder_8b10b u_enc_test (
 );
 always #2 enc_clk = ~enc_clk;
 
-// ── decoder_8b10b direct test ──────────────────────────────────────────────
 reg       dec_clk = 0, dec_rst_n = 0;
 reg [9:0] dec_data_in = 0;
 reg       dec_dec_en = 0, dec_disp_in = 0;
@@ -405,7 +326,6 @@ decoder_8b10b u_dec_test (
 );
 always #2 dec_clk = ~dec_clk;
 
-// ── encoder_128b130b direct test ──────────────────────────────────────────
 reg         e128_clk = 0, e128_rst_n = 0;
 reg [127:0] e128_data_in = 0;
 reg         e128_is_os = 0, e128_valid = 0;
@@ -424,7 +344,6 @@ encoder_128b130b u_e128_test (
 );
 always #2 e128_clk = ~e128_clk;
 
-// ── decoder_128b130b direct test ──────────────────────────────────────────
 reg         d128_clk = 0, d128_rst_n = 0;
 reg [129:0] d128_data_in = 0;
 reg [1:0]   d128_sync_hdr = 0;
@@ -445,7 +364,6 @@ decoder_128b130b #(.PCIE_GEN(6)) u_d128_test (
 );
 always #2 d128_clk = ~d128_clk;
 
-// ── PAM4 encoder direct test ──────────────────────────────────────────────
 reg         p4e_clk = 0, p4e_rst_n = 0;
 reg [255:0] p4e_data_in = 0;
 reg         p4e_valid = 0, p4e_en = 1;
@@ -463,7 +381,6 @@ pam4_gray_enc u_p4e_test (
 );
 always #2 p4e_clk = ~p4e_clk;
 
-// ── PAM4 decoder direct test ──────────────────────────────────────────────
 reg         p4d_clk = 0, p4d_rst_n = 0;
 reg [127:0] p4d_symbols_in = 0;
 reg         p4d_valid = 0, p4d_en = 1;
@@ -482,7 +399,6 @@ pam4_gray_code_decoder u_p4d_test (
 );
 always #2 p4d_clk = ~p4d_clk;
 
-// ── detect_fsm direct test ────────────────────────────────────────────────
 reg        df_clk = 0, df_rst_n = 0;
 reg        df_req = 0, df_elec_idle = 1, df_timer_exp = 0;
 reg [2:0]  df_status = 0;
@@ -503,7 +419,6 @@ detect_fsm u_df_test (
 );
 always #2 df_clk = ~df_clk;
 
-// ── fund_rst direct test ──────────────────────────────────────────────────
 reg        fr_clk = 0, fr_rst_n = 0;
 reg        fr_perst = 0, fr_pwr_good = 0, fr_clk_valid = 0;
 wire       fr_sys_rst, fr_dl_rst, fr_phy_rst, fr_done;
@@ -524,7 +439,6 @@ fund_rst u_fr_test (
 );
 always #2 fr_clk = ~fr_clk;
 
-// ── fec_encoder_rs + fec_rs_decoder loopback ─────────────────────────────
 reg         fec_clk = 0, fec_rst_n = 0;
 reg [2047:0] fec_flit_in = 0;
 reg          fec_valid = 0, fec_en = 1;
@@ -562,7 +476,6 @@ fec_rs_decoder u_fec_dec_t (
 );
 always #2 fec_clk = ~fec_clk;
 
-// ── FLIT framer + deframer loopback ──────────────────────────────────────
 reg         fl_clk = 0, fl_rst_n = 0;
 reg [1023:0] fl_tlp_data = 0;
 reg          fl_tlp_valid = 0;
@@ -604,7 +517,7 @@ flit_framer_tx u_fl_tx (
 flit_deframer_rx u_fl_rx (
     .clk           (fl_clk),
     .rst_n         (fl_rst_n),
-    .flit_in       ({{256{1'b0}}, fl_flit_out}),  // pad FEC field with 0s (no FEC in TB loopback)
+    .flit_in       ({{256{1'b0}}, fl_flit_out}),
     .flit_valid    (fl_flit_valid),
     .fec_corrected (fl_flit_valid),
     .fec_syndrome  (256'b0),
@@ -620,7 +533,6 @@ flit_deframer_rx u_fl_rx (
 );
 always #2 fl_clk = ~fl_clk;
 
-// ── SKP ordered set test ──────────────────────────────────────────────────
 reg         skp_clk = 0, skp_rst_n = 0;
 reg         skp_send = 0;
 reg [255:0] skp_rx_data = 0;
@@ -643,7 +555,6 @@ skp u_skp_test (
 );
 always #2 skp_clk = ~skp_clk;
 
-// ── ssc_ctrl direct test ──────────────────────────────────────────────────
 reg        ssc_clk = 0, ssc_rst_n = 0;
 reg        ssc_en_t = 1;
 reg [1:0]  ssc_profile_t = 2'b01;
@@ -663,7 +574,6 @@ ssc_ctrl u_ssc_test (
 );
 always #2 ssc_clk = ~ssc_clk;
 
-// ── l0_fsm direct test ────────────────────────────────────────────────────
 reg        l0_clk = 0, l0_rst_n = 0;
 reg        l0_req = 0, l0_fts_det = 0, l0_eios_det = 0;
 reg        l0_timer_exp = 0, l0_recv_req = 0;
@@ -687,7 +597,6 @@ l0_fsm u_l0_test (
 );
 always #2 l0_clk = ~l0_clk;
 
-// ── link_speed_neg direct test ────────────────────────────────────────────
 reg        spd_clk = 0, spd_rst_n = 0;
 reg [7:0]  spd_ts1_cap = 8'h3F;
 reg [7:0]  spd_ts2_cap = 8'h3F;
@@ -714,7 +623,6 @@ link_speed_neg u_spd_test (
 );
 always #2 spd_clk = ~spd_clk;
 
-// ── hrst_fsm direct test ──────────────────────────────────────────────────
 reg        hr_clk = 0, hr_rst_n = 0;
 reg        hr_hot_req = 0, hr_dis_req = 0;
 reg        hr_ts1_hr = 0, hr_ts1_dis = 0, hr_timer = 0;
@@ -737,7 +645,6 @@ hrst_fsm u_hr_test (
 );
 always #2 hr_clk = ~hr_clk;
 
-// ── eios direct test ──────────────────────────────────────────────────────
 reg         ei_clk = 0, ei_rst_n = 0;
 reg         ei_send = 0, ei_eos_send = 0;
 reg [255:0] ei_rx_data = 0;
@@ -759,7 +666,6 @@ eios u_eios_test (
 );
 always #2 ei_clk = ~ei_clk;
 
-// ── pwr_tmr direct test ───────────────────────────────────────────────────
 reg        pt_clk = 0, pt_rst_n = 0;
 reg        pt_l0s_entry = 0, pt_l1_entry = 0;
 reg        pt_l0s_exit = 0, pt_l1_exit = 0;
@@ -782,9 +688,6 @@ pwr_tmr u_pt_test (
 );
 always #2 pt_clk = ~pt_clk;
 
-// =============================================================================
-// MAIN TEST SEQUENCE
-// =============================================================================
 integer i;
 reg [9:0]  enc_result;
 reg [7:0]  dec_result;
@@ -799,10 +702,6 @@ initial begin
     $display("  PCIe Gen6 Physical Layer – Comprehensive Testbench");
     $display("==========================================================");
 
-    // =========================================================================
-    // TC_RST-1 : Fundamental Reset sequencing
-    // Note: fund_rst.rst_done is a 1-cycle pulse; latch it locally
-    // =========================================================================
     TEST_START("TC_RST-1: fund_rst sequence (power-up)");
     fr_rst_n    = 0;
     fr_perst    = 0;
@@ -822,9 +721,6 @@ initial begin
     CHECK(fr_phy_rst === 1'b1, "phy_rst_n asserted after rst_done");
     CHECK(fr_sys_rst === 1'b1, "sys_rst_n asserted after rst_done");
 
-    // =========================================================================
-    // TC_RST-2 : PERST# deassertion mid-sequence
-    // =========================================================================
     TEST_START("TC_RST-2: fund_rst – PERST# deassert restarts sequence");
     fr_perst = 0;
     repeat(5) @(posedge fr_clk); #1;
@@ -833,9 +729,6 @@ initial begin
     repeat(80) @(posedge fr_clk); #1;
     CHECK(fr_sys_rst === 1'b1, "sys_rst_n re-asserted after PERST# restored");
 
-    // =========================================================================
-    // TC_RST-3 : power_good loss during operation
-    // =========================================================================
     TEST_START("TC_RST-3: fund_rst – power_good loss");
     fr_pwr_good = 0;
     repeat(5) @(posedge fr_clk); #1;
@@ -844,25 +737,22 @@ initial begin
     repeat(80) @(posedge fr_clk); #1;
     CHECK(fr_sys_rst === 1'b1, "sys_rst_n re-asserted after power_good restored");
 
-    // TC_DET-1: detect_fsm – successful receiver detection
-    // =========================================================================
     TEST_START("TC_DET-1: detect_fsm – receiver detected on all lanes");
-    // Reset FSM
+
     df_rst_n      = 0;
     df_req        = 0;
-    df_elec_idle  = 1;   // elec_idle=1 required for QUIET→ACTIVE
+    df_elec_idle  = 1;
     df_timer_exp  = 0;
-    df_status     = 3'b001; // PIPE_ST_RX_DET (all lanes detected)
+    df_status     = 3'b001;
     repeat(5) @(posedge df_clk);
     df_rst_n = 1;
     repeat(3) @(posedge df_clk);
-    // Start detection
+
     df_req = 1;
     repeat(3) @(posedge df_clk);
-    // Fire timer_exp ONCE: QUIET→ACTIVE (elec_idle=1, status=RX_DET already set)
+
     df_timer_exp = 1; @(posedge df_clk); df_timer_exp = 0;
-    // Now in ACTIVE: FSM probes 16 lanes autonomously (PROBE_WAIT_INIT=20 per lane)
-    // Total: 16 × 21 = 336 cycles. Poll for result without firing timer_exp again.
+
     begin : det_wait
         integer dw;
         reg     det_saw;
@@ -876,10 +766,9 @@ initial begin
     end
     df_req   = 0;
     df_status= 3'b000;
-    // TC_DET-2 : detect_fsm – timeout (no receiver)
-    // =========================================================================
+
     TEST_START("TC_DET-2: detect_fsm – timeout when no receiver");
-    df_status = 3'b010; // PIPE_ST_NO_RX
+    df_status = 3'b010;
     df_req    = 1;
     repeat(3) @(posedge df_clk);
     df_timer_exp = 1; @(posedge df_clk); df_timer_exp = 0;
@@ -890,28 +779,22 @@ initial begin
           "Timeout signalled when no receiver present");
     df_req = 0;
 
-    // =========================================================================
-    // TC_ENC-1 : encoder_8b10b – data byte encoding
-    // =========================================================================
     TEST_START("TC_ENC-1: encoder_8b10b – D.21.5 (0xB5) encoding");
     enc_rst_n    = 0;
     enc_data_valid = 0;
     repeat(5) @(posedge enc_clk);
     enc_rst_n    = 1;
     @(posedge enc_clk);
-    enc_data_in  = 8'hB5;  // D.21.5
+    enc_data_in  = 8'hB5;
     enc_k_char   = 0;
     enc_data_valid = 1;
-    @(posedge enc_clk); // send
-    #1; // data_out_valid latched this cycle
+    @(posedge enc_clk);
+    #1;
     CHECK(enc_data_out_valid === 1'b1, "encoder_8b10b: data_out_valid asserted");
     enc_data_valid = 0;
     @(posedge enc_clk);
     CHECK(enc_enc_err === 1'b0, "encoder_8b10b: no encoding error for D.21.5");
 
-    // =========================================================================
-    // TC_ENC-2 : encoder_8b10b – K.28.5 comma character
-    // =========================================================================
     TEST_START("TC_ENC-2: encoder_8b10b – K.28.5 (0xBC) K-char");
     enc_data_in  = 8'hBC;
     enc_k_char   = 1;
@@ -922,9 +805,6 @@ initial begin
     CHECK(enc_enc_err === 1'b0, "encoder_8b10b: no error for K.28.5");
     enc_k_char = 0;
 
-    // =========================================================================
-    // TC_ENC-3 : encoder_8b10b – running disparity tracking
-    // =========================================================================
     TEST_START("TC_ENC-3: encoder_8b10b – disparity alternates correctly");
     begin : rd_test
         reg prev_rd;
@@ -937,16 +817,13 @@ initial begin
         CHECK(enc_enc_err === 1'b0, "encoder_8b10b: no error encoding 0xFF");
     end
 
-    // =========================================================================
-    // TC_DEC-1 : decoder_8b10b – round-trip D.21.5
-    // =========================================================================
     TEST_START("TC_DEC-1: decoder_8b10b – decode previously encoded D.21.5");
     dec_rst_n   = 0;
     dec_dec_en  = 0;
     repeat(5) @(posedge dec_clk);
     dec_rst_n  = 1;
     @(posedge dec_clk);
-    // Use a known valid 8b10b codeword: D.0.0 RD- = 10'b1001110100
+
     dec_data_in = 10'b1001110100;
     dec_disp_in = 1'b0;
     dec_dec_en  = 1;
@@ -956,29 +833,23 @@ initial begin
     CHECK(dec_err === 1'b0, "decoder_8b10b: no decode error on valid codeword");
     CHECK(dec_disp_err === 1'b0, "decoder_8b10b: no disparity error");
 
-    // =========================================================================
-    // TC_DEC-2 : decoder_8b10b – invalid codeword detection
-    // =========================================================================
     TEST_START("TC_DEC-2: decoder_8b10b – detect invalid codeword");
-    dec_data_in = 10'b1111111111; // all-ones → invalid
+    dec_data_in = 10'b1111111111;
     dec_disp_in = 1'b0;
     dec_dec_en  = 1;
     @(posedge dec_clk);
     dec_dec_en  = 0;
     @(posedge dec_clk); #1;
-    // All-ones is an invalid 8b10b codeword — decoder should flag error or produce unexpected output
+
     CHECK(dec_err === 1'b1 || dec_data_out === 8'h00,
           "decoder_8b10b: error or zero output for all-ones invalid codeword");
 
-    // =========================================================================
-    // TC_128-1 : encoder_128b130b – data block
-    // =========================================================================
     TEST_START("TC_128-1: encoder_128b130b – 128-bit data block");
     e128_rst_n = 0;
     e128_valid = 0;
     repeat(5) @(posedge e128_clk);
     e128_rst_n = 1;
-    repeat(2) @(posedge e128_clk); // wait for sync reset to clear
+    repeat(2) @(posedge e128_clk);
     e128_data_in = 128'hDEADBEEFCAFEBABE0123456789ABCDEF;
     e128_is_os   = 0;
     e128_valid   = 1;
@@ -992,10 +863,9 @@ initial begin
     end
     e128_valid = 0; @(posedge e128_clk);
     CHECK(e128_err === 1'b0, "encoder_128b130b: no error");
-    // Sync header for data block = 2'b01
+
     CHECK(e128_data_out[129:128] === 2'b01, "encoder_128b130b: data sync header = 01");
 
-    // =========================================================================
     e128_is_os = 1; e128_valid = 1;
     begin : enc128_os_poll
         integer eow; reg os_saw; os_saw = 0;
@@ -1011,11 +881,7 @@ initial begin
     @(posedge e128_clk);
     e128_valid   = 0;
     @(posedge e128_clk); #1;
-    // (checks already done in polling loop above)
 
-    // =========================================================================
-    // TC_128-3 : decoder_128b130b – round-trip data block
-    // =========================================================================
     TEST_START("TC_128-3: decoder_128b130b – data block decode");
     d128_rst_n   = 0;
     d128_dec_en  = 0;
@@ -1032,29 +898,21 @@ initial begin
     CHECK(d128_sync_err === 1'b0, "decoder_128b130b: no sync header error");
     CHECK(d128_block_type === 1'b0, "decoder_128b130b: data block type");
 
-    // =========================================================================
-    // TC_128-4 : decoder_128b130b – bad sync header
-    // =========================================================================
     TEST_START("TC_128-4: decoder_128b130b – bad sync header detection");
-    d128_data_in = {2'b11, 128'h0};  // 2'b11 = invalid sync header
+    d128_data_in = {2'b11, 128'h0};
     d128_sync_hdr= 2'b11;
     d128_dec_en  = 1;
     @(posedge d128_clk);
     d128_dec_en  = 0;
     @(posedge d128_clk); #1;
-    // Note: 2'b11 is an invalid sync header; this implementation may or may not flag it
-    // Valid behavior: flag error, OR produce output without error (treat as data)
+
     CHECK(1'b1, "decoder_128b130b: bad sync header handled (impl-defined behavior)");
 
-    // =========================================================================
-    // TC_PAM4-1 : PAM4 Gray encoder – basic encoding
-    // =========================================================================
-    // Setup: release pam4_gray_enc reset and set data before TC_PAM4-1
     p4e_rst_n   = 0;
     p4e_valid   = 0;
     repeat(5) @(posedge p4e_clk);
     p4e_rst_n   = 1;
-    repeat(2) @(posedge p4e_clk);  // sync reset settle
+    repeat(2) @(posedge p4e_clk);
     p4e_data_in = 256'hA5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5;
     TEST_START("TC_PAM4-1: pam4_gray_enc – basic data encoding");
     p4e_valid = 1;
@@ -1078,26 +936,20 @@ initial begin
     end
     p4e_valid = 0; @(posedge p4e_clk);
 
-    // =========================================================================
-    // TC_PAM4-2 : PAM4 Gray decoder – basic decoding
-    // =========================================================================
     TEST_START("TC_PAM4-2: pam4_gray_code_decoder – decode PAM4 symbols");
     p4d_rst_n  = 0;
     p4d_valid  = 0;
     repeat(5) @(posedge p4d_clk);
     p4d_rst_n  = 1;
-    repeat(8) @(posedge p4d_clk); // sync reset settle + wait for encoder
+    repeat(8) @(posedge p4d_clk);
     p4d_symbols_in = p4e_symbols;
     p4d_valid      = 1;
-    @(posedge p4d_clk); #1; // data_valid <= pam4_valid → check at same posedge
+    @(posedge p4d_clk); #1;
     CHECK(p4d_out_valid === 1'b1, "pam4_dec: output valid");
     p4d_valid  = 0;
     @(posedge p4d_clk);
     CHECK(p4d_err === 1'b0, "pam4_dec: no decode error");
 
-    // =========================================================================
-    // TC_PAM4-3 : PAM4 Gray round-trip integrity
-    // =========================================================================
     TEST_START("TC_PAM4-3: PAM4 Gray encode→decode round-trip");
     p4e_data_in = 256'hFEDCBA9876543210FEDCBA9876543210FEDCBA9876543210FEDCBA9876543210;
     p4e_valid   = 1; @(posedge p4e_clk); p4e_valid = 0;
@@ -1107,9 +959,6 @@ initial begin
     @(posedge p4d_clk); #1;
     CHECK(p4d_err === 1'b0, "PAM4 round-trip: no error");
 
-    // =========================================================================
-    // TC_FEC-1 : FEC RS encoder + decoder – clean FLIT
-    // =========================================================================
     TEST_START("TC_FEC-1: fec_encoder_rs + fec_rs_decoder – clean FLIT");
     fec_rst_n  = 0;
     fec_valid  = 0;
@@ -1125,9 +974,6 @@ initial begin
           "FEC: encoder produced output or decoder confirmed OK");
     CHECK(fec_uncorr === 1'b0, "FEC: no uncorrectable error on clean FLIT");
 
-    // =========================================================================
-    // TC_FEC-2 : FEC RS – zero FLIT (boundary)
-    // =========================================================================
     TEST_START("TC_FEC-2: fec_encoder_rs – zero FLIT encoding");
     fec_flit_in = 2048'b0;
     fec_valid   = 1;
@@ -1136,9 +982,6 @@ initial begin
     repeat(10) @(posedge fec_clk); #1;
     CHECK(fec_uncorr === 1'b0, "FEC: no error on all-zero FLIT");
 
-    // =========================================================================
-    // TC_FEC-3 : FEC RS – all-ones FLIT
-    // =========================================================================
     TEST_START("TC_FEC-3: fec_encoder_rs – all-ones FLIT");
     fec_flit_in = {2048{1'b1}};
     fec_valid   = 1;
@@ -1147,9 +990,6 @@ initial begin
     repeat(10) @(posedge fec_clk); #1;
     CHECK(fec_uncorr === 1'b0, "FEC: no error on all-ones FLIT");
 
-    // =========================================================================
-    // TC_FLIT-1 : FLIT framer – TLP encapsulation
-    // =========================================================================
     TEST_START("TC_FLIT-1: flit_framer_tx – TLP encapsulation");
     fl_rst_n     = 0;
     fl_tlp_valid = 0;
@@ -1171,14 +1011,10 @@ initial begin
         CHECK(flit_saw === 1'b1,
               "FLIT framer: flit output (flit_valid or null) after TLP");
     end
-    // Note: TB uses zero-padded FEC field; CRC is over [2015:0] so may mismatch
-    // Accept: either no error (CRC matches) or error flagged (expected with zero-FEC pad)
+
     CHECK(fl_crc_err === 1'b0 || fl_crc_err === 1'b1,
           "FLIT deframer: CRC check ran (pass or fail both valid in loopback without FEC)");
 
-    // =========================================================================
-    // TC_FLIT-2 : FLIT framer – DLLP encapsulation
-    // =========================================================================
     TEST_START("TC_FLIT-2: flit_framer_tx – DLLP encapsulation");
     fl_dllp_data  = 64'hDEADBEEFCAFEBABE;
     fl_dllp_valid = 1;
@@ -1196,9 +1032,6 @@ initial begin
               "FLIT framer: flit output (flit_valid or null) after DLLP");
     end
 
-    // =========================================================================
-    // TC_FLIT-3 : FLIT framer – null FLIT (idle)
-    // =========================================================================
     TEST_START("TC_FLIT-3: flit_framer_tx – null FLIT when no data");
     fl_tlp_valid  = 0;
     fl_dllp_valid = 0;
@@ -1206,9 +1039,6 @@ initial begin
     CHECK(fl_null === 1'b1 || fl_flit_valid === 1'b0 || fl_flit_valid === 1'b1,
           "FLIT framer: null FLIT or stable output when idle");
 
-    // =========================================================================
-    // TC_SKP-1 : SKP OS – generation
-    // =========================================================================
     TEST_START("TC_SKP-1: skp – SKP OS generation");
     skp_rst_n = 0;
     skp_send  = 0;
@@ -1216,8 +1046,7 @@ initial begin
     skp_rst_n = 1;
     @(posedge skp_clk);
     skp_send  = 1;
-    // skp_interval=10: tx fires when interval_cnt >= 9 (auto_send) or skp_send_req
-    // skp_tx_valid is 1 only for the cycle it fires — sample it as event
+
     begin : skp_wait
         integer sk;
         reg skp_saw;
@@ -1232,11 +1061,8 @@ initial begin
     skp_send  = 0;
     skp_send = 0;
 
-    // =========================================================================
-    // TC_SKP-2 : SKP OS – detection on RX
-    // =========================================================================
     TEST_START("TC_SKP-2: skp – SKP OS detection");
-    // SKP OS pattern: 1C 1C 1C 1C (K28.0 x4)
+
     skp_rx_data  = {32{8'h1C}};
     skp_rx_valid = 1;
     repeat(5) @(posedge skp_clk); #1;
@@ -1245,9 +1071,6 @@ initial begin
     skp_rx_valid = 0;
     skp_rx_data  = 0;
 
-    // =========================================================================
-    // TC_SSC-1 : SSC controller – down-spread enable
-    // =========================================================================
     TEST_START("TC_SSC-1: ssc_ctrl – down-spread operation");
     ssc_rst_n    = 0;
     ssc_en_t     = 0;
@@ -1255,31 +1078,22 @@ initial begin
     ssc_rst_n    = 1;
     @(posedge ssc_clk);
     ssc_en_t     = 1;
-    ssc_profile_t= 2'b01; // down-spread
+    ssc_profile_t= 2'b01;
     repeat(20) @(posedge ssc_clk); #1;
     CHECK(ssc_active_t === 1'b1, "SSC: active when enabled");
     CHECK(ssc_down === 1'b1, "SSC: down-spread selected");
     CHECK(ssc_center === 1'b0, "SSC: center-spread not selected");
 
-    // =========================================================================
-    // TC_SSC-2 : SSC controller – center-spread
-    // =========================================================================
     TEST_START("TC_SSC-2: ssc_ctrl – center-spread operation");
     ssc_profile_t = 2'b10;
     repeat(20) @(posedge ssc_clk); #1;
     CHECK(ssc_center === 1'b1, "SSC: center-spread active");
 
-    // =========================================================================
-    // TC_SSC-3 : SSC controller – disable
-    // =========================================================================
     TEST_START("TC_SSC-3: ssc_ctrl – disable");
     ssc_en_t = 0;
     repeat(10) @(posedge ssc_clk); #1;
     CHECK(ssc_active_t === 1'b0, "SSC: inactive when disabled");
 
-    // =========================================================================
-    // TC_L0-1 : L0/L0s FSM – entry into L0s TX
-    // =========================================================================
     TEST_START("TC_L0-1: l0_fsm – L0s TX entry");
     l0_rst_n    = 0;
     l0_req      = 0;
@@ -1290,29 +1104,26 @@ initial begin
     repeat(5) @(posedge l0_clk);
     l0_rst_n    = 1;
     @(posedge l0_clk);
-    l0_req      = 1;   // enter L0s
+    l0_req      = 1;
     repeat(5) @(posedge l0_clk); #1;
     CHECK(l0s_tx === 1'b1 || l0_active === 1'b0 || l0_send_eios === 1'b1,
           "l0_fsm: L0s TX active, EIOS sent, or L0 not active after req");
     CHECK(l0_send_eios === 1'b1 || l0s_tx === 1'b1 || l0_req === 1'b1,
           "l0_fsm: EIOS send or L0s TX asserted (req held)");
 
-    // =========================================================================
-    // TC_L0-2 : L0/L0s FSM – exit via FTS
-    // =========================================================================
     TEST_START("TC_L0-2: l0_fsm – exit L0s via FTS");
-    // Return to L0 first (recv_req forces state → ST_L0)
+
     l0_req      = 0;
     l0_recv_req = 1;
     repeat(3) @(posedge l0_clk);
     l0_recv_req = 0;
     repeat(2) @(posedge l0_clk);
-    // Now from ST_L0: simulate partner going L0s (we detect their EIOS → ST_L0S_RX)
+
     l0_eios_det = 1;
     repeat(3) @(posedge l0_clk);
     l0_eios_det = 0;
-    // Now in ST_L0S_RX: FTS from partner exits us back to L0
-    l0_fts_det  = 1; // keep asserted until fts_rx_cnt ≥ 7
+
+    l0_fts_det  = 1;
     begin : l0s_exit_wait
         integer fts_k;
         reg     saw_exit;
@@ -1328,9 +1139,6 @@ initial begin
     l0_fts_det  = 0;
     l0_req      = 0;
 
-    // =========================================================================
-    // TC_HRST-1 : hrst_fsm – hot reset sequence
-    // =========================================================================
     TEST_START("TC_HRST-1: hrst_fsm – hot reset handshake");
     hr_rst_n   = 0;
     hr_hot_req = 0;
@@ -1344,7 +1152,7 @@ initial begin
     hr_hot_req = 1;
     repeat(3) @(posedge hr_clk); #1;
     CHECK(hr_send_hr === 1'b1, "hrst_fsm: sending TS1 with HR bit");
-    // Simulate partner reflecting HR bit
+
     hr_ts1_hr  = 1;
     repeat(5) @(posedge hr_clk);
     hr_timer   = 1; @(posedge hr_clk); hr_timer = 0;
@@ -1354,9 +1162,6 @@ initial begin
     hr_hot_req = 0;
     hr_ts1_hr  = 0;
 
-    // =========================================================================
-    // TC_HRST-2 : hrst_fsm – disabled sequence
-    // =========================================================================
     TEST_START("TC_HRST-2: hrst_fsm – disabled state sequence");
     hr_dis_req = 1;
     repeat(3) @(posedge hr_clk); #1;
@@ -1367,9 +1172,6 @@ initial begin
     hr_dis_req = 0;
     hr_ts1_dis = 0;
 
-    // =========================================================================
-    // TC_EIOS-1 : EIOS – generation
-    // =========================================================================
     TEST_START("TC_EIOS-1: eios – EIOS TX generation");
     ei_rst_n = 0;
     ei_send  = 0;
@@ -1382,11 +1184,8 @@ initial begin
           "eios: TX valid asserted or send still active");
     ei_send  = 0;
 
-    // =========================================================================
-    // TC_EIOS-2 : EIOS – detection on RX
-    // =========================================================================
     TEST_START("TC_EIOS-2: eios – EIOS detected on RX");
-    // EIOS: FFS FFS FFS FFS (K28.2 = 0x5C)
+
     ei_rx_data  = {32{8'h5C}};
     ei_rx_valid = 1;
     repeat(5) @(posedge ei_clk); #1;
@@ -1395,23 +1194,12 @@ initial begin
     ei_rx_valid = 0;
     ei_rx_data  = 0;
 
-    // =========================================================================
-    // TC_EIOS-3 : EIEOS – generation (speed change)
-    // =========================================================================
     TEST_START("TC_EIOS-3: eios – EIEOS TX for speed change");
     ei_eos_send = 1;
     repeat(5) @(posedge ei_clk); #1;
     CHECK(ei_tx_valid === 1'b1, "eios: EIEOS TX valid during speed change");
     ei_eos_send = 0;
 
-    // =========================================================================
-    // TC_PWR-1 : pwr_tmr – L0s entry timer
-    // =========================================================================
-    // FIX: l0s_entry_timer_exp is a 1-cycle pulse (fires at cycle 5 with
-    // l0s_entry_limit=12'd5). The original test waited 20 cycles then checked
-    // the level, always seeing 0 because the pulse had already cleared.
-    // Fix: use the same polling-loop pattern as TC_PWR-2 and TC_PWR-3 to
-    // latch the pulse event within the observation window.
     TEST_START("TC_PWR-1: pwr_tmr – L0s entry timer expiry");
     pt_rst_n    = 0;
     pt_l0s_entry= 0;
@@ -1432,9 +1220,6 @@ initial begin
     end
     pt_l0s_entry= 0;
 
-    // =========================================================================
-    // TC_PWR-2 : pwr_tmr – L1 entry timer
-    // =========================================================================
     TEST_START("TC_PWR-2: pwr_tmr – L1 entry timer expiry");
     pt_l1_entry = 1;
     begin : l1_wait
@@ -1451,9 +1236,6 @@ initial begin
     pt_l1_entry = 0;
     pt_l1_entry = 0;
 
-    // =========================================================================
-    // TC_PWR-3 : pwr_tmr – L0s exit timer
-    // =========================================================================
     TEST_START("TC_PWR-3: pwr_tmr – L0s exit timer expiry");
     pt_l0s_exit = 1;
     begin : l0s_exit_tmr
@@ -1470,16 +1252,13 @@ initial begin
     pt_l0s_exit = 0;
     pt_l0s_exit = 0;
 
-    // =========================================================================
-    // TC_SPD-1 : link_speed_neg – Gen6 negotiation
-    // =========================================================================
     TEST_START("TC_SPD-1: link_speed_neg – both sides support Gen6");
     spd_rst_n   = 0;
     spd_chg_req = 0;
     repeat(5) @(posedge spd_clk);
     spd_rst_n   = 1;
     repeat(3) @(posedge spd_clk);
-    spd_ts1_cap = 8'h3F;  // Gen1-Gen6
+    spd_ts1_cap = 8'h3F;
     spd_ts2_cap = 8'h3F;
     spd_local   = 8'h3F;
     spd_state   = ST_RECOVERY_LOCK;
@@ -1493,7 +1272,7 @@ initial begin
         spd_saw = 0;
         for (sn=0; sn<60 && !spd_saw; sn=sn+1) begin
             @(posedge spd_clk);
-            // speed_neg_done requires both ts1+ts2 caps agree AND req in Recovery
+
             if (spd_done || spd_change_en || spd_target >= 4'd4 || spd_adv >= 8'h04)
                 spd_saw = 1;
         end
@@ -1504,11 +1283,8 @@ initial begin
     spd_chg_req = 0;
     spd_chg_req = 0;
 
-    // =========================================================================
-    // TC_SPD-2 : link_speed_neg – Gen1 only fallback
-    // =========================================================================
     TEST_START("TC_SPD-2: link_speed_neg – partner only supports Gen1");
-    spd_ts1_cap = 8'h01;  // Gen1 only
+    spd_ts1_cap = 8'h01;
     spd_ts2_cap = 8'h01;
     spd_local   = 8'h3F;
     spd_chg_req = 1;
@@ -1516,34 +1292,25 @@ initial begin
     CHECK(spd_target == 4'd1, "speed_neg: fallback to Gen1");
     spd_chg_req = 0;
 
-    // =========================================================================
-    // TC_SYS-1 : Full system – Fundamental reset + power-up
-    // =========================================================================
     TEST_START("TC_SYS-1: Full system – fundamental reset sequence");
     do_fundamental_reset;
-    // rst_done is a pulse — check that DUT is not in reset state (phy_rst_n released)
+
     CHECK(ltssm_state_o !== 6'h3F, "SYS: LTSSM in valid state (rst released)");
     CHECK(ltssm_state_o === ST_DETECT_QUIET || ltssm_state_o === ST_DETECT_ACTIVE,
           "SYS: LTSSM in Detect state after reset");
 
-    // =========================================================================
-    // TC_SYS-2 : Full system – receiver detection
-    // =========================================================================
     TEST_START("TC_SYS-2: Full system – PIPE receiver detection");
-    // PHY should assert TxDetectRx after detect_req
+
     TICK(10);
-    // Simulate PHY acknowledging receiver detection
+
     sim_receiver_detected;
     TICK(10);
     CHECK(ltssm_state_o == ST_DETECT_QUIET || ltssm_state_o == ST_DETECT_ACTIVE ||
           ltssm_state_o == ST_POLLING_ACTIVE,
           "SYS: LTSSM advanced past Detect or in Polling");
 
-    // =========================================================================
-    // TC_SYS-3 : Full system – Polling state TS1/TS2 exchange
-    // =========================================================================
     TEST_START("TC_SYS-3: Full system – Polling: TS1/TS2 exchange");
-    // Drive RX with TS1 patterns to advance through Polling
+
     pipe_rx_elec_idle = 0;
     repeat(20) begin
         send_ts1_pattern(8'h00, 8'h00);
@@ -1553,7 +1320,7 @@ initial begin
         send_ts2_pattern(8'h00, 8'h00);
     end
     TICK(20);
-    // LTSSM advances based on enough TS1/TS2 OSes — may still be in Polling
+
     CHECK(ltssm_state_o == ST_POLLING_ACTIVE  ||
           ltssm_state_o == ST_POLLING_CONFIG  ||
           ltssm_state_o == ST_CFG_LINKWD_STR  ||
@@ -1562,9 +1329,6 @@ initial begin
           ltssm_state_o == ST_DETECT_ACTIVE,
           "SYS: LTSSM in Polling or Config (TS exchange in progress)");
 
-    // =========================================================================
-    // TC_SYS-4 : Full system – PIPE outputs in Detect state
-    // =========================================================================
     TEST_START("TC_SYS-4: Full system – PIPE outputs during Detect");
     do_fundamental_reset;
     TICK(5); #1;
@@ -1573,15 +1337,9 @@ initial begin
     CHECK(pipe_tx_compliance_o === 1'b0,
           "SYS: TX compliance off in normal Detect");
 
-    // =========================================================================
-    // TC_SYS-5 : Full system – SSC active after reset
-    // =========================================================================
     TEST_START("TC_SYS-5: Full system – SSC active when enabled");
     CHECK(ssc_active_o === 1'b1, "SYS: SSC active (ssc_en=1)");
 
-    // =========================================================================
-    // TC_SYS-6 : Full system – compliance mode entry
-    // =========================================================================
     TEST_START("TC_SYS-6: Full system – compliance pattern generation");
     do_fundamental_reset;
     compliance_req = 1;
@@ -1592,9 +1350,6 @@ initial begin
           "SYS: compliance TX asserted or state in Polling.Compliance");
     compliance_req = 0;
 
-    // =========================================================================
-    // TC_SYS-7 : Full system – link_down_req forces Detect
-    // =========================================================================
     TEST_START("TC_SYS-7: Full system – link_down_req resets to Detect");
     do_fundamental_reset;
     TICK(20);
@@ -1605,9 +1360,6 @@ initial begin
     CHECK(ltssm_state_o == ST_DETECT_QUIET || ltssm_state_o == ST_DETECT_ACTIVE,
           "SYS: LTSSM returned to Detect after link_down_req");
 
-    // =========================================================================
-    // TC_SYS-8 : Full system – hot reset request
-    // =========================================================================
     TEST_START("TC_SYS-8: Full system – hot reset via SW");
     do_fundamental_reset;
     TICK(10);
@@ -1619,9 +1371,6 @@ initial begin
           "SYS: LTSSM entered Hot Reset or returned to Detect");
     hot_reset_req_sw = 0;
 
-    // =========================================================================
-    // TC_SYS-9 : Full system – disable request
-    // =========================================================================
     TEST_START("TC_SYS-9: Full system – link disable via SW");
     do_fundamental_reset;
     TICK(10);
@@ -1633,16 +1382,10 @@ initial begin
           "SYS: Disabled state or PowerDown asserted");
     disable_req_sw = 0;
 
-    // =========================================================================
-    // TC_SYS-10 : Full system – FEC error count starts at zero
-    // =========================================================================
     TEST_START("TC_SYS-10: Full system – FEC error count on reset");
     do_fundamental_reset; #1;
     CHECK(fec_err_count_o === 8'd0, "SYS: FEC error count = 0 after reset");
 
-    // =========================================================================
-    // TC_SYS-11 : Full system – DL_Up / DL_Down outputs
-    // =========================================================================
     TEST_START("TC_SYS-11: Full system – DL_Down asserted on link failure");
     do_fundamental_reset;
     TICK(5);
@@ -1653,32 +1396,23 @@ initial begin
     CHECK(dl_down === 1'b1 || ltssm_state_o == ST_DETECT_QUIET || ltssm_state_o == ST_DETECT_ACTIVE,
           "SYS: DL_Down asserted or LTSSM back in Detect after link failure");
 
-    // =========================================================================
-    // TC_SYS-12 : Full system – PIPE rate output changes with speed
-    // =========================================================================
     TEST_START("TC_SYS-12: Full system – PIPE rate in Detect state");
     do_fundamental_reset;
     TICK(5); #1;
     CHECK(pipe_rate_o <= 4'h6, "SYS: PIPE rate output valid (≤Gen6)");
 
-    // =========================================================================
-    // TC_SYS-13 : Full system – electrical idle when TX idle
-    // =========================================================================
     TEST_START("TC_SYS-13: Full system – TX electrical idle in Detect.Quiet");
     do_fundamental_reset;
     TICK(5); #1;
     CHECK(pipe_tx_elec_idle_o === 1'b1,
           "SYS: TX electrical idle in Detect.Quiet");
 
-    // =========================================================================
-    // TC_SYS-14 : Full system – PM L0s request
-    // =========================================================================
     TEST_START("TC_SYS-14: Full system – PM L0s request");
     do_fundamental_reset;
     TICK(10);
-    pm_req = 3'b001;  // L0s request
+    pm_req = 3'b001;
     TICK(20); #1;
-    // PM L0s from Detect state → link not up yet, LTSSM stays in Detect
+
     CHECK(ltssm_state_o == ST_L0S_TX ||
           ltssm_state_o == ST_L0S_RX ||
           ltssm_state_o == ST_DETECT_QUIET ||
@@ -1686,15 +1420,12 @@ initial begin
           "SYS: L0s state or still in Detect (expected when link not up)");
     pm_req = 3'b000;
 
-    // =========================================================================
-    // TC_SYS-15 : Full system – PM L1 request
-    // =========================================================================
     TEST_START("TC_SYS-15: Full system – PM L1 request");
     do_fundamental_reset;
     TICK(10);
-    pm_req = 3'b010;  // L1 request
+    pm_req = 3'b010;
     TICK(30); #1;
-    // PM L1 from Detect state → link not up yet, LTSSM stays in Detect
+
     CHECK(ltssm_state_o == ST_L1_ENTRY ||
           ltssm_state_o == ST_L1       ||
           ltssm_state_o == ST_L1_EXIT  ||
@@ -1703,17 +1434,11 @@ initial begin
           "SYS: L1 state or Detect (expected when link not up)");
     pm_req = 3'b000;
 
-    // =========================================================================
-    // TC_SYS-16 : Full system – PIPE width output
-    // =========================================================================
     TEST_START("TC_SYS-16: Full system – PIPE width output valid");
     do_fundamental_reset;
     TICK(5); #1;
     CHECK(pipe_width_o <= 2'b10, "SYS: PIPE width output in valid range");
 
-    // =========================================================================
-    // TC_SYS-17 : Full system – TLP loopback (Gen6 FLIT mode)
-    // =========================================================================
     TEST_START("TC_SYS-17: Full system – TLP TX path (FLIT framing active)");
     do_fundamental_reset;
     TICK(10);
@@ -1722,13 +1447,10 @@ initial begin
     TICK(5);
     tlp_valid = 0;
     TICK(5); #1;
-    // PIPE TX data should change (non-zero) after data injection
+
     CHECK(pipe_txd_o !== 256'b0 || pipe_tx_elec_idle_o === 1'b1,
           "SYS: TX data driven or in electrical idle");
 
-    // =========================================================================
-    // TC_SYS-18 : Full system – DLL up request
-    // =========================================================================
     TEST_START("TC_SYS-18: Full system – DLL up request asserted");
     do_fundamental_reset;
     TICK(10);
@@ -1738,9 +1460,6 @@ initial begin
           "SYS: DLL up request acknowledged");
     dll_up_req = 0;
 
-    // =========================================================================
-    // TC_SYS-19 : Full system – RST: glitch on rst_n
-    // =========================================================================
     TEST_START("TC_SYS-19: Full system – glitch recovery on rst_n");
     do_fundamental_reset;
     TICK(10);
@@ -1749,18 +1468,12 @@ initial begin
     CHECK(ltssm_state_o !== 6'h3F && ltssm_state_o !== 6'h3E,
           "SYS: LTSSM valid after rst_n glitch recovery");
 
-    // =========================================================================
-    // TC_SYS-20 : Full system – sustained operation stability
-    // =========================================================================
     TEST_START("TC_SYS-20: Full system – 500-cycle stability check");
     do_fundamental_reset;
     TICK(500); #1;
     CHECK(ltssm_state_o !== 6'h3F, "SYS: LTSSM not in invalid state after 500 cycles");
     CHECK(fec_err_count_o === 8'd0, "SYS: No FEC errors during idle operation");
 
-    // =========================================================================
-    // FINAL REPORT
-    // =========================================================================
     #100;
     $display("");
     $display("==========================================================");
@@ -1782,7 +1495,6 @@ initial begin
     $finish;
 end
 
-// Safety watchdog
 initial begin
     #2_000_000;
     $display("[WATCHDOG] Simulation timeout at %0t ns", $time);

@@ -4,7 +4,6 @@ module cr_mgr (
     input  wire         clk,
     input  wire         rst_n,
 
-    // ?? From FC_INIT (startup only) ????????????????????????????
     input  wire         fc_init_done,
     input  wire [7:0]   init_ph,
     input  wire [11:0]  init_pd,
@@ -13,7 +12,6 @@ module cr_mgr (
     input  wire [7:0]   init_cplh,
     input  wire [11:0]  init_cpld,
 
-    // ?? From DLL_IF (UpdateFC DLLPs) ???????????????????????????
     input  wire [7:0]   upd_ph,
     input  wire [11:0]  upd_pd,
     input  wire [7:0]   upd_nph,
@@ -22,17 +20,14 @@ module cr_mgr (
     input  wire [11:0]  upd_cpld,
     input  wire         upd_valid,
 
-    // ?? From ARB_TX (TLP consumed credits) ?????????????????????
     input  wire         tlp_sent,
     input  wire         tlp_is_np,
     input  wire [9:0]   tlp_len,
 
-    // ?? To REQ_Q and ARB_TX ????????????????????????????????????
     output reg          credit_grant_p,
     output reg          credit_grant_np,
     output reg          credit_grant_cpl,
 
-    // ?? Status ?????????????????????????????????????????????????
     output wire [7:0]   dbg_ph_avail,
     output wire [11:0]  dbg_pd_avail,
     output wire [7:0]   dbg_nph_avail,
@@ -55,7 +50,6 @@ reg cpld_infinite;
 
 wire [11:0] data_credits_needed = (tlp_len == 10'd0) ? 12'd1024 : {2'b00, tlp_len};
 
-// Edge detection for fc_init_done
 reg fc_init_done_d;
 always @(posedge clk or negedge rst_n) begin
     if (!rst_n) fc_init_done_d <= 1'b0;
@@ -63,32 +57,28 @@ always @(posedge clk or negedge rst_n) begin
 end
 wire init_trigger = (fc_init_done && !fc_init_done_d);
 
-// ============================================================
-// UNIFIED CREDIT COUNTER BLOCK
-// Handles Init, Update, and Consume without Multiple Drivers
-// ============================================================
 always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
         ph_avail <= 0; pd_avail <= 0; nph_avail <= 0; npd_avail <= 0; cplh_avail <= 0; cpld_avail <= 0;
         ph_infinite <= 0; pd_infinite <= 0; nph_infinite <= 0; npd_infinite <= 0; cplh_infinite <= 0; cpld_infinite <= 0;
     end else if (init_trigger) begin
-        // load initial credits once on rising edge
+
         ph_avail <= init_ph; pd_avail <= init_pd; nph_avail <= init_nph; npd_avail <= init_npd; cplh_avail <= init_cplh; cpld_avail <= init_cpld;
-        
-        ph_infinite <= (init_ph == 0); pd_infinite <= (init_pd == 0); nph_infinite <= (init_nph == 0); 
+
+        ph_infinite <= (init_ph == 0); pd_infinite <= (init_pd == 0); nph_infinite <= (init_nph == 0);
         npd_infinite <= (init_npd == 0); cplh_infinite <= (init_cplh == 0); cpld_infinite <= (init_cpld == 0);
     end else if (fc_init_done) begin
-        // Add valid updates and subtract consumed TLP credits in the same cycle
+
         if (!ph_infinite)
             ph_avail <= ph_avail + (upd_valid ? upd_ph : 8'd0) - ((tlp_sent && !tlp_is_np) ? 8'd1 : 8'd0);
         if (!pd_infinite)
             pd_avail <= pd_avail + (upd_valid ? upd_pd : 12'd0) - ((tlp_sent && !tlp_is_np) ? data_credits_needed : 12'd0);
-            
+
         if (!nph_infinite)
             nph_avail <= nph_avail + (upd_valid ? upd_nph : 8'd0) - ((tlp_sent && tlp_is_np) ? 8'd1 : 8'd0);
         if (!npd_infinite)
             npd_avail <= npd_avail + (upd_valid ? upd_npd : 12'd0) - ((tlp_sent && tlp_is_np) ? data_credits_needed : 12'd0);
-            
+
         if (!cplh_infinite)
             cplh_avail <= cplh_avail + (upd_valid ? upd_cplh : 8'd0);
         if (!cpld_infinite)
@@ -96,9 +86,6 @@ always @(posedge clk or negedge rst_n) begin
     end
 end
 
-// ============================================================
-// GRANT LOGIC
-// ============================================================
 always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
         credit_grant_p <= 1'b0; credit_grant_np <= 1'b0; credit_grant_cpl <= 1'b0;

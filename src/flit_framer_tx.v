@@ -1,21 +1,4 @@
-// =============================================================================
-// Module: FLIT Framer TX   (FIXED — BUG-1 layout + BUG-4 DLLP packing)
-// PCIe Gen6 Physical Layer
-//
-// FLIT layout (2048 bits):
-//   [2047:2016]  CRC-32/MPEG-2  (32b)  over bits [2015:0]
-//   [2015:2004]  Sequence number (12b)
-//   [2003:2000]  FLIT type       (4b): 0=Null,1=Data,2=TLP-only,3=DLLP-only
-//   [1999:1936]  DLLP payload    (64b)
-//   [1935: 912]  TLP payload    (1024b)
-//   [ 911:   0]  Reserved/pad   (912b)
-//
-// FIX-CRC: compute_crc32 now uses identical bit-MSB-first loop as
-//          flit_deframer_rx and flit_rx_deframer (iterates i from 2015
-//          down to 0, testing data[i]).  The old byte-oriented loop
-//          (b=251 downto 0, data[b*8+:8]) produced a different bit order
-//          and caused every TX CRC to mismatch the RX check.
-// =============================================================================
+
 `timescale 1ns/1ps
 module flit_framer_tx (
     input  wire          clk,
@@ -42,11 +25,6 @@ localparam [3:0] FTYPE_DATA = 4'h1;
 localparam [3:0] FTYPE_TLP  = 4'h2;
 localparam [3:0] FTYPE_DLLP = 4'h3;
 
-// ---------------------------------------------------------------------------
-// CRC-32/MPEG-2: poly=0x04C11DB7, init=0xFFFFFFFF, no reflection, no final XOR
-// FIX: iterate MSB-first (i=2015 downto 0) — identical to flit_deframer_rx
-//      so TX-generated CRC always matches RX-computed CRC.
-// ---------------------------------------------------------------------------
 function [31:0] crc32_mpeg2;
     input [2015:0] data;
     reg [31:0] crc;
@@ -84,7 +62,7 @@ always @(posedge clk or negedge rst_n) begin
         tlp_reg<={1024{1'b0}}; dllp_reg<=64'h0;
         has_tlp<=1'b0; has_dllp<=1'b0; null_timer<=5'h0;
     end else begin
-        // FIX ELAB-303: link_reset is synchronous — highest priority in clocked domain
+
         if(link_reset) begin
             state<=ST_IDLE; seq_cnt<=12'h0;
             flit_out<={2048{1'b0}}; flit_valid<=1'b0;
@@ -137,7 +115,7 @@ always @(posedge clk or negedge rst_n) begin
             end
             default: state<=ST_IDLE;
         endcase
-        end  // end else (link_reset)
+        end
     end
 end
 endmodule

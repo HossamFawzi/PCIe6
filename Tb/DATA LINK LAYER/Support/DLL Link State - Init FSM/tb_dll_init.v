@@ -25,34 +25,29 @@ module tb_dll_init;
     initial begin
         $display("=== TB: dll_init ===");
 
-        // TC1: Reset
         $display("[TC1] Reset state");
         rst; @(posedge clk); #1;
         chk1(0,dll_up_to_tl,"dll_up_to_tl=0");
         chk1(0,dll_active,"dll_active=0");
         chk1(0,dll_error,"dll_error=0");
 
-        // TC2: dl_up -> dll_reset_seq pulse registered same clock
         $display("[TC2] ltssm_dl_up -> dll_reset_seq");
         rst;
         ltssm_dl_up=1; @(posedge clk); #1; ltssm_dl_up=0;
-        // dll_reset_seq is registered ON the clock that sees dl_up=1
+
         chk1(1,dll_reset_seq,"dll_reset_seq=1 on INIT entry");
 
-        // TC3: fc_init_done -> ACTIVE
         $display("[TC3] fc_init_done -> dll_active=1");
         rst; to_active;
         chk1(1,dll_active,"dll_active=1 in ACTIVE");
         chk1(1,dll_up_to_tl,"dll_up_to_tl=1 in ACTIVE");
 
-        // TC4: dll_up_to_tl=0 in INIT
         $display("[TC4] dll_up_to_tl=0 in INIT");
         rst;
         ltssm_dl_up=1; @(posedge clk); #1; ltssm_dl_up=0;
         @(posedge clk); #1;
         chk1(0,dll_up_to_tl,"dll_up_to_tl=0 in INIT");
 
-        // TC5: dl_down in ACTIVE -> ERROR
         $display("[TC5] dl_down in ACTIVE -> dll_error");
         rst; to_active;
         ltssm_dl_down=1; @(posedge clk); #1; ltssm_dl_down=0;
@@ -61,14 +56,12 @@ module tb_dll_init;
         chk1(0,dll_active,"dll_active=0 in ERROR");
         chk1(0,dll_up_to_tl,"dll_up_to_tl=0 in ERROR");
 
-        // TC6: replay_rollover -> ERROR
         $display("[TC6] replay_rollover_err -> dll_error");
         rst; to_active;
         replay_rollover_err=1; @(posedge clk); #1; replay_rollover_err=0;
         @(posedge clk); #1;
         chk1(1,dll_error,"dll_error=1 on replay_rollover");
 
-        // TC7: ERROR + dl_up -> re-init, dll_reset_seq pulse
         $display("[TC7] ERROR + dl_up -> re-init");
         rst; to_active;
         ltssm_dl_down=1; @(posedge clk); #1; ltssm_dl_down=0;
@@ -77,7 +70,6 @@ module tb_dll_init;
         chk1(0,dll_error,"dll_error cleared on re-init");
         chk1(1,dll_reset_seq,"dll_reset_seq on re-init");
 
-        // TC8: Full lifecycle
         $display("[TC8] Full lifecycle");
         rst; to_active;
         chk1(1,dll_active,"ACTIVE after first init");

@@ -1,30 +1,6 @@
-// =============================================================================
-// File    : tb_pcie_gen6_sv_top.sv
-// Project : PCIe Gen6 Full-Stack SystemVerilog Testbench
-// Version : v10.2 ? QuestaSim Compilation Errors Fixed (Complete)
-//
-// FIXES vs submitted version:
-//   FIX-1 : Removed pcie_tb_pkg:: prefix from enum literals inside the package
-//   FIX-2 : Covergroup instantiation uses "= new(args)" syntax
-//   FIX-3 : All signal hierarchy paths verified against actual RTL
-//   FIX-4 : Tasks use blocking assignments (=) instead of non-blocking (<=) for
-//           stimulus drivers to avoid 1-cycle setup glitches
-//   FIX-5 : Correct SIM_BYPASS=1 on DUT instance (needed for PIPE inject)
-//   FIX-6 : LTSSM bringup BFM aligned to existing verified bfm_ts1/bfm_ts2
-//   FIX-7 : inject_tlp helper now uses the system's own flit/CRC functions
-//   FIX-8 : Scoreboard uses latch pattern to catch 1-cycle pulses
-//   FIX-9 : All internal hierarchy references cross-checked vs dll_top,
-//            pcie_gen6_phy_top, pcie_tl_top instantiation names
-//   FIX-10: bfm_ts2 192-bit literal width corrected
-//   FIX-11: inject_tlp force statement uses module-level static variable
-//   FIX-12: explicitly declared mwr_seen and cpl_seen as automatic variables
-//   FIX-13: created vc_req_bus variable to satisfy ref argument concatenation rule
-// =============================================================================
+
 `timescale 1ns/1ps
 
-// ---------------------------------------------------------------------------
-// LTSSM state encodings (match ltssm_top.v localparam)
-// ---------------------------------------------------------------------------
 `define ST_DETECT_QUIET   6'd0
 `define ST_DETECT_ACTIVE  6'd1
 `define ST_POLLING_ACTIVE 6'd2
@@ -41,12 +17,8 @@
 `define RST_CYCLES    20
 `define MAX_CYCLES    600000
 
-// ===========================================================================
-// PACKAGE
-// ===========================================================================
 package pcie_tb_pkg;
 
-  // FIX-1: No pcie_tb_pkg:: prefix inside the package
   typedef enum logic [3:0] {
     MWR32  = 4'h0,
     MWR64  = 4'h1,
@@ -92,9 +64,6 @@ package pcie_tb_pkg;
 
 endpackage : pcie_tb_pkg
 
-// ===========================================================================
-// TRANSACTION CLASSES
-// ===========================================================================
 class pcie_tlp_txn;
   rand pcie_tb_pkg::tlp_type_e req_type;
   rand logic [63:0] req_addr;
@@ -167,9 +136,6 @@ class pcie_pm_txn;
   }
 endclass
 
-// ===========================================================================
-// COVERGROUPS  (FIX-2: declared outside module, instantiated with = new())
-// ===========================================================================
 covergroup cg_tlp_types(ref logic [3:0] req_type_i,
                         ref logic [2:0] req_tc_i,
                         ref logic [2:0] req_attr_i,
@@ -311,15 +277,9 @@ covergroup cg_dll_status(ref logic dll_up_i, ref logic dll_error_i,
   cx_dord: cross cp_up, cp_ord;
 endgroup
 
-// ===========================================================================
-// TESTBENCH TOP MODULE
-// ===========================================================================
 module tb_pcie_gen6_sv_top;
   import pcie_tb_pkg::*;
 
-  // =========================================================================
-  // 1. DUT PORT SIGNALS
-  // =========================================================================
   logic        clk, clk_pipe, clk_ser, ssc_ref_clk;
   logic        rst_n, perst_n, power_good, clk_valid;
 
@@ -365,7 +325,6 @@ module tb_pcie_gen6_sv_top;
   wire [2:0]    vc_grant_id;
   wire          vc_arb_valid;
 
-  // FIX-13: Dedicated variable for ref argument concatenation fix
   wire [3:0]    vc_req_bus;
   assign vc_req_bus = {vc3_req, vc2_req, vc1_req, vc0_req};
 
@@ -377,7 +336,6 @@ module tb_pcie_gen6_sv_top;
   logic [1:0]   ssc_profile;
   logic         ssc_en;
 
-  // FIX-11: Module-level static variable for inject_tlp force statement
   logic [1023:0] force_tlp_reg;
 
   logic [7:0]   local_speed_cap;
@@ -410,10 +368,6 @@ module tb_pcie_gen6_sv_top;
   wire         tag_exhausted_o;
   wire [9:0]   outstanding_count_o;
 
-  // =========================================================================
-  // 2. DUT INSTANTIATION  (FIX-5: SIM_BYPASS=1 for PIPE inject)
-  // =========================================================================
-  /* coverage off */
   pcie_gen6_system_top #(
     .NUM_LANES  (16),
     .DATA_WIDTH (256),
@@ -466,28 +420,20 @@ module tb_pcie_gen6_sv_top;
     .ordering_ok_o(ordering_ok_o), .tag_exhausted_o(tag_exhausted_o),
     .outstanding_count_o(outstanding_count_o)
   );
-  /* coverage on */
 
-  // =========================================================================
-  // 3. CLOCKS
-  // =========================================================================
   initial clk=0;         always #(`CLK_HALF)      clk      = ~clk;
   initial clk_pipe=0;    always #(`CLK_PIPE_HALF) clk_pipe = ~clk_pipe;
   initial clk_ser=0;     always #(`CLK_SER_HALF)  clk_ser  = ~clk_ser;
   initial ssc_ref_clk=0; always #(`CLK_HALF)      ssc_ref_clk = ~ssc_ref_clk;
 
-  // =========================================================================
-  // 4. COVERGROUP INSTANTIATIONS  (FIX-2: = new() syntax)
-  // =========================================================================
   cg_tlp_types   cov_tlp_types   = new(req_type, req_tc, req_attr, req_valid, req_ready);
   cg_tlp_length  cov_tlp_length  = new(req_len, req_valid);
   cg_be          cov_be          = new(req_first_be, req_last_be, req_valid);
   cg_ltssm       cov_ltssm       = new(ltssm_state_o);
   cg_link_config cov_link_config = new(link_speed_o, link_width_o, dll_up_o);
-  
-  // FIX-13: Pass the pre-concatenated variable to resolve the 'ref' rule
+
   cg_vc_arb      cov_vc_arb      = new(vc_req_bus, vc_arb_scheme, vc_grant, vc_arb_valid);
-  
+
   cg_power_mgmt  cov_power_mgmt  = new(pm_req, hot_reset_req_sw, disable_req_sw, link_state_o);
   cg_cfg_space   cov_cfg_space   = new(cfg_addr, cfg_wr_en, tlp_cfg_valid);
   cg_errors      cov_errors      = new(aer_status, aer_int, dll_error_o, err_msg_valid);
@@ -497,9 +443,6 @@ module tb_pcie_gen6_sv_top;
   cg_dll_status  cov_dll_status  = new(dll_up_o, dll_error_o, fc_init_done_o,
                                         ordering_ok_o, tag_exhausted_o);
 
-  // =========================================================================
-  // 5. SVA ASSERTIONS
-  // =========================================================================
   property p_rst_pipe_idle;
     @(posedge clk) !rst_n |-> ##[0:5] pipe_tx_elec_idle_o;
   endproperty
@@ -525,12 +468,8 @@ module tb_pcie_gen6_sv_top;
   a_aer_int_status: assert property (p_aer_int_status)
     else $error("[SVA FAIL] aer_int with zero aer_status");
 
-  // =========================================================================
-  // 6. SCOREBOARD & MONITORS
-  // =========================================================================
   int    outstanding_rd = 0;
 
-  // FIX-8: Latch all 1-cycle pulses reliably
   logic  retry_req_latch, tlp_seq_ok_latch, usr_mwr_valid_latch, usr_cpl_valid_latch;
   integer pam4_beat_cnt;
 
@@ -552,7 +491,6 @@ module tb_pcie_gen6_sv_top;
     if (dut.u_phy_top.tx_ser_valid) pam4_beat_cnt = pam4_beat_cnt + 1;
   end
 
-  // Completion scoreboard
   always @(posedge clk) begin
     if (rst_n) begin
       if (req_valid && req_ready && (req_type == 4'(MRD32) || req_type == 4'(MRD64))) begin
@@ -574,7 +512,6 @@ module tb_pcie_gen6_sv_top;
     end
   end
 
-  // LTSSM transition monitor
   logic [5:0] ltssm_prev;
   initial ltssm_prev = 6'hFF;
   always @(posedge clk)
@@ -583,7 +520,6 @@ module tb_pcie_gen6_sv_top;
       ltssm_prev = ltssm_state_o;
     end
 
-  // DLL link-up monitor
   logic dll_up_prev;
   initial dll_up_prev = 0;
   always @(posedge clk) dll_up_prev <= dll_up_o;
@@ -591,16 +527,11 @@ module tb_pcie_gen6_sv_top;
     if (dll_up_o & ~dll_up_prev)
       $display("  [DLL_UP] Link active @%0t ns", $time);
 
-  // AER monitor
   always @(posedge clk)
     if (aer_int) $display("  [AER] status=%08h @%0t ns", aer_status, $time);
 
   always @(posedge clk)
     if (err_msg_valid) $display("  [ERR_MSG] TLP error @%0t ns", $time);
-
-  // =========================================================================
-  // 7. HELPER TASKS & FUNCTIONS (FIX-4: blocking assignments for stimulus)
-  // =========================================================================
 
   task automatic clk_n(input integer n);
     repeat(n) @(posedge clk);
@@ -616,12 +547,11 @@ module tb_pcie_gen6_sv_top;
     rst_n=1;  clk_n(10);
   endtask
 
-  // PIPE BFM ? TS1 ordered set
   task automatic bfm_ts1(input integer n);
     logic [255:0] ts1_word;
     ts1_word = {192'h4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A,
                 8'h4A, 8'h4A, 8'h07, 8'h3F, 8'h02, 8'h00, 8'h00, 8'hBC};
-    pipe_rx_status = 3'b001;  // RXST_RECV_OK
+    pipe_rx_status = 3'b001;
     repeat(n) begin
       @(posedge clk);
       pipe_rx_valid = 1; pipe_rxd = ts1_word; pipe_rxdatak = 32'h00000001;
@@ -630,10 +560,9 @@ module tb_pcie_gen6_sv_top;
     pipe_rx_valid=0; pipe_rxd=0; pipe_rxdatak=0; pipe_rx_status=3'b000;
   endtask
 
-  // PIPE BFM ? TS2 ordered set
   task automatic bfm_ts2(input integer n);
     logic [255:0] ts2_word;
-    // FIX-10: Corrected to exactly 24 pairs of '45' (48 hex digits = 192 bits)
+
     ts2_word = {192'h454545454545454545454545454545454545454545454545,
                 8'h45, 8'h45, 8'h07, 8'h3F, 8'h02, 8'h00, 8'h00, 8'hBC};
     pipe_rx_status = 3'b001;
@@ -645,7 +574,6 @@ module tb_pcie_gen6_sv_top;
     pipe_rx_valid=0; pipe_rxd=0; pipe_rxdatak=0; pipe_rx_status=3'b000;
   endtask
 
-  // Receiver detect handshake
   task automatic bfm_recv_det();
     @(posedge clk);
     pipe_rx_elec_idle = 0; pipe_phystatus = 1; pipe_rx_status = 3'b011;
@@ -654,7 +582,6 @@ module tb_pcie_gen6_sv_top;
     pipe_rx_status = 3'b000;
   endtask
 
-  // Full link training: Detect ? Polling ? CFG ? L0 + DLL init
   task automatic do_link_up();
     integer lu_tmo;
     if (ltssm_state_o == 6'd3) begin
@@ -674,9 +601,6 @@ module tb_pcie_gen6_sv_top;
              ltssm_state_o, dll_up_o, fc_init_done_o);
   endtask
 
-  // =========================================================================
-  // CRC/FLIT helpers (match what flit_rx_deframer expects)
-  // =========================================================================
   function automatic [31:0] crc32_flit(input logic [2015:0] data);
     logic [31:0] crc;
     crc = 32'hFFFF_FFFF;
@@ -701,16 +625,13 @@ module tb_pcie_gen6_sv_top;
     return crc;
   endfunction
 
-  // Build a 2048-bit FLIT carrying a TLP
-  // Layout: [2047:2016]=CRC32, [2015:2004]=seq, [2003:2000]=FTYPE_TLP=4h2
-  //         [1999:1936]=DLLP(0), [1935:912]=TLP(1024b), [911:0]=rsvd
   function automatic [2047:0] build_flit_tlp(input logic [1023:0] tlp,
                                              input logic [11:0]   seq);
     logic [2015:0] body;
     logic [31:0]   fcrc;
     body = 2016'b0;
     body[2015:2004] = seq;
-    body[2003:2000] = 4'h2;   // FTYPE_TLP
+    body[2003:2000] = 4'h2;
     body[1999:1936] = 64'b0;
     body[1935:912]  = tlp;
     body[911:0]     = 912'b0;
@@ -727,7 +648,7 @@ module tb_pcie_gen6_sv_top;
     dllp_field = {dcrc, dllp_body48};
     body = 2016'b0;
     body[2015:2004] = 12'h000;
-    body[2003:2000] = 4'h3;   // FTYPE_DLLP
+    body[2003:2000] = 4'h3;
     body[1999:1936] = dllp_field;
     body[1935:912]  = 1024'b0;
     body[911:0]     = 912'b0;
@@ -735,7 +656,6 @@ module tb_pcie_gen6_sv_top;
     return {fcrc, body};
   endfunction
 
-  // Send a 2048-bit FLIT as 8×256-bit PIPE beats
   task automatic send_flit(input logic [2047:0] flit);
     for (int k = 0; k <= 7; k++) begin
       @(posedge clk);
@@ -744,7 +664,6 @@ module tb_pcie_gen6_sv_top;
     @(posedge clk); pipe_rx_valid = 0; pipe_rxd = 256'b0;
   endtask
 
-  // Inject a TLP: FLIT path when link+DLL up, direct force otherwise
   logic [1023:0] tlp_buf;
   logic [1023:0] cpld_buf;
 
@@ -755,7 +674,7 @@ module tb_pcie_gen6_sv_top;
       send_flit(flit);
     end else begin
       @(posedge clk);
-      // FIX-11: Assign to module-level static variable for force statement
+
       force_tlp_reg = tlp;
       force dut.dll_rx_to_tl_w       = force_tlp_reg;
       force dut.dll_rx_to_tl_valid_w = 1'b1;
@@ -766,7 +685,6 @@ module tb_pcie_gen6_sv_top;
     end
   endtask
 
-  // TLP builders (using tlp_buf)
   task automatic build_mwr32(input logic [31:0] addr, input logic [9:0] len,
                              input logic [511:0] data);
     tlp_buf = {data, {(512-96){1'b0}}, addr, 32'h0100_00FF,
@@ -806,7 +724,6 @@ module tb_pcie_gen6_sv_top;
                32'h0100_00FF, 32'h4000_4004};
   endtask
 
-  // User TLP request helper
   task automatic usr_req(input logic [3:0] rtype, input logic [63:0] addr,
                          input logic [9:0] len,   input logic [511:0] data);
     integer tmo;
@@ -824,7 +741,6 @@ module tb_pcie_gen6_sv_top;
     req_valid=0; req_type=0;
   endtask
 
-  // Inject ACK DLLP
   task automatic inject_ack(input logic [11:0] seq);
     logic [47:0]   body;
     logic [2047:0] flit;
@@ -840,7 +756,6 @@ module tb_pcie_gen6_sv_top;
     end
   endtask
 
-  // Inject NAK DLLP
   task automatic inject_nak(input logic [11:0] seq);
     logic [47:0]   body;
     logic [2047:0] flit;
@@ -856,7 +771,6 @@ module tb_pcie_gen6_sv_top;
     end
   endtask
 
-  // Drive TLP from class-based txn
   task automatic drive_tlp(input pcie_tlp_txn txn);
     integer tmo;
     @(posedge clk);
@@ -878,7 +792,6 @@ module tb_pcie_gen6_sv_top;
     @(posedge clk); req_valid=0;
   endtask
 
-  // Drive config access from txn
   task automatic drive_cfg(input pcie_cfg_txn txn);
     integer tmo;
     @(posedge clk);
@@ -894,7 +807,6 @@ module tb_pcie_gen6_sv_top;
     end
   endtask
 
-  // Drive VC arbiter stimulus from txn
   task automatic drive_vc(input pcie_vc_txn txn);
     @(posedge clk);
     vc0_req=txn.vc_req[0]; vc1_req=txn.vc_req[1];
@@ -904,7 +816,6 @@ module tb_pcie_gen6_sv_top;
     vc0_req=0; vc1_req=0; vc2_req=0; vc3_req=0;
   endtask
 
-  // Drive PM stimulus from txn
   task automatic drive_pm(input pcie_pm_txn txn);
     @(posedge clk);
     pm_req=3'(txn.pm_req);
@@ -914,9 +825,6 @@ module tb_pcie_gen6_sv_top;
     pm_req=3'd0; hot_reset_req_sw=0; disable_req_sw=0;
   endtask
 
-  // =========================================================================
-  // 8. COVERAGE REPORT
-  // =========================================================================
   task automatic report_coverage();
     $display("\n====== FUNCTIONAL COVERAGE REPORT ======");
     $display("cg_tlp_types   : %.1f%%", cov_tlp_types.get_coverage());
@@ -934,11 +842,6 @@ module tb_pcie_gen6_sv_top;
     $display("=========================================\n");
   endtask
 
-  // =========================================================================
-  // 9. DIRECTED TEST TASKS (aligned to existing v9 test infrastructure)
-  // =========================================================================
-
-  // TC_RESET
   task automatic tc_reset_sequence();
     integer tmo;
     $display("\n[TC_RESET] Power-on reset + rst_done");
@@ -949,14 +852,13 @@ module tb_pcie_gen6_sv_top;
     clk_n(50);
     if (!rst_done_o) $warning("[TC_RESET] rst_done_o dropped ? should be sticky");
     else             $display("[TC_RESET] PASS: rst_done_o still HIGH (sticky)");
-    // FIX-9: verified signal names from pcie_gen6_phy_top
+
     if (dut.u_phy_top.phy_rst_n_comb)
       $display("[TC_RESET] PASS: phy_rst_n_comb released");
     else
       $warning("[TC_RESET] WARN: phy_rst_n_comb still asserted");
   endtask
 
-  // TC_LTSSM_BRINGUP
   task automatic tc_ltssm_bringup();
     integer flag, tmo;
     $display("\n[TC_LTSSM] Full LTSSM walk ? L0");
@@ -977,7 +879,6 @@ module tb_pcie_gen6_sv_top;
     end
   endtask
 
-  // TC_DLL_CONFIG
   task automatic tc_dll_config();
     $display("\n[TC_DLL_CFG] DLL Configuration");
     @(posedge clk);
@@ -989,7 +890,6 @@ module tb_pcie_gen6_sv_top;
     $display("[TC_DLL_CFG] PASS: DLL config applied");
   endtask
 
-  // TC_MWR32_DIRECTED
   task automatic tc_mwr32_directed();
     pcie_tlp_txn txn = new();
     $display("\n[TC_MWR32] Directed MWr32");
@@ -1001,7 +901,6 @@ module tb_pcie_gen6_sv_top;
     $display("[TC_MWR32] PASS: MWr32 driven");
   endtask
 
-  // TC_MRD64_DIRECTED
   task automatic tc_mrd64_directed();
     pcie_tlp_txn txn = new();
     $display("\n[TC_MRD64] Directed MRd64");
@@ -1013,7 +912,6 @@ module tb_pcie_gen6_sv_top;
     $display("[TC_MRD64] PASS: MRd64 driven");
   endtask
 
-  // TC_CFG_RW
   task automatic tc_cfg_rw();
     pcie_cfg_txn txn = new();
     $display("\n[TC_CFG_RW] Config Space Read/Write");
@@ -1024,7 +922,6 @@ module tb_pcie_gen6_sv_top;
     $display("[TC_CFG_RW] PASS: Config accesses complete");
   endtask
 
-  // TC_VC_ARBITER
   task automatic tc_vc_arbiter();
     pcie_vc_txn txn = new();
     $display("\n[TC_VC_ARB] VC Arbiter Schemes");
@@ -1035,7 +932,6 @@ module tb_pcie_gen6_sv_top;
     $display("[TC_VC_ARB] PASS: VC arbiter sequences complete");
   endtask
 
-  // TC_POWER_MANAGEMENT
   task automatic tc_power_management();
     pcie_pm_txn txn = new();
     $display("\n[TC_PM] Power Management");
@@ -1046,7 +942,6 @@ module tb_pcie_gen6_sv_top;
     $display("[TC_PM] PASS: PM sequences applied");
   endtask
 
-  // TC_SSC_CONTROL
   task automatic tc_ssc_control();
     $display("\n[TC_SSC] SSC Control");
     for (int i = 0; i < 4; i++) begin
@@ -1059,18 +954,16 @@ module tb_pcie_gen6_sv_top;
     $display("[TC_SSC] PASS: SSC profiles tested");
   endtask
 
-  // TC_HOT_RESET
   task automatic tc_hot_reset();
     $display("\n[TC_HOT_RESET] Hot Reset");
     @(posedge clk); hot_reset_req_sw=1;
     clk_n(100); hot_reset_req_sw=0;
     clk_n(200);
-    // FIX-9: correct signal names from pcie_gen6_phy_top
+
     $display("[TC_HOT_RESET] PASS: ltssm=%0d hot_reset_active=%b",
              ltssm_state_o, dut.u_phy_top.hot_reset_active_w);
   endtask
 
-  // TC_PIPE_ERRORS
   task automatic tc_pipe_errors();
     $display("\n[TC_PIPE_ERR] PIPE RX Errors");
     @(posedge clk_pipe); pipe_rx_status=3'd1; pipe_rx_valid=1;
@@ -1082,9 +975,6 @@ module tb_pcie_gen6_sv_top;
     $display("[TC_PIPE_ERR] PASS: PIPE errors injected fec_err=%0d", fec_err_count_o);
   endtask
 
-  // =========================================================================
-  // 10. RANDOM TEST ENGINE
-  // =========================================================================
   task automatic rand_tlp_test(input int num_txns=500);
     pcie_tlp_txn txn = new();
     int pass_cnt=0;
@@ -1123,9 +1013,6 @@ module tb_pcie_gen6_sv_top;
     $display("[RAND_PM] Done. pm_cov=%.1f%%", cov_power_mgmt.get_coverage());
   endtask
 
-  // =========================================================================
-  // 11. COVERAGE CLOSURE
-  // =========================================================================
   task automatic coverage_closure(input real target_pct=80.0, input int max_iters=10);
     int iter;
     real c_tlp, c_vc, c_pm, c_cfg;
@@ -1145,9 +1032,6 @@ module tb_pcie_gen6_sv_top;
     else                $display("[CLOSURE] Max iters reached ? check uncovered bins");
   endtask
 
-  // =========================================================================
-  // 12. LINK SPEED & WIDTH SWEEP
-  // =========================================================================
   task automatic sweep_link_configs();
     logic [7:0] speed_caps[6] = '{8'h01,8'h03,8'h07,8'h0F,8'h1F,8'h3F};
     logic [5:0] width_caps[5] = '{6'd1,6'd2,6'd4,6'd8,6'd16};
@@ -1161,23 +1045,16 @@ module tb_pcie_gen6_sv_top;
     end
   endtask
 
-  // =========================================================================
-  // 13. WATCHDOG
-  // =========================================================================
   initial begin
     #(`MAX_CYCLES * `CLK_HALF * 2);
     $display("[WATCHDOG] Simulation timeout");
     report_coverage(); $finish;
   end
 
-  // =========================================================================
-  // 14. MAIN TEST SEQUENCE
-  // =========================================================================
   initial begin
     $dumpfile("pcie_gen6_waves.vcd");
     $dumpvars(0, tb_pcie_gen6_sv_top);
 
-    // Default values
     rst_n=0; perst_n=0; power_good=0; clk_valid=0;
     pipe_rxd='0; pipe_rxdatak='0; pipe_rx_valid=0;
     pipe_rx_status=0; pipe_rx_elec_idle=1; pipe_phystatus=0;
@@ -1197,67 +1074,35 @@ module tb_pcie_gen6_sv_top;
     l0s_limit=16'd100; l1_limit=16'd200;
     tlp_buf='0; cpld_buf='0;
 
-    // ========================
-    // GROUP A: Reset & Bringup
-    // ========================
     tc_reset_sequence();
     tc_dll_config();
     tc_ltssm_bringup();
     clk_n(100);
 
-    // ========================
-    // GROUP B: Directed TLPs
-    // ========================
     tc_mwr32_directed();
     tc_mrd64_directed();
 
-    // ========================
-    // GROUP C: Config Space
-    // ========================
     tc_cfg_rw();
 
-    // ========================
-    // GROUP D: VC Arbiter
-    // ========================
     tc_vc_arbiter();
 
-    // ========================
-    // GROUP E: Power Mgmt
-    // ========================
     tc_power_management();
 
-    // ========================
-    // GROUP F: SSC Control
-    // ========================
     tc_ssc_control();
 
-    // ========================
-    // GROUP G: PIPE Errors
-    // ========================
     tc_pipe_errors();
 
-    // ========================
-    // GROUP H: Hot Reset
-    // ========================
     tc_hot_reset();
-    do_reset();  // re-init after hot reset
+    do_reset();
 
-    // ========================
-    // GROUP I: Link Config Sweep
-    // ========================
     sweep_link_configs();
 
-    // ========================
-    // GROUP J: Inject TLP tests
-    // ========================
-    // Re-establish link for injection tests
     $display("\n[GROUP-J] Re-establishing link...");
     do_link_up;
 
-    // TC-J1: MWr32 inject ? usr_mwr_valid
     $display("\n[TC-J1] MWr32 inject ? usr_mwr_valid path");
     begin
-      // FIX-12: explicitly declare as automatic bit
+
       automatic bit mwr_seen = 0;
       build_mwr32(32'hDEAD_0000, 10'd4, 512'hCAFE_BABE);
       inject_tlp(tlp_buf);
@@ -1267,10 +1112,9 @@ module tb_pcie_gen6_sv_top;
       else          $warning("  [WARN] usr_mwr_valid not seen");
     end
 
-    // TC-J2: CplD inject ? usr_cpl_valid
     $display("\n[TC-J2] CplD inject ? usr_cpl_valid + status check");
     begin
-      // FIX-12: explicitly declare as automatic bit
+
       automatic bit cpl_seen = 0;
       build_cpld(10'd0, 10'd4, 512'hABCD_1234, 3'b000);
       inject_tlp(cpld_buf);
@@ -1280,7 +1124,6 @@ module tb_pcie_gen6_sv_top;
       else          $warning("  [WARN] usr_cpl_valid not seen");
     end
 
-    // TC-J3: NAK ? retry_buf replay
     $display("\n[TC-J3] NAK DLLP ? retry_buf replay");
     begin
       retry_req_latch = 0;
@@ -1294,7 +1137,6 @@ module tb_pcie_gen6_sv_top;
         $warning("  [WARN] retry_req not seen");
     end
 
-    // TC-J4: Malformed TLP ? AER MTLP
     $display("\n[TC-J4] Malformed TLP ? AER[18]");
     begin
       build_malformed; inject_tlp(tlp_buf); clk_n(100);
@@ -1304,11 +1146,10 @@ module tb_pcie_gen6_sv_top;
         $warning("  [WARN] AER MTLP not set (status=0x%08h)", aer_status);
     end
 
-    // TC-J5: FEC uncorrectable error ? rx_flit_valid suppressed
     $display("\n[TC-J5] FEC UE injection ? flit suppressed");
     begin
       retry_req_latch = 0;
-      // FIX-9: correct hierarchy: dut.dll_fec_syndrome_w / dut.dll_fec_corrected_w
+
       force dut.dll_fec_syndrome_w  = 16'hDEAD;
       force dut.dll_fec_corrected_w = 1'b0;
       for (int b=0; b<8; b++) begin
@@ -1318,7 +1159,7 @@ module tb_pcie_gen6_sv_top;
       @(posedge clk); pipe_rx_valid=0; pipe_rxd='0;
       clk_n(10);
       release dut.dll_fec_syndrome_w; release dut.dll_fec_corrected_w;
-      // FIX-9: phy_interface_rx is u_phy_rx in dll_top
+
       if (dut.u_dll_top.u_phy_rx.fec_ue !== 1'bx)
         $display("  [OK] fec_ue path alive");
       else
@@ -1327,22 +1168,13 @@ module tb_pcie_gen6_sv_top;
     retry_req_latch = 0;
     clk_n(50);
 
-    // ========================
-    // GROUP K: Randomized tests
-    // ========================
     rand_tlp_test(500);
     rand_cfg_test(100);
     rand_vc_test(100);
     rand_pm_test(50);
 
-    // ========================
-    // GROUP L: Coverage closure
-    // ========================
     coverage_closure(.target_pct(80.0), .max_iters(5));
 
-    // ========================
-    // FINAL REPORT
-    // ========================
     report_coverage();
     $display("\n====== SIMULATION COMPLETE ======");
     $display("Outstanding reads at end : %0d", outstanding_rd);

@@ -1,6 +1,4 @@
-// =============================================================================
-// PCIe Gen6 DLL Support Block: Replay / Retry FSM (REPLAY_FSM)
-// =============================================================================
+
 module replay_fsm (
     input  wire        clk,
     input  wire        rst_n,
@@ -19,7 +17,7 @@ module replay_fsm (
     localparam LINK_DOWN = 2'd2;
 
     reg [1:0]  state;
-    reg [2:0]  retry_hold_cnt;  // FIX-REPLAY: hold retry_req for 4 cycles
+    reg [2:0]  retry_hold_cnt;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -48,7 +46,7 @@ module replay_fsm (
                     end
                 end
                 RETRY: begin
-                    // FIX-REPLAY: hold retry_req for 4 cycles so TB can sample it reliably
+
                     if (retry_hold_cnt >= 3'd3) begin
                         retry_req      <= 1'b0;
                         retry_hold_cnt <= 3'd0;

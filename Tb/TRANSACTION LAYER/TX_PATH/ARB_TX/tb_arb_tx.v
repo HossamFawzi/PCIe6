@@ -35,7 +35,6 @@ module tb_arb_tx;
         .arb_type(arb_type)
     );
 
-    // Clock
     initial clk = 0;
     always #(CLK_PERIOD/2) clk = ~clk;
 
@@ -43,7 +42,6 @@ module tb_arb_tx;
 
     reg ordering_ok_d;
 
-    // =============================
     task reset_dut;
     begin
         rst_n = 0;
@@ -61,7 +59,6 @@ module tb_arb_tx;
     end
     endtask
 
-    // =============================
     task check;
         input cond;
     begin
@@ -76,14 +73,10 @@ module tb_arb_tx;
     end
     endtask
 
-    // =============================
     initial begin
         $display("==== TB arb_tx START ====");
         reset_dut();
 
-        // -------------------------------------------------
-        // T1: Posted only
-        // -------------------------------------------------
         req_p = 576'hAAAA;
         req_p_valid = 1;
         credit_grant_p = 1;
@@ -92,9 +85,6 @@ module tb_arb_tx;
         @(posedge clk); #1;
         check(arb_tlp_valid && arb_type==0 && arb_tlp==req_p);
 
-        // -------------------------------------------------
-        // T2: Non-Posted only
-        // -------------------------------------------------
         req_p_valid = 0;
         req_np = 576'hBBBB;
         req_np_valid = 1;
@@ -103,17 +93,11 @@ module tb_arb_tx;
         @(posedge clk); #1;
         check(arb_tlp_valid && arb_type==1 && arb_tlp==req_np);
 
-        // -------------------------------------------------
-        // T3: No credit ? stall
-        // -------------------------------------------------
         credit_grant_np = 0;
 
         @(posedge clk); #1;
         check(!arb_tlp_valid);
 
-        // -------------------------------------------------
-        // T4: ordering stall
-        // -------------------------------------------------
         req_p_valid = 1;
         credit_grant_p = 1;
         ordering_ok = 0;
@@ -121,9 +105,6 @@ module tb_arb_tx;
         @(posedge clk); #1;
         check(!arb_tlp_valid);
 
-        // -------------------------------------------------
-        // T5: Round robin check
-        // -------------------------------------------------
         ordering_ok = 1;
         req_p_valid = 1;
         req_np_valid = 1;
@@ -136,12 +117,9 @@ module tb_arb_tx;
         @(posedge clk); #1;
         check(arb_tlp_valid);
 
-        // -------------------------------------------------
-        // T6: Back-to-back random traffic
-        // -------------------------------------------------
         repeat(5) begin
-            req_p_valid  = {$random} % 2; // FIXED to {$random}
-            req_np_valid = {$random} % 2; // FIXED to {$random}
+            req_p_valid  = {$random} % 2;
+            req_np_valid = {$random} % 2;
             credit_grant_p  = 1;
             credit_grant_np = 1;
             ordering_ok = 1;
@@ -151,36 +129,29 @@ module tb_arb_tx;
                 check(arb_tlp_valid);
         end
 
-        // -------------------------------------------------
-        // T7: Reset during operation
-        // -------------------------------------------------
         req_p_valid = 1;
         credit_grant_p = 1;
         ordering_ok = 1;
 
         @(posedge clk);
-        rst_n = 0; // Assert reset
+        rst_n = 0;
 
         @(posedge clk); #1;
-        check(!arb_tlp_valid); // FIXED: Check while reset is active
+        check(!arb_tlp_valid);
 
-        rst_n = 1; // Safely deassert reset for next tests
+        rst_n = 1;
 
-        // -------------------------------------------------
-        // T8: FIXED RANDOM STRESS (correct model-aware check)
-        // -------------------------------------------------
         repeat(10) begin
-            req_p_valid  = {$random} % 2; // FIXED to {$random}
-            req_np_valid = {$random} % 2; // FIXED to {$random}
-            credit_grant_p  = {$random} % 2; // FIXED to {$random}
-            credit_grant_np = {$random} % 2; // FIXED to {$random}
-            ordering_ok = {$random} % 2; // FIXED to {$random}
+            req_p_valid  = {$random} % 2;
+            req_np_valid = {$random} % 2;
+            credit_grant_p  = {$random} % 2;
+            credit_grant_np = {$random} % 2;
+            ordering_ok = {$random} % 2;
 
             ordering_ok_d = ordering_ok;
 
             @(posedge clk); #1;
 
-            // ?? correct condition for valid output
             if (arb_tlp_valid) begin
                 check(ordering_ok_d &&
                      ((req_p_valid && credit_grant_p) ||
@@ -188,9 +159,6 @@ module tb_arb_tx;
             end
         end
 
-        // -------------------------------------------------
-        // RESULTS
-        // -------------------------------------------------
         #20;
         $display("==== RESULTS ====");
         $display("PASS=%0d FAIL=%0d", pass, fail);

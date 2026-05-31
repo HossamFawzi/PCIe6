@@ -1,17 +1,4 @@
-// =============================================================
-// Module  : pcie_completion_queue
-// Tag     : CPL_Q
-// Layer   : Transaction Layer - RX Path
-//
-// FIX: Added fall-through (show-through) bypass path.
-//      When the FIFO is empty and credit_grant_cpl is asserted
-//      on the same cycle as cpl_valid_in, the incoming TLP is
-//      passed directly to cpl_out combinatorially instead of
-//      being written and read back one cycle later.
-//      This cuts one cycle from the completion path so that
-//      CPL_HDL can produce cpl_valid two cycles after the
-//      router asserts to_cpl_valid, matching the testbench.
-// =============================================================
+
 module pcie_completion_queue #(
     parameter DEPTH      = 16,
     parameter DATA_WIDTH = 1024,
@@ -48,25 +35,14 @@ module pcie_completion_queue #(
     assign q_full_cpl = (count == DEPTH_W);
     assign q_occ_cpl  = {{(8-ADDR_BITS-1){1'b0}}, count};
 
-    // -----------------------------------------------------------
-    // Fall-through bypass: when the FIFO is empty and a credit is
-    // available, route the incoming TLP directly to the output
-    // without writing it to the RAM.  This avoids the one-cycle
-    // read-after-write latency on the critical completion path.
-    // -----------------------------------------------------------
     wire bypass = q_empty & cpl_valid_in & credit_grant_cpl;
 
-    // Normal FIFO control signals (bypass suppresses both)
     wire do_enqueue = cpl_valid_in & ~q_full_cpl & ~bypass;
     wire do_dequeue = credit_grant_cpl & ~q_empty;
 
-    // Output mux: bypass takes priority over stored data
     assign cpl_out       = bypass ? cpl_tlp : fifo_mem[rd_addr];
     assign cpl_valid_out = bypass | do_dequeue;
 
-    // -----------------------------------------------------------
-    // Write Path
-    // -----------------------------------------------------------
     integer k;
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -79,9 +55,6 @@ module pcie_completion_queue #(
         end
     end
 
-    // -----------------------------------------------------------
-    // Read Path
-    // -----------------------------------------------------------
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             rd_ptr <= {(ADDR_BITS+1){1'b0}};
@@ -90,9 +63,6 @@ module pcie_completion_queue #(
         end
     end
 
-    // -----------------------------------------------------------
-    // Occupancy Counter
-    // -----------------------------------------------------------
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             count <= {(ADDR_BITS+1){1'b0}};

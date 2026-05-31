@@ -1,7 +1,4 @@
-// =============================================================================
-// PCIe Gen6 DLL Support Block: ACK Timer (ACK_TMR)
-// Fix: ack_sent clears replay_num with absolute priority (blocks increment)
-// =============================================================================
+
 module ack_tmr (
     input  wire        clk,
     input  wire        rst_n,
@@ -35,14 +32,13 @@ module ack_tmr (
         else                                  replay_cnt <= replay_cnt + 1'b1;
     end
 
-    // Registered timer outputs
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             ack_timer_exp    <= 1'b0;
             replay_timer_exp <= 1'b0;
         end else begin
             ack_timer_exp    <= ack_pending && (ack_cnt    >= ack_lat_limit);
-            // Clear replay_timer_exp immediately when ack_sent
+
             if (ack_sent)
                 replay_timer_exp <= 1'b0;
             else
@@ -50,8 +46,6 @@ module ack_tmr (
         end
     end
 
-    // replay_num: ack_sent has UNCONDITIONAL priority over increment
-    // Use combinatorial check: only increment if ack_sent is NOT asserted
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n)
             replay_num <= 2'd0;

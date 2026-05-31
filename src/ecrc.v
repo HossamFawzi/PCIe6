@@ -1,37 +1,3 @@
-// =============================================================================
-// ecrc.v
-// PCIe Gen6 — ECRC Generator / Checker
-// Transaction Layer — TX / RX Path
-//
-// Spec ref : PCIe 6.0 Base Spec, Section 2.7.1
-//
-// TX path:
-//   Receives prefixed TLP (1152b) from TLP Prefix Handler.
-//   Computes CRC-32 over header + data (EP bit forced 0 per spec).
-//   Appends 32-bit ECRC, sets TD bit, outputs 1184b packet.
-//
-// RX path:
-//   Recomputes CRC-32 over received header + data.
-//   Compares against received ECRC DW.
-//   Asserts ecrc_rx_ok or ecrc_rx_err.
-//
-// When ecrc_en=0:
-//   TX: zero ECRC appended, TD bit cleared.
-//   RX: ecrc_rx_ok always asserted.
-//
-// CRC-32: poly=0x04C11DB7, init=0xFFFFFFFF, final XOR=0xFFFFFFFF,
-//         per-byte bit-reversal (standard PCIe/Ethernet convention).
-//
-// TX output layout tlp_ecrc_tx[1183:0]:
-//   [1183:1152] LTP DW           (from tlp_tx[1151:1120])
-//   [1151:1056] LTP padding
-//   [1055:1024] EETP DW          (from tlp_tx[1023:992])
-//   [1023:928]  EETP padding
-//   [927:800]   TLP header 128b
-//   [799:288]   TLP data   512b
-//   [287:256]   ECRC DW    32b
-//   [255:0]     padding    256b
-// =============================================================================
 
 `timescale 1ns/1ps
 
@@ -39,29 +5,20 @@ module ecrc (
     input  wire          clk,
     input  wire          rst_n,
 
-    // TX
     input  wire [1151:0] tlp_tx,
     input  wire          tlp_tx_valid,
 
-    // RX
     input  wire [1151:0] tlp_rx,
     input  wire          tlp_rx_valid,
 
-    // Control
     input  wire          ecrc_en,
 
-    // TX output
     output reg  [1183:0] tlp_ecrc_tx,
     output reg           tlp_ecrc_valid,
 
-    // RX output
     output wire          ecrc_rx_ok,
     output wire          ecrc_rx_err
 );
-
-// =============================================================================
-// CRC-32 FUNCTIONS
-// =============================================================================
 
 function [7:0] reflect_byte;
     input [7:0] d;
@@ -134,7 +91,7 @@ function [31:0] compute_ecrc;
     reg   [31:0]  crc;
     begin
         hdr_masked      = hdr;
-        hdr_masked[112] = 1'b0;       // EP bit forced 0 per spec
+        hdr_masked[112] = 1'b0;
         crc = 32'hFFFF_FFFF;
         crc = crc32_over_header(hdr_masked, crc);
         if (has_data)
@@ -143,27 +100,13 @@ function [31:0] compute_ecrc;
     end
 endfunction
 
-// =============================================================================
-// TX FIELD EXTRACTION
-// tlp_tx layout:
-//   [1151:1120] LTP DW
-//   [1119:1024] LTP padding
-//   [1023:992]  EETP DW
-//   [991:896]   EETP padding
-//   [895:768]   TLP header
-//   [767:256]   TLP data
-//   [255:0]     unused
-// =============================================================================
 wire [127:0] tx_hdr      = tlp_tx[895:768];
 wire [511:0] tx_data     = tlp_tx[767:256];
-wire         tx_has_data = tlp_tx[893];       // Fmt[1] bit
-wire         tx_td_bit   = tlp_tx[880];       // TD bit
+wire         tx_has_data = tlp_tx[893];
+wire         tx_td_bit   = tlp_tx[880];
 
 wire [31:0]  tx_ecrc_comb = compute_ecrc(tx_hdr, tx_data, tx_has_data);
 
-// =============================================================================
-// RX FIELD EXTRACTION
-// =============================================================================
 wire [127:0] rx_hdr       = tlp_rx[895:768];
 wire [511:0] rx_data      = tlp_rx[767:256];
 wire         rx_has_data  = tlp_rx[893];
@@ -173,9 +116,6 @@ wire [31:0]  rx_ecrc_rcv  = tlp_rx[255:224];
 wire [31:0]  rx_ecrc_cmp  = compute_ecrc(rx_hdr, rx_data, rx_has_data);
 wire         rx_ecrc_match = (rx_ecrc_cmp == rx_ecrc_rcv);
 
-// =============================================================================
-// TX REGISTERED OUTPUT
-// =============================================================================
 always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
         tlp_ecrc_tx    <= 1184'd0;
@@ -183,12 +123,12 @@ always @(posedge clk or negedge rst_n) begin
     end else begin
         tlp_ecrc_valid <= 1'b0;
         if (tlp_tx_valid) begin
-            tlp_ecrc_tx[1183:1152] <= tlp_tx[1151:1120]; // LTP DW
-            tlp_ecrc_tx[1151:1056] <= tlp_tx[1119:1024]; // LTP padding
-            tlp_ecrc_tx[1055:1024] <= tlp_tx[1023:992];  // EETP DW
-            tlp_ecrc_tx[1023:928]  <= tlp_tx[991:896];   // EETP padding
+            tlp_ecrc_tx[1183:1152] <= tlp_tx[1151:1120];
+            tlp_ecrc_tx[1151:1056] <= tlp_tx[1119:1024];
+            tlp_ecrc_tx[1055:1024] <= tlp_tx[1023:992];
+            tlp_ecrc_tx[1023:928]  <= tlp_tx[991:896];
             tlp_ecrc_tx[927:800]   <= tx_hdr;
-            tlp_ecrc_tx[912]       <= ecrc_en ? 1'b1 : tx_td_bit; // TD bit
+            tlp_ecrc_tx[912]       <= ecrc_en ? 1'b1 : tx_td_bit;
             tlp_ecrc_tx[799:288]   <= tx_data;
             tlp_ecrc_tx[287:256]   <= ecrc_en ? tx_ecrc_comb : 32'd0;
             tlp_ecrc_tx[255:0]     <= 256'd0;
@@ -197,24 +137,19 @@ always @(posedge clk or negedge rst_n) begin
     end
 end
 
-// =============================================================================
-// RX REGISTERED OUTPUT — holds value from last TLP check until next TLP
-// ecrc_rx_ok=1 means "last TLP was OK (or ECRC disabled)"
-// ecrc_rx_err=1 means "last TLP had ECRC error"
-// =============================================================================
 reg ecrc_rx_ok_r;
 reg ecrc_rx_err_r;
 
 always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-        ecrc_rx_ok_r  <= 1'b1;  // default: OK (no ECRC errors)
+        ecrc_rx_ok_r  <= 1'b1;
         ecrc_rx_err_r <= 1'b0;
     end else if (tlp_rx_valid) begin
-        // Update on each TLP
+
         ecrc_rx_ok_r  <= !ecrc_en || !rx_td_bit || rx_ecrc_match;
         ecrc_rx_err_r <=  ecrc_en &&  rx_td_bit && !rx_ecrc_match;
     end
-    // When tlp_rx_valid=0, hold previous result
+
 end
 
 assign ecrc_rx_ok  = ecrc_rx_ok_r;

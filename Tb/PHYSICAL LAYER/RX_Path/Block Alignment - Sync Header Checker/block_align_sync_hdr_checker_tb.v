@@ -77,12 +77,10 @@ module block_align_sync_hdr_checker_tb;
         rst_n = 1'b1;
         @(posedge clk);
 
-        // Test 1: data_valid=0, block_lock=0 => no output
         apply_input(256'hDEAD_BEEF, 1'b0, 1'b0);
         @(posedge clk); #1;
         check_output(256'd0, 1'b0, 2'b00, 1'b0, 1);
 
-        // Test 2: data block with SYNC_DATA header (2'b01), block_lock=1
         test_payload  = 256'hAABBCCDD_EEFF0011_22334455_66778899_AABBCCDD_EEFF0011_22334455_6677889D;
         test_payload[1:0] = 2'b01;
         apply_input(test_payload, 1'b1, 1'b1);
@@ -90,7 +88,6 @@ module block_align_sync_hdr_checker_tb;
         expected_aligned = {2'b00, test_payload[255:2]};
         check_output(expected_aligned, 1'b1, 2'b01, 1'b0, 2);
 
-        // Test 3: ordered set with SYNC_OS header (2'b10), block_lock=1
         test_payload = 256'h0;
         test_payload[1:0] = 2'b10;
         apply_input(test_payload, 1'b1, 1'b1);
@@ -98,7 +95,6 @@ module block_align_sync_hdr_checker_tb;
         expected_aligned = {2'b00, test_payload[255:2]};
         check_output(expected_aligned, 1'b1, 2'b10, 1'b0, 3);
 
-        // Test 4: invalid sync header (2'b00), block_lock=1 => align_err
         test_payload = 256'hFFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFC;
         test_payload[1:0] = 2'b00;
         apply_input(test_payload, 1'b1, 1'b1);
@@ -106,7 +102,6 @@ module block_align_sync_hdr_checker_tb;
         expected_aligned = {2'b00, test_payload[255:2]};
         check_output(expected_aligned, 1'b1, 2'b00, 1'b1, 4);
 
-        // Test 5: invalid sync header (2'b11), block_lock=1 => align_err
         test_payload = 256'h0;
         test_payload[1:0] = 2'b11;
         apply_input(test_payload, 1'b1, 1'b1);
@@ -114,14 +109,12 @@ module block_align_sync_hdr_checker_tb;
         expected_aligned = {2'b00, test_payload[255:2]};
         check_output(expected_aligned, 1'b1, 2'b11, 1'b1, 5);
 
-        // Test 6: data_valid=1 but block_lock=0 => aligned_valid=0, align_err=1
         test_payload = 256'hABCDEF;
         test_payload[1:0] = 2'b01;
         apply_input(test_payload, 1'b1, 1'b0);
         @(posedge clk); #1;
         check_output(256'd0, 1'b0, 2'b01, 1'b1, 6);
 
-        // Test 7: back-to-back data blocks with SYNC_DATA
         for (i = 0; i < 4; i = i + 1) begin
             test_payload = $random;
             test_payload[1:0] = 2'b01;
@@ -131,7 +124,6 @@ module block_align_sync_hdr_checker_tb;
         $display("PASS test 7: back-to-back SYNC_DATA blocks no errors: align_err=%b aligned_valid=%b sync_hdr=%b",
                   align_err, aligned_valid, sync_hdr);
 
-        // Test 8: reset mid-operation
         test_payload = 256'hDEAD;
         test_payload[1:0] = 2'b10;
         apply_input(test_payload, 1'b1, 1'b1);
@@ -145,7 +137,6 @@ module block_align_sync_hdr_checker_tb;
                       aligned_data, aligned_valid, align_err);
         rst_n = 1'b1;
 
-        // Test 9: FLIT boundary check — 256-bit SYNC_DATA (Gen6 FLIT mode)
         test_payload = 256'hCAFEBABE_DEADBEEF_12345678_ABCDEF01_CAFEBABE_DEADBEEF_12345678_ABCDEF01;
         test_payload[1:0] = 2'b01;
         apply_input(test_payload, 1'b1, 1'b1);
@@ -153,7 +144,6 @@ module block_align_sync_hdr_checker_tb;
         expected_aligned = {2'b00, test_payload[255:2]};
         check_output(expected_aligned, 1'b1, 2'b01, 1'b0, 9);
 
-        // Test 10: data_valid de-asserted => outputs clear
         apply_input(256'd0, 1'b0, 1'b1);
         @(posedge clk); #1;
         check_output(256'd0, 1'b0, 2'b00, 1'b0, 10);

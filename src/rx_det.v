@@ -1,27 +1,19 @@
-// ============================================================
-// Module 47 : Receiver Detection Logic (RX_DET)
-// PCIe Gen6 Physical Layer
-// Detects receiver termination per lane via PIPE PhyStatus.
-// LTSSM cannot leave Detect.Active without positive detection.
-// ============================================================
+
 module rx_det (
     input  wire        clk,
     input  wire        rst_n,
 
-    // Control
-    input  wire        detect_start,           // Begin receiver detection
-    input  wire        pipe_rx_elec_idle,      // PIPE: receiver in electrical idle
-    input  wire        pipe_phystatus,         // PIPE: PhyStatus strobe
-    input  wire [15:0] detect_timeout_val,     // Timeout in clock cycles
+    input  wire        detect_start,
+    input  wire        pipe_rx_elec_idle,
+    input  wire        pipe_phystatus,
+    input  wire [15:0] detect_timeout_val,
 
-    // Outputs
-    output reg          receiver_detected,     // At least one receiver found
-    output reg  [15:0]  lanes_det,             // Bitmask of detected lanes
-    output reg          detect_done,           // Detection sequence complete
-    output reg          detect_timeout         // Timed out before detection
+    output reg          receiver_detected,
+    output reg  [15:0]  lanes_det,
+    output reg          detect_done,
+    output reg          detect_timeout
 );
 
-// Detection FSM
 localparam S_IDLE    = 3'd0;
 localparam S_START   = 3'd1;
 localparam S_WAIT    = 3'd2;
@@ -43,7 +35,7 @@ always @(posedge clk or negedge rst_n) begin
         timeout_cnt       <= 16'd0;
         phystatus_seen    <= 1'b0;
     end else begin
-        detect_done    <= 1'b0;  // Default pulse off
+        detect_done    <= 1'b0;
         detect_timeout <= 1'b0;
 
         case (state)
@@ -55,14 +47,14 @@ always @(posedge clk or negedge rst_n) begin
             end
 
             S_START: begin
-                // Initiate detection — assert TX termination drive
+
                 timeout_cnt    <= 16'd0;
                 phystatus_seen <= 1'b0;
                 state          <= S_WAIT;
             end
 
             S_WAIT: begin
-                // Wait for PhyStatus to respond indicating detection result
+
                 if (pipe_phystatus) begin
                     phystatus_seen <= 1'b1;
                     state          <= S_SAMPLE;
@@ -74,11 +66,10 @@ always @(posedge clk or negedge rst_n) begin
             end
 
             S_SAMPLE: begin
-                // Sample electrical idle: if NOT idle → receiver terminated
-                // pipe_rx_elec_idle = 0 means receiver pulled down → detected
+
                 if (!pipe_rx_elec_idle) begin
                     receiver_detected <= 1'b1;
-                    lanes_det         <= 16'hFFFF;  // All lanes detected (simplified)
+                    lanes_det         <= 16'hFFFF;
                 end else begin
                     receiver_detected <= 1'b0;
                     lanes_det         <= 16'h0000;

@@ -1,6 +1,4 @@
-// ============================================================
-// Testbench for Module 50 : Compliance Pattern Generator
-// ============================================================
+
 `timescale 1ns/1ps
 
 module tb_compl_gen;
@@ -35,7 +33,6 @@ module tb_compl_gen;
         rst_n=0; compliance_req=0; compliance_pattern=0; deemph_req=0;
         repeat(4) @(posedge clk); rst_n=1; @(posedge clk);
 
-        // TC1: Pattern 0 — alternating 0xAA
         compliance_req=1; compliance_pattern=4'd0; deemph_req=3'd0;
         @(posedge clk); #1;
         if (compl_active && compl_valid &&
@@ -45,7 +42,6 @@ module tb_compl_gen;
             $display("FAIL [TC1_pattern0_AA] data=%h", compl_data); fail_count=fail_count+1;
         end
 
-        // TC2: Pattern 1 — alternating 0x55
         compliance_pattern=4'd1;
         @(posedge clk); #1;
         if (compl_valid &&
@@ -55,7 +51,6 @@ module tb_compl_gen;
             $display("FAIL [TC2_pattern1_55] data=%h", compl_data); fail_count=fail_count+1;
         end
 
-        // TC3: Pattern 3 — COM repeating (0xBC)
         compliance_pattern=4'd3;
         @(posedge clk); #1;
         begin : TC3
@@ -66,7 +61,6 @@ module tb_compl_gen;
             else    begin $display("FAIL [TC3_pattern3_BC] data=%h", compl_data); fail_count=fail_count+1; end
         end
 
-        // TC4: Pattern 4 — 0xFF
         compliance_pattern=4'd4;
         @(posedge clk); #1;
         begin : TC4
@@ -77,7 +71,6 @@ module tb_compl_gen;
             else    begin $display("FAIL [TC4_pattern4_FF]"); fail_count=fail_count+1; end
         end
 
-        // TC5: Pattern 7 — all zeros
         compliance_pattern=4'd7;
         @(posedge clk); #1;
         if (compl_data === 256'd0) begin
@@ -86,7 +79,6 @@ module tb_compl_gen;
             $display("FAIL [TC5_pattern7_zero] data=%h", compl_data); fail_count=fail_count+1;
         end
 
-        // TC6: compliance_req=0 → valid and active deassert
         compliance_req=0;
         @(posedge clk); #1;
         if (!compl_valid && !compl_active && compl_data===256'd0) begin
@@ -96,7 +88,6 @@ module tb_compl_gen;
             fail_count=fail_count+1;
         end
 
-        // TC7: Continuous output when req=1
         compliance_req=1; compliance_pattern=4'd0;
         begin : TC7
             integer valid_cnt; valid_cnt=0;
@@ -106,7 +97,6 @@ module tb_compl_gen;
         end
         compliance_req=0;
 
-        // TC8: Reset clears
         rst_n=0; repeat(3) @(posedge clk); #1;
         if (!compl_valid && !compl_active) begin
             $display("PASS [TC8_reset]"); pass_count=pass_count+1;
@@ -115,7 +105,6 @@ module tb_compl_gen;
         end
         rst_n=1;
 
-        // TC9: Pattern 5 — checkerboard
         compliance_req=1; compliance_pattern=4'd5;
         @(posedge clk); #1;
         begin : TC9

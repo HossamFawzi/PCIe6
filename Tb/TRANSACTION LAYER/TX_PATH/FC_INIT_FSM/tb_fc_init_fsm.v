@@ -1,26 +1,10 @@
-// =============================================================================
-// Testbench : tb_fc_init_fsm
-// DUT       : fc_init_fsm (PCIe 6.0 TL FC Init FSM)
-// Language  : Verilog (converted from SystemVerilog)
-//
-// Test cases:
-//   TC1  Normal handshake: IFC1 partner replies arrive in order
-//   TC2  Out-of-order partner replies (IFC1 CPL arrives before NP)
-//   TC3  dll_up deasserted before handshake (no init should start)
-//   TC4  Partner IFC2 replies arrive before IFC2 send (pre-loaded)
-//   TC5  Reset mid-handshake; verify clean restart
-// =============================================================================
 
 `timescale 1ns/1ps
 
 module tb_fc_init_fsm;
 
-// ---------------------------------------------------------------------------
-// Parameters
-// ---------------------------------------------------------------------------
-parameter CLK_PERIOD = 10; // 10 ns = 100 MHz
+parameter CLK_PERIOD = 10;
 
-// DLLP type codes (mirror RTL)
 parameter [7:0] TYPE_IFC1_P   = 8'h40;
 parameter [7:0] TYPE_IFC1_NP  = 8'h50;
 parameter [7:0] TYPE_IFC1_CPL = 8'h60;
@@ -28,16 +12,12 @@ parameter [7:0] TYPE_IFC2_P   = 8'hC0;
 parameter [7:0] TYPE_IFC2_NP  = 8'hD0;
 parameter [7:0] TYPE_IFC2_CPL = 8'hE0;
 
-// Expected advertised credit constants (must match RTL localparam)
 parameter [7:0]  EXP_PH   = 8'd32;
 parameter [11:0] EXP_PD   = 12'd128;
 parameter [7:0]  EXP_NPH  = 8'd8;
 parameter [7:0]  EXP_CPLH = 8'd32;
 parameter [11:0] EXP_CPLD = 12'd128;
 
-// ---------------------------------------------------------------------------
-// DUT signals
-// ---------------------------------------------------------------------------
 reg          clk;
 reg          rst_n;
 reg          dll_up;
@@ -53,9 +33,6 @@ wire [ 7:0]  adv_nph;
 wire [ 7:0]  adv_cplh;
 wire [11:0]  adv_cpld;
 
-// ---------------------------------------------------------------------------
-// DUT instantiation
-// ---------------------------------------------------------------------------
 fc_init_fsm dut (
     .clk            (clk),
     .rst_n          (rst_n),
@@ -72,29 +49,15 @@ fc_init_fsm dut (
     .adv_cpld       (adv_cpld)
 );
 
-// ---------------------------------------------------------------------------
-// Clock generation
-// ---------------------------------------------------------------------------
 initial clk = 0;
 always #(CLK_PERIOD/2) clk = ~clk;
 
-// ---------------------------------------------------------------------------
-// Test result counters
-// ---------------------------------------------------------------------------
 integer pass_count;
 integer fail_count;
 
-// ---------------------------------------------------------------------------
-// TX capture storage
-// ---------------------------------------------------------------------------
 integer      tx_send_count;
-reg [71:0]   tx_log [0:7];  // log up to 8 DLLPs
+reg [71:0]   tx_log [0:7];
 
-// ---------------------------------------------------------------------------
-// Utility tasks
-// ---------------------------------------------------------------------------
-
-// Apply reset
 task apply_reset;
     input integer cycles;
     integer k;
@@ -111,7 +74,6 @@ task apply_reset;
     end
 endtask
 
-// Inject one InitFC DLLP from the simulated partner
 task inject_rx_dllp;
     input [7:0] dtype;
     begin
@@ -123,7 +85,6 @@ task inject_rx_dllp;
     end
 endtask
 
-// Inject all three InitFC1 DLLPs
 task inject_all_ifc1;
     begin
         inject_rx_dllp(TYPE_IFC1_P);
@@ -132,7 +93,6 @@ task inject_all_ifc1;
     end
 endtask
 
-// Inject all three InitFC2 DLLPs
 task inject_all_ifc2;
     begin
         inject_rx_dllp(TYPE_IFC2_P);
@@ -141,13 +101,12 @@ task inject_all_ifc2;
     end
 endtask
 
-// Wait for fc_init_done with timeout
 task wait_done;
     input integer timeout_cycles;
     integer i;
     begin
         for (i = 0; i < timeout_cycles; i = i + 1) begin
-            if (fc_init_done) i = timeout_cycles + 1; // break
+            if (fc_init_done) i = timeout_cycles + 1;
             else @(posedge clk);
         end
         if (i == timeout_cycles)
@@ -155,9 +114,8 @@ task wait_done;
     end
 endtask
 
-// Assertion helper (1-bit)
 task check;
-    input [127:0] label;  // fixed-width string substitute
+    input [127:0] label;
     input         got;
     input         exp;
     begin
@@ -171,9 +129,8 @@ task check;
     end
 endtask
 
-// Assertion helper (integer/wide value)
 task check_val;
-    input [127:0] label;  // fixed-width string substitute
+    input [127:0] label;
     input [63:0]  got;
     input [63:0]  exp;
     begin
@@ -187,11 +144,6 @@ task check_val;
     end
 endtask
 
-// ---------------------------------------------------------------------------
-// TEST CASES
-// ---------------------------------------------------------------------------
-
-// TC1: Normal handshake
 task tc1_normal_handshake;
     begin
         $display("\n=== TC1: Normal handshake (in-order partner replies) ===");
@@ -220,7 +172,6 @@ task tc1_normal_handshake;
     end
 endtask
 
-// TC2: Out-of-order partner InitFC1 replies
 task tc2_ooo_ifc1;
     begin
         $display("\n=== TC2: Out-of-order InitFC1 from partner (CPL first) ===");
@@ -248,7 +199,6 @@ task tc2_ooo_ifc1;
     end
 endtask
 
-// TC3: dll_up never asserted
 task tc3_no_dll_up;
     begin
         $display("\n=== TC3: dll_up never asserted FSM must stay IDLE ===");
@@ -261,7 +211,6 @@ task tc3_no_dll_up;
     end
 endtask
 
-// TC4: Partner IFC2 arrives before DUT sends IFC2
 task tc4_early_ifc2;
     begin
         $display("\n=== TC4: Partner IFC2 pre-loads while DUT still in WAIT_IFC1 ===");
@@ -283,7 +232,6 @@ task tc4_early_ifc2;
     end
 endtask
 
-// TC5: Reset mid-handshake
 task tc5_reset_mid_handshake;
     begin
         $display("\n=== TC5: Reset asserted mid-handshake, then clean restart ===");
@@ -319,7 +267,6 @@ task tc5_reset_mid_handshake;
     end
 endtask
 
-// TC6: Verify TX DLLP types in correct order
 task tc6_tx_type_order;
     integer ci;
     begin
@@ -359,9 +306,6 @@ task tc6_tx_type_order;
     end
 endtask
 
-// ---------------------------------------------------------------------------
-// Top-level stimulus
-// ---------------------------------------------------------------------------
 initial begin
     pass_count = 0;
     fail_count = 0;
@@ -389,17 +333,11 @@ initial begin
     $finish;
 end
 
-// ---------------------------------------------------------------------------
-// Waveform dump (optional - comment out if not needed)
-// ---------------------------------------------------------------------------
 initial begin
     $dumpfile("fc_init_fsm.vcd");
     $dumpvars(0, tb_fc_init_fsm);
 end
 
-// ---------------------------------------------------------------------------
-// Timeout watchdog
-// ---------------------------------------------------------------------------
 initial begin
     #100000;
     $display("[WATCHDOG] Simulation exceeded 100 us - force finish");

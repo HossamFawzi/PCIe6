@@ -1,6 +1,4 @@
-// ============================================================
-// Testbench for Module 49 : Fundamental Reset FSM
-// ============================================================
+
 `timescale 1ns/1ps
 
 module tb_fund_rst;
@@ -46,8 +44,6 @@ module tb_fund_rst;
         rst_timeout_val=16'd4;
         repeat(4) @(posedge clk); rst_n=1; @(posedge clk);
 
-        // TC1: Normal startup sequence
-        // All in reset → wait for power + clk → release PHY → DLL → TL
         power_good=1; clk_valid=1;
         @(posedge clk); #1; perst_n=1;
         wait_done;
@@ -60,8 +56,6 @@ module tb_fund_rst;
             fail_count=fail_count+1;
         end
 
-        // TC2: PHY released before DLL before SYS (ordering check)
-        // Re-run: assert PERST again
         begin : TC2
             integer phy_t, dl_t, sys_t;
             integer cyc;
@@ -90,7 +84,6 @@ module tb_fund_rst;
             end
         end
 
-        // TC3: PERST# re-assertion clears all resets immediately
         @(posedge clk); #1; perst_n=0;
         @(posedge clk); #1;
         if (!sys_rst_n && !dl_rst_n && !phy_rst_n) begin
@@ -100,7 +93,6 @@ module tb_fund_rst;
             fail_count=fail_count+1;
         end
 
-        // TC4: Power not good → stall at WAIT_PWR
         perst_n=1; power_good=0; clk_valid=1;
         @(posedge clk); #1; @(posedge clk); #1;
         repeat(20) @(posedge clk);
@@ -111,7 +103,6 @@ module tb_fund_rst;
         end
         power_good=1;
 
-        // TC5: Clock not valid → stall at WAIT_PWR
         perst_n=0;
         @(posedge clk); #1; perst_n=1;
         power_good=1; clk_valid=0;
@@ -124,7 +115,6 @@ module tb_fund_rst;
         clk_valid=1;
         wait_done;
 
-        // TC6: rst_done pulse once
         begin : TC6
             integer cnt; cnt=0;
             @(posedge clk); #1; perst_n=0;
@@ -135,11 +125,8 @@ module tb_fund_rst;
             else         begin $display("FAIL [TC6_done_pulse] cnt=%0d",cnt); fail_count=fail_count+1; end
         end
 
-        // TC7: sys rst_n stays off while dl and phy are released midway
-        // (already tested in TC2 ordering — verify sys=0 before done)
         $display("PASS [TC7_ordering_verified_by_TC2]"); pass_count=pass_count+1;
 
-        // TC8: Reset (system rst_n) clears all
         rst_n=0; repeat(3) @(posedge clk); #1;
         if (!sys_rst_n && !dl_rst_n && !phy_rst_n && !rst_done) begin
             $display("PASS [TC8_system_reset]"); pass_count=pass_count+1;

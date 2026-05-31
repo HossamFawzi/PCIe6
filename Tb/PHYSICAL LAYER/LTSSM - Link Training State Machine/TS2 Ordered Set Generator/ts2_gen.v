@@ -1,29 +1,22 @@
-// ============================================================
-// Module 42 : TS2 Ordered Set Generator (TS2_GEN)
-// PCIe Gen6 Physical Layer
-// Generates TS2 Ordered Sets for link training.
-// Agreement on TS2 marks end of Configuration/Recovery.
-// ============================================================
+
 module ts2_gen (
     input  wire        clk,
     input  wire        rst_n,
 
-    // Control inputs
-    input  wire [7:0]  link_num,       // Negotiated link number
-    input  wire [7:0]  lane_num,       // Negotiated lane number
-    input  wire [7:0]  speed_cap,      // Agreed speed capability
-    input  wire [7:0]  fts_count,      // FTS count
-    input  wire        ts2_send,       // Trigger TS2 generation
+    input  wire [7:0]  link_num,
+    input  wire [7:0]  lane_num,
+    input  wire [7:0]  speed_cap,
+    input  wire [7:0]  fts_count,
+    input  wire        ts2_send,
 
-    // Outputs
-    output reg  [255:0] ts2_data,      // 256-bit TS2 ordered set
-    output reg          ts2_valid,     // ts2_data is valid
-    output reg          ts2_done       // One-shot done pulse
+    output reg  [255:0] ts2_data,
+    output reg          ts2_valid,
+    output reg          ts2_done
 );
 
-localparam [7:0] COM_SYMBOL = 8'hBC;  // K28.5
-localparam [7:0] PAD_SYMBOL = 8'hF7;  // K23.7
-localparam [7:0] TS2_ID     = 8'h45;  // TS2 identifier (distinct from TS1 0x4A)
+localparam [7:0] COM_SYMBOL = 8'hBC;
+localparam [7:0] PAD_SYMBOL = 8'hF7;
+localparam [7:0] TS2_ID     = 8'h45;
 
 reg [1:0] state;
 localparam S_IDLE  = 2'd0;
@@ -48,21 +41,13 @@ always @(posedge clk or negedge rst_n) begin
             end
 
             S_BUILD: begin
-                // TS2 format mirrors TS1 but with TS2 ID byte
-                // Byte 0: COM (K28.5)
-                // Byte 1: Link Number
-                // Byte 2: Lane Number
-                // Byte 3: FTS Count
-                // Byte 4: Speed Capability
-                // Byte 5: Training Control (0 for TS2)
-                // Byte 6: TS2 ID (0x45)
-                // Bytes 7-31: PAD
+
                 ts2_data[  7:  0] <= COM_SYMBOL;
                 ts2_data[ 15:  8] <= link_num;
                 ts2_data[ 23: 16] <= lane_num;
                 ts2_data[ 31: 24] <= fts_count;
                 ts2_data[ 39: 32] <= speed_cap;
-                ts2_data[ 47: 40] <= 8'h00;        // Training ctrl = 0 for TS2
+                ts2_data[ 47: 40] <= 8'h00;
                 ts2_data[ 55: 48] <= TS2_ID;
                 ts2_data[ 63: 56] <= PAD_SYMBOL;
                 ts2_data[ 71: 64] <= PAD_SYMBOL;

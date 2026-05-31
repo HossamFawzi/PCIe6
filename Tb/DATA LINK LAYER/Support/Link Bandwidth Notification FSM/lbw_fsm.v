@@ -1,6 +1,4 @@
-// =============================================================================
-// PCIe Gen6 DLL Support Block: Link Bandwidth Notification FSM (LBW_FSM)
-// =============================================================================
+
 module lbw_fsm (
     input  wire        clk,
     input  wire        rst_n,
@@ -52,7 +50,7 @@ module lbw_fsm (
                 end
                 EQ_REQ: begin
                     link_eq_req <= 1'b1;
-                    // When eq_req_from_phy de-asserts, acknowledge and return
+
                     if (!eq_req_from_phy) begin
                         link_eq_req <= 1'b0;
                         link_eq_ack <= 1'b1;

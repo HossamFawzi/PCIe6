@@ -1,6 +1,4 @@
-// ============================================================
-// Testbench for Module 44 : FTS Generator / Detector
-// ============================================================
+
 `timescale 1ns/1ps
 
 module tb_fts;
@@ -35,7 +33,6 @@ module tb_fts;
     integer pass_count = 0;
     integer fail_count = 0;
 
-    // All-FTS 256-bit word
     reg [255:0] all_fts_word;
     reg [255:0] mixed_word;
     integer i;
@@ -45,7 +42,7 @@ module tb_fts;
         mixed_word   = 256'd0;
         for (i = 0; i < 32; i = i+1)
             all_fts_word[i*8 +: 8] = 8'h3C;
-        // mixed: first byte COM, rest FTS
+
         mixed_word[7:0] = 8'hBC;
         for (i = 1; i < 32; i = i+1)
             mixed_word[i*8 +: 8] = 8'h3C;
@@ -55,7 +52,6 @@ module tb_fts;
         rst_n=0; fts_send=0; fts_count=0; rx_data=0; rx_valid=0;
         repeat(4) @(posedge clk); rst_n=1; @(posedge clk);
 
-        // TC1: TX — send 4 FTS OS
         fts_count = 8'h04;
         @(posedge clk); #1; fts_send=1;
         @(posedge clk); #1; fts_send=0;
@@ -72,7 +68,6 @@ module tb_fts;
             end
         end
 
-        // TC2: TX data is all FTS symbols (0x3C)
         fts_count = 8'h01;
         @(posedge clk); #1; fts_send=1;
         @(posedge clk); #1; fts_send=0;
@@ -86,7 +81,6 @@ module tb_fts;
         end
         repeat(5) @(posedge clk);
 
-        // TC3: fts_count=0 → no TX
         fts_count = 8'h00;
         @(posedge clk); #1; fts_send=1;
         @(posedge clk); #1; fts_send=0;
@@ -97,11 +91,10 @@ module tb_fts;
             $display("FAIL [TC3_count0_no_tx]"); fail_count=fail_count+1;
         end
 
-        // TC4: RX detect FTS — sample detected on same edge valid is high
         rx_data = all_fts_word;
-        @(posedge clk); #1;  // data stable
+        @(posedge clk); #1;
         rx_valid=1;
-        @(posedge clk); #1;  // posedge registers: output valid NOW (after #1)
+        @(posedge clk); #1;
         if (fts_detected) begin
             $display("PASS [TC4_rx_fts_detect]"); pass_count=pass_count+1;
         end else begin
@@ -109,7 +102,6 @@ module tb_fts;
         end
         rx_valid=0;
 
-        // TC5: RX count increments on consecutive FTS
         begin : TC5
             integer cnt_before, cnt_after;
             cnt_before = fts_count_rx;
@@ -127,7 +119,6 @@ module tb_fts;
             end
         end
 
-        // TC6: Mixed word (not all FTS) → not detected
         rx_data = mixed_word;
         @(posedge clk); #1; rx_valid=1;
         @(posedge clk); #1; rx_valid=0;
@@ -138,14 +129,12 @@ module tb_fts;
             $display("FAIL [TC6_mixed_no_det]"); fail_count=fail_count+1;
         end
 
-        // TC7: RX count resets on non-FTS
         if (fts_count_rx === 8'd0) begin
             $display("PASS [TC7_rx_count_reset]"); pass_count=pass_count+1;
         end else begin
             $display("FAIL [TC7_rx_count_reset] got=%0d", fts_count_rx); fail_count=fail_count+1;
         end
 
-        // TC8: Reset clears
         rst_n=0; repeat(3) @(posedge clk); #1;
         if (!fts_tx_valid && !fts_detected && fts_count_rx===8'd0) begin
             $display("PASS [TC8_reset]"); pass_count=pass_count+1;
@@ -154,7 +143,6 @@ module tb_fts;
         end
         rst_n=1;
 
-        // TC9: TX — large count (255)
         fts_count = 8'hFF;
         @(posedge clk); #1; fts_send=1;
         @(posedge clk); #1; fts_send=0;

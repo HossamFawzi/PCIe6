@@ -26,21 +26,18 @@ module tb_lbw_fsm;
     initial begin
         $display("=== TB: lbw_fsm ===");
 
-        // TC1: Reset
         $display("[TC1] Reset clears outputs");
         rst; @(posedge clk); #1;
         chk1(0,bw_notif_valid,"bw_notif_valid=0");
         chk1(0,link_eq_req,"link_eq_req=0");
         chk1(0,link_eq_ack,"link_eq_ack=0");
 
-        // TC2: bw_change_det -> bw_notif_valid (IDLE->NOTIFY, NOTIFY registers valid)
         $display("[TC2] bw_change_det -> bw_notif_valid");
         rst; ltssm_speed=4'd6; ltssm_width=6'd16;
-        bw_change_det=1; @(posedge clk); #1; bw_change_det=0; // FSM: IDLE->NOTIFY
-        @(posedge clk); #1;  // NOTIFY: bw_notif_valid<=1 registered
+        bw_change_det=1; @(posedge clk); #1; bw_change_det=0;
+        @(posedge clk); #1;
         chk1(1,bw_notif_valid,"bw_notif_valid=1 on change");
 
-        // TC3: DLLP carries speed in bits[55:52]
         $display("[TC3] bw_notif_dllp[55:52] == ltssm_speed");
         rst; ltssm_speed=4'hA; ltssm_width=6'd8;
         bw_change_det=1; @(posedge clk); #1; bw_change_det=0;
@@ -48,37 +45,32 @@ module tb_lbw_fsm;
         if(bw_notif_dllp[55:52]===4'hA)begin $display("  PASS | dllp[55:52]=0xA");pass_count=pass_count+1;end
         else begin $display("  FAIL | dllp[55:52] exp=0xA got=0x%h",bw_notif_dllp[55:52]);fail_count=fail_count+1;end
 
-        // TC4: bw_status encoding
         $display("[TC4] bw_status encoding");
         rst; ltssm_speed=4'd5; ltssm_width=6'd4;
         bw_change_det=1; @(posedge clk); #1; bw_change_det=0;
         @(posedge clk); #1;
         chk8({ltssm_speed,ltssm_width[3:0]},bw_status,"bw_status correct");
 
-        // TC5: Idle -> bw_notif_valid stays 0
         $display("[TC5] Idle: bw_notif_valid stays 0");
         rst; ltssm_speed=4'd3; ltssm_width=6'd2;
         repeat(10)@(posedge clk); #1;
         chk1(0,bw_notif_valid,"bw_notif_valid=0 when idle");
 
-        // TC6: eq_req_from_phy -> link_eq_req
         $display("[TC6] eq_req_from_phy -> link_eq_req");
         rst;
-        eq_req_from_phy=1; @(posedge clk); #1;  // IDLE->EQ_REQ
-        @(posedge clk); #1;  // in EQ_REQ: link_eq_req<=1 registered
+        eq_req_from_phy=1; @(posedge clk); #1;
+        @(posedge clk); #1;
         chk1(1,link_eq_req,"link_eq_req=1 in EQ_REQ");
 
-        // TC7: eq_req de-asserts -> link_eq_ack
         $display("[TC7] eq_req de-asserts -> link_eq_ack");
         rst;
-        eq_req_from_phy=1; @(posedge clk); #1;  // ->EQ_REQ
-        @(posedge clk); #1;  // settled in EQ_REQ with link_eq_req=1
-        // Clear eq_req BEFORE next posedge to avoid race with RTL evaluation
-        @(negedge clk); eq_req_from_phy=0;   // stable-0 before posedge
-        @(posedge clk); #1;  // RTL in EQ_REQ: sees eq_req=0 -> link_eq_ack<=1
+        eq_req_from_phy=1; @(posedge clk); #1;
+        @(posedge clk); #1;
+
+        @(negedge clk); eq_req_from_phy=0;
+        @(posedge clk); #1;
         chk1(1,link_eq_ack,"link_eq_ack=1 after eq_req falls");
 
-        // TC8: bw_notif_valid auto-clears
         $display("[TC8] bw_notif_valid auto-clears");
         rst; ltssm_speed=4'd2; ltssm_width=6'd1;
         bw_change_det=1; @(posedge clk); #1; bw_change_det=0;

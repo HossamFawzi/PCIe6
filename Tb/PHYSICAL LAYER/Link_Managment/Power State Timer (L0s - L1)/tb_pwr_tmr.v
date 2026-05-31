@@ -1,6 +1,4 @@
-// ============================================================
-// Testbench for Module 52 (53) : Power State Timer L0s/L1
-// ============================================================
+
 `timescale 1ns/1ps
 
 module tb_pwr_tmr;
@@ -43,7 +41,6 @@ module tb_pwr_tmr;
         l1_entry_limit=16'd10;
         repeat(4) @(posedge clk); rst_n=1; @(posedge clk);
 
-        // TC1: L0s entry timer expires
         @(posedge clk); #1; l0s_entry_req=1;
         @(posedge clk); #1; l0s_entry_req=0;
         begin : TC1
@@ -53,7 +50,6 @@ module tb_pwr_tmr;
             else         begin $display("FAIL [TC1_l0s_entry_exp] cnt=%0d",cnt); fail_count=fail_count+1; end
         end
 
-        // TC2: L0s entry expires after correct delay
         l0s_entry_limit=12'd8;
         @(posedge clk); #1; l0s_entry_req=1;
         @(posedge clk); #1; l0s_entry_req=0;
@@ -76,7 +72,6 @@ module tb_pwr_tmr;
             if (!found) begin $display("FAIL [TC2_l0s_delay] never expired"); fail_count=fail_count+1; end
         end
 
-        // TC3: L1 entry timer expires
         @(posedge clk); #1; l1_entry_req=1;
         @(posedge clk); #1; l1_entry_req=0;
         begin : TC3
@@ -86,7 +81,6 @@ module tb_pwr_tmr;
             else         begin $display("FAIL [TC3_l1_entry_exp] cnt=%0d",cnt); fail_count=fail_count+1; end
         end
 
-        // TC4: L0s exit timer expires (fixed ~4 cycles)
         @(posedge clk); #1; l0s_exit_req=1;
         @(posedge clk); #1; l0s_exit_req=0;
         begin : TC4
@@ -96,7 +90,6 @@ module tb_pwr_tmr;
             else         begin $display("FAIL [TC4_l0s_exit_exp] cnt=%0d",cnt); fail_count=fail_count+1; end
         end
 
-        // TC5: L1 exit timer expires (fixed ~8 cycles)
         @(posedge clk); #1; l1_exit_req=1;
         @(posedge clk); #1; l1_exit_req=0;
         begin : TC5
@@ -106,7 +99,6 @@ module tb_pwr_tmr;
             else         begin $display("FAIL [TC5_l1_exit_exp] cnt=%0d",cnt); fail_count=fail_count+1; end
         end
 
-        // TC6: L0s entry cancelled by exit_req
         l0s_entry_limit=12'd20;
         @(posedge clk); #1; l0s_entry_req=1;
         @(posedge clk); #1; l0s_entry_req=0;
@@ -120,7 +112,6 @@ module tb_pwr_tmr;
             else         begin $display("FAIL [TC6_l0s_cancel] cnt=%0d",cnt); fail_count=fail_count+1; end
         end
 
-        // TC7: L1 entry cancelled by l1_exit_req
         l1_entry_limit=16'd20;
         @(posedge clk); #1; l1_entry_req=1;
         @(posedge clk); #1; l1_entry_req=0;
@@ -134,7 +125,6 @@ module tb_pwr_tmr;
             else         begin $display("FAIL [TC7_l1_cancel] cnt=%0d",cnt); fail_count=fail_count+1; end
         end
 
-        // TC8: All timers pulse only once per request
         l0s_entry_limit=12'd4; l1_entry_limit=16'd6;
         @(posedge clk); #1;
         l0s_entry_req=1; l1_entry_req=1;
@@ -151,7 +141,6 @@ module tb_pwr_tmr;
             else begin $display("FAIL [TC8_once_each] c0=%0d c1=%0d",c0,c1); fail_count=fail_count+1; end
         end
 
-        // TC9: Reset clears all
         rst_n=0; repeat(3) @(posedge clk); #1;
         if (!l0s_entry_timer_exp && !l1_entry_timer_exp &&
             !l0s_exit_timer_exp  && !l1_exit_timer_exp) begin

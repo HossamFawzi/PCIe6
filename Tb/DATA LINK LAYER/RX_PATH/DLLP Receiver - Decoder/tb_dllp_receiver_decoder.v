@@ -1,24 +1,8 @@
-// =============================================================================
-// Testbench: tb_dllp_receiver_decoder
-// Tests the DLLP Receiver/Decoder module:
-//   1. ACK DLLP decode
-//   2. NAK DLLP decode
-//   3. UpdateFC Posted decode (PH + PD)
-//   4. UpdateFC Non-Posted decode (NPH)
-//   5. UpdateFC Completion decode (CplH + CplD)
-//   6. PM DLLP decodes (L1, L23, Active State)
-//   7. NOP ? no output
-//   8. Back-to-back DLLPs
-//   9. Reset clears outputs
-// =============================================================================
 
 `timescale 1ns/1ps
 
 module tb_dllp_receiver_decoder;
 
-    // -------------------------------------------------------------------------
-    // DUT Ports
-    // -------------------------------------------------------------------------
     reg         clk;
     reg         rst_n;
     reg  [47:0] dllp_clean;
@@ -35,9 +19,6 @@ module tb_dllp_receiver_decoder;
     wire [23:0] ack_out;
     wire        ack_out_valid;
 
-    // -------------------------------------------------------------------------
-    // DUT
-    // -------------------------------------------------------------------------
     dllp_receiver_decoder DUT (
         .clk             (clk),
         .rst_n           (rst_n),
@@ -55,49 +36,38 @@ module tb_dllp_receiver_decoder;
         .ack_out_valid   (ack_out_valid)
     );
 
-    // -------------------------------------------------------------------------
-    // Clock 250 MHz
-    // -------------------------------------------------------------------------
     initial clk = 0;
     always #2 clk = ~clk;
 
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
-
-    // Build UpdateFC DLLP body [47:0]
-    // type[7:0] | hdr_scale[1:0] | hdr_fc_hi[5:0] | hdr_fc_lo[1:0] | data_fc[11:0] | pad[7:0]
     function [47:0] make_fc_dllp;
         input [7:0]  dtype;
-        input [7:0]  hfc;   // 8-bit header FC
-        input [11:0] dfc;   // 12-bit data FC
+        input [7:0]  hfc;
+        input [11:0] dfc;
         begin
             make_fc_dllp = {dtype,
-                            2'b00,         // HdrScale
-                            hfc[7:2],      // HdrFC upper 6 bits ? b1[5:0]
-                            hfc[1:0],      // HdrFC lower 2 bits ? b2[7:6]
-                            dfc[11:6],     // DataFC upper 6    ? b2[5:0]
-                            dfc[5:0],      // DataFC lower 6    ? b3[7:2]... simplified
+                            2'b00,
+                            hfc[7:2],
+                            hfc[1:0],
+                            dfc[11:6],
+                            dfc[5:0],
                             6'h00,
-                            8'h00};        // padding
+                            8'h00};
         end
     endfunction
 
-    // Build ACK/NAK DLLP body
     function [47:0] make_ack_dllp;
         input [7:0]  dtype;
         input [11:0] seq;
         begin
             make_ack_dllp = {dtype,
-                             4'h0,          // reserved
                              4'h0,
-                             seq,           // AckNak_SEQ_NUM [11:0]
+                             4'h0,
+                             seq,
                              4'h0,
                              12'h000};
         end
     endfunction
 
-    // Build PM DLLP
     function [47:0] make_pm_dllp;
         input [7:0] dtype;
         begin
@@ -141,9 +111,6 @@ module tb_dllp_receiver_decoder;
         end
     endtask
 
-    // -------------------------------------------------------------------------
-    // Stimulus
-    // -------------------------------------------------------------------------
     initial begin
         $dumpfile("tb_dllp_receiver_decoder.vcd");
         $dumpvars(0, tb_dllp_receiver_decoder);
@@ -156,9 +123,6 @@ module tb_dllp_receiver_decoder;
         rst_n = 1'b1;
         wait_cycles(2);
 
-        // ==================================================================
-        // TEST 1: ACK DLLP
-        // ==================================================================
         $display("\n=== TEST 1: ACK DLLP decode ===");
         send_dllp(make_ack_dllp(8'h00, 12'hABC));
         wait_cycles(1);
@@ -168,9 +132,6 @@ module tb_dllp_receiver_decoder;
         check(pm_valid        == 1'b0,      "pm_valid=0 on ACK");
         wait_cycles(2);
 
-        // ==================================================================
-        // TEST 2: NAK DLLP
-        // ==================================================================
         $display("\n=== TEST 2: NAK DLLP decode ===");
         send_dllp(make_ack_dllp(8'h10, 12'h123));
         wait_cycles(1);
@@ -179,11 +140,8 @@ module tb_dllp_receiver_decoder;
         check(fc_update_valid == 1'b0,      "fc_update_valid=0 on NAK");
         wait_cycles(2);
 
-        // ==================================================================
-        // TEST 3: UpdateFC Posted
-        // ==================================================================
         $display("\n=== TEST 3: UpdateFC Posted ===");
-        // PH=10'd64, PD=12'd128
+
         send_dllp(make_fc_dllp(8'h40, 8'd64, 12'd128));
         wait_cycles(1);
         check(fc_update_valid == 1'b1,      "fc_update_valid=1 on UPD_FC_P");
@@ -191,27 +149,18 @@ module tb_dllp_receiver_decoder;
         check(pm_valid        == 1'b0,      "pm_valid=0 on FC");
         wait_cycles(2);
 
-        // ==================================================================
-        // TEST 4: UpdateFC Non-Posted
-        // ==================================================================
         $display("\n=== TEST 4: UpdateFC Non-Posted ===");
         send_dllp(make_fc_dllp(8'h50, 8'd32, 12'd0));
         wait_cycles(1);
         check(fc_update_valid == 1'b1,      "fc_update_valid=1 on UPD_FC_NP");
         wait_cycles(2);
 
-        // ==================================================================
-        // TEST 5: UpdateFC Completion
-        // ==================================================================
         $display("\n=== TEST 5: UpdateFC Completion ===");
         send_dllp(make_fc_dllp(8'h60, 8'd16, 12'd256));
         wait_cycles(1);
         check(fc_update_valid == 1'b1,      "fc_update_valid=1 on UPD_FC_CPL");
         wait_cycles(2);
 
-        // ==================================================================
-        // TEST 6: PM Enter L1
-        // ==================================================================
         $display("\n=== TEST 6: PM Enter L1 ===");
         send_dllp(make_pm_dllp(8'h20));
         wait_cycles(1);
@@ -221,9 +170,6 @@ module tb_dllp_receiver_decoder;
         check(ack_out_valid   == 1'b0,      "ack_out_valid=0 on PM");
         wait_cycles(2);
 
-        // ==================================================================
-        // TEST 7: PM Enter L23
-        // ==================================================================
         $display("\n=== TEST 7: PM Enter L23 ===");
         send_dllp(make_pm_dllp(8'h21));
         wait_cycles(1);
@@ -231,9 +177,6 @@ module tb_dllp_receiver_decoder;
         check(pm_type  == 3'd1,             "pm_type=1 (L23)");
         wait_cycles(2);
 
-        // ==================================================================
-        // TEST 8: NOP ? no output
-        // ==================================================================
         $display("\n=== TEST 8: NOP ? no output ===");
         send_dllp({8'hC8, 40'h0});
         wait_cycles(1);
@@ -242,25 +185,19 @@ module tb_dllp_receiver_decoder;
         check(ack_out_valid   == 1'b0,      "ack_out_valid=0 on NOP");
         wait_cycles(2);
 
-        // ==================================================================
-        // TEST 9: Back-to-back DLLPs
-        // ==================================================================
         $display("\n=== TEST 9: Back-to-back DLLPs ===");
         @(posedge clk);
         dllp_clean       = make_ack_dllp(8'h00, 12'h001);
         dllp_clean_valid = 1'b1;
         @(posedge clk);
         dllp_clean       = make_fc_dllp(8'h40, 8'd10, 12'd20);
-        // valid stays high
+
         @(posedge clk);
         dllp_clean_valid = 1'b0;
         wait_cycles(1);
         check(fc_update_valid == 1'b1,      "FC valid on 2nd back-to-back DLLP");
         wait_cycles(2);
 
-        // ==================================================================
-        // TEST 10: Reset
-        // ==================================================================
         $display("\n=== TEST 10: Reset clears outputs ===");
         rst_n = 1'b0;
         wait_cycles(2);
@@ -271,9 +208,6 @@ module tb_dllp_receiver_decoder;
         check(ack_out_valid   == 1'b0,      "ack_out_valid=0 after reset");
         wait_cycles(2);
 
-        // ==================================================================
-        // Summary
-        // ==================================================================
         $display("\n=================================================");
         $display("  RESULTS: %0d PASSED,  %0d FAILED", pass_count, fail_count);
         $display("=================================================\n");

@@ -1,15 +1,3 @@
-// ============================================================
-// Module: rx_tlp_router
-// PCIe Gen6 Transaction Layer - RX TLP Router / MUX
-// FIX: All routing outputs are now COMBINATORIAL (always @*).
-//      Removing the register stage here means downstream
-//      handlers (MWR_HDL, MSG_HDL, ATOP, CPL_Q) see their
-//      valid and data in the same cycle as tlp_fwd_valid,
-//      which is itself combinatorial from MAL_CHK/PSND.
-//      The net pipeline is therefore:
-//        HDR_PARSE (1 reg) -> MAL_CHK/PSND/RTR (comb) -> handler (1 reg)
-//      = 2 clock cycles from SOP to output, matching the TB.
-// ============================================================
 
 module rx_tlp_router (
     input  wire          clk,
@@ -37,19 +25,14 @@ module rx_tlp_router (
                      (tlp_type == 5'b01101) ||
                      (tlp_type == 5'b01110);
 
-    // Route only when tlp_fwd_valid AND ECRC passed
     wire route_en = tlp_fwd_valid && ecrc_ok;
 
-    // -------------------------------------------------------
-    // Combinatorial routing (no clock, no register)
-    // -------------------------------------------------------
     assign to_cpl_valid    = route_en & is_cpl;
     assign to_mwr_valid    = route_en & is_mem;
     assign to_cfg_valid    = route_en & (is_cfg | is_io);
     assign to_msg_valid    = route_en & is_msg;
     assign to_atomic_valid = route_en & is_atomic;
 
-    // Forward the raw TLP bus to all handlers (only one valid asserted)
     assign routed_tlp = route_en ? tlp_rx : 1024'b0;
 
 endmodule

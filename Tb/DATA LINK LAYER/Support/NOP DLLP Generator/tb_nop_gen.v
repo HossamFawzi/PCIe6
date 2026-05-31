@@ -23,40 +23,34 @@ module tb_nop_gen;
     initial begin
         $display("=== TB: nop_gen ===");
 
-        // TC1: Reset
         $display("[TC1] Reset clears outputs");
         rst; @(posedge clk); #1;
         chk1(0,nop_send,"nop_send=0 after reset");
         chk8(0,nop_count,"nop_count=0 after reset");
 
-        // TC2: dll_active=0 suppresses NOP
         $display("[TC2] dll_active=0 suppresses NOP");
         rst; dll_active=0;
         nop_timer_exp=1; @(posedge clk); #1; nop_timer_exp=0;
         chk1(0,nop_send,"nop_send=0 when dll_active=0");
 
-        // TC3: nop_inhibit=1 suppresses NOP
         $display("[TC3] nop_inhibit suppresses NOP");
         rst; dll_active=1; nop_inhibit=1;
         nop_timer_exp=1; @(posedge clk); #1; nop_timer_exp=0;
         chk1(0,nop_send,"nop_send=0 when nop_inhibit=1");
 
-        // TC4: Normal NOP - input high BEFORE posedge, check AFTER posedge+#1
         $display("[TC4] Normal NOP send");
         rst; dll_active=1; nop_inhibit=0;
         nop_timer_exp=1; @(posedge clk); #1;
-        // At this point: posedge registered nop_timer_exp=1 -> nop_send=1
+
         chk1(1,nop_send,"nop_send=1 on timer_exp");
         nop_timer_exp=0;
 
-        // TC5: NOP DLLP type byte = 0x00
         $display("[TC5] nop_dllp type byte=0x00");
         rst; dll_active=1;
         nop_timer_exp=1; @(posedge clk); #1;
         chk8(8'h00,nop_dllp[63:56],"NOP type=0x00");
         nop_timer_exp=0;
 
-        // TC6: nop_count increments per NOP
         $display("[TC6] nop_count increments per NOP");
         rst; dll_active=1;
         repeat(3) begin
@@ -65,7 +59,6 @@ module tb_nop_gen;
         end
         chk8(8'd3,nop_count,"nop_count=3 after 3 NOPs");
 
-        // TC7: count unchanged when inhibited
         $display("[TC7] nop_count unchanged when inhibited");
         rst; dll_active=1; nop_inhibit=1;
         repeat(3) begin
@@ -74,11 +67,10 @@ module tb_nop_gen;
         end
         chk8(8'd0,nop_count,"nop_count=0 when inhibited");
 
-        // TC8: nop_send is one-cycle pulse
         $display("[TC8] nop_send is one-cycle pulse");
         rst; dll_active=1;
         nop_timer_exp=1; @(posedge clk); #1; nop_timer_exp=0;
-        @(posedge clk); #1;  // next cycle: timer=0, nop_send<=0
+        @(posedge clk); #1;
         chk1(0,nop_send,"nop_send auto-clears");
 
         $display("=== nop_gen: %0d PASSED, %0d FAILED ===",pass_count,fail_count);

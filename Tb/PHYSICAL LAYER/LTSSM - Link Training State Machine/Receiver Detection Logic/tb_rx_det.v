@@ -1,6 +1,4 @@
-// ============================================================
-// Testbench for Module 47 : Receiver Detection Logic
-// ============================================================
+
 `timescale 1ns/1ps
 
 module tb_rx_det;
@@ -56,11 +54,10 @@ module tb_rx_det;
         pipe_phystatus=0; detect_timeout_val=16'd50;
         repeat(4) @(posedge clk); rst_n=1; @(posedge clk);
 
-        // TC1: Receiver detected (EI goes low after phystatus)
-        pipe_rx_elec_idle = 0;  // Receiver termination present
+        pipe_rx_elec_idle = 0;
         start_det;
         repeat(5) @(posedge clk);
-        // Assert phystatus
+
         @(posedge clk); #1; pipe_phystatus=1;
         @(posedge clk); #1; pipe_phystatus=0;
         wait_done;
@@ -71,8 +68,7 @@ module tb_rx_det;
             fail_count=fail_count+1;
         end
 
-        // TC2: No receiver (EI stays high)
-        pipe_rx_elec_idle = 1;  // No receiver termination
+        pipe_rx_elec_idle = 1;
         start_det;
         repeat(5) @(posedge clk);
         @(posedge clk); #1; pipe_phystatus=1;
@@ -85,7 +81,6 @@ module tb_rx_det;
             fail_count=fail_count+1;
         end
 
-        // TC3: Timeout when phystatus never comes — latch pulse
         begin : TC3
             integer saw_to; saw_to=0;
             detect_timeout_val = 16'd10;
@@ -103,7 +98,6 @@ module tb_rx_det;
             detect_timeout_val = 16'd50;
         end
 
-        // TC4: detect_done pulses only once
         begin : TC4
             integer cnt; cnt=0;
             pipe_rx_elec_idle=0;
@@ -116,7 +110,6 @@ module tb_rx_det;
             else         begin $display("FAIL [TC4_done_pulse] cnt=%0d",cnt); fail_count=fail_count+1; end
         end
 
-        // TC5: No action without detect_start
         pipe_rx_elec_idle=0; pipe_phystatus=1;
         @(posedge clk); #1; pipe_phystatus=0;
         repeat(5) @(posedge clk);
@@ -126,7 +119,6 @@ module tb_rx_det;
             $display("FAIL [TC5_no_start_no_action]"); fail_count=fail_count+1;
         end
 
-        // TC6: lanes_det = 0xFFFF when receiver found
         pipe_rx_elec_idle=0;
         start_det;
         repeat(3) @(posedge clk);
@@ -139,7 +131,6 @@ module tb_rx_det;
             $display("FAIL [TC6_lanes_det] got=%h", lanes_det); fail_count=fail_count+1;
         end
 
-        // TC7: Reset clears
         rst_n=0; repeat(3) @(posedge clk); #1;
         if (!receiver_detected && !detect_done && !detect_timeout && lanes_det===16'd0) begin
             $display("PASS [TC7_reset]"); pass_count=pass_count+1;
@@ -148,7 +139,6 @@ module tb_rx_det;
         end
         rst_n=1;
 
-        // TC8: Back-to-back detections
         begin : TC8
             integer j;
             for (j=0; j<3; j=j+1) begin

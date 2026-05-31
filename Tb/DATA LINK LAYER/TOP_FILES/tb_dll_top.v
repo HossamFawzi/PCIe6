@@ -1,15 +1,8 @@
-// =============================================================================
-// tb_dll_top.v  —  PCIe Gen6 Data Link Layer  |  Comprehensive Testbench
-// 85 test cases covering every DLL sub-module
-// Compile: iverilog -g2012 -o sim tb_dll_top.v *.v && vvp sim
-// =============================================================================
+
 `timescale 1ns/1ps
 
 module tb_dll_top;
 
-// ============================================================================
-// Clock / Reset
-// ============================================================================
 reg clk, rst_n;
 initial clk = 0;
 always  #5 clk = ~clk;
@@ -23,9 +16,6 @@ task do_reset;
     end
 endtask
 
-// ============================================================================
-// Scorecard
-// ============================================================================
 integer pass_cnt, fail_cnt;
 initial begin pass_cnt = 0; fail_cnt = 0; end
 
@@ -43,9 +33,6 @@ task check;
     end
 endtask
 
-// ============================================================================
-// CRC helpers
-// ============================================================================
 function [31:0] crc32_lcrc;
     input [991:0] data;
     integer b, k;
@@ -66,17 +53,11 @@ function [31:0] crc32_lcrc;
     end
 endfunction
 
-// ============================================================================
-// Shared regs
-// ============================================================================
 integer      i, beat;
 reg [991:0]  body992;
 reg [31:0]   crc32_val;
 reg [255:0]  beat_data;
 
-// ============================================================================
-// M1: ack_nak_scheduler_tx
-// ============================================================================
 reg  [11:0] m1_seq_rx;
 reg         m1_crc_ok, m1_tlp_valid, m1_timer_exp;
 reg  [7:0]  m1_ack_freq;
@@ -90,9 +71,6 @@ ack_nak_scheduler_tx u_ack_sched (
     .ack_dllp(m1_ack_dllp),.nak_dllp(m1_nak_dllp),
     .dllp_valid(m1_dllp_valid),.dllp_type(m1_dllp_type));
 
-// ============================================================================
-// M2: ack_nak_receiver
-// ============================================================================
 reg  [23:0] m2_ack_out;
 reg         m2_ack_valid_in;
 wire [11:0] m2_ack_seq, m2_nak_seq;
@@ -103,9 +81,6 @@ ack_nak_receiver u_ack_rx (
     .ack_seq(m2_ack_seq),.nak_seq(m2_nak_seq),
     .ack_valid(m2_ack_valid),.nak_valid(m2_nak_valid),.retry_req(m2_retry_req));
 
-// ============================================================================
-// M3+M4: dllp_crc_gen + dllp_crc_chk
-// ============================================================================
 reg  [47:0] m3_dllp_in;
 reg         m3_valid_in;
 wire [15:0] m3_crc_out;
@@ -126,9 +101,6 @@ dllp_crc_chk u_crc_chk (
     .dllp_body(m4_body),.dllp_crc_ok(m4_crc_ok),
     .dllp_crc_err(m4_crc_err),.dllp_valid_out(m4_valid_out));
 
-// ============================================================================
-// M5: dllp_mal_chk
-// ============================================================================
 reg  [47:0] m5_body;
 reg         m5_crc_ok, m5_valid_in;
 wire        m5_type_ok, m5_mal_err, m5_clean_valid;
@@ -140,9 +112,6 @@ dllp_mal_chk u_mal (
     .dllp_type_ok(m5_type_ok),.dllp_mal_err(m5_mal_err),
     .dllp_clean(m5_clean),.dllp_clean_valid(m5_clean_valid));
 
-// ============================================================================
-// M6: dllp_receiver_decoder
-// ============================================================================
 reg  [47:0] m6_clean;
 reg         m6_clean_valid;
 wire [7:0]  m6_fc_ph, m6_fc_nph, m6_fc_cplh;
@@ -159,9 +128,6 @@ dllp_receiver_decoder u_dec (
     .pm_type(m6_pm_type),.pm_valid(m6_pm_valid),
     .ack_out(m6_ack_out),.ack_out_valid(m6_ack_out_valid));
 
-// ============================================================================
-// M7: dllp_arb
-// ============================================================================
 reg  [63:0] m7_ack_dllp, m7_fc_dllp, m7_pm_dllp;
 reg         m7_ack_v, m7_fc_v, m7_pm_v, m7_nop_v, m7_bw_v;
 wire [63:0] m7_out;
@@ -176,9 +142,6 @@ dllp_arb u_arb (
     .nop_valid(m7_nop_v),.bw_dllp_valid(m7_bw_v),
     .dllp_out(m7_out),.dllp_out_valid(m7_out_v),.dllp_type(m7_type));
 
-// ============================================================================
-// M8: scrambler + Descrambler
-// ============================================================================
 reg  [255:0] m8_data_in;
 reg          m8_valid_in, m8_link_rst, m8_sc_en;
 reg  [22:0]  m8_seed;
@@ -196,9 +159,6 @@ Descrambler u_dsc (
     .lfsr_seed(m8_seed),.scramble_en(m8_sc_en),.link_reset(m8_link_rst),
     .data_out(m8_dsc_out),.data_valid_out(m8_dsc_vout),.lfsr_sync_err(m8_dsc_err));
 
-// ============================================================================
-// M9: seq_num_gen
-// ============================================================================
 reg         m9_tlp_valid, m9_retry_req, m9_link_rst;
 reg  [11:0] m9_ack_seq, m9_nak_seq;
 wire [11:0] m9_seq_num;
@@ -210,9 +170,6 @@ seq_num_gen u_sg (
     .link_reset(m9_link_rst),.seq_num(m9_seq_num),
     .seq_valid(m9_seq_valid),.seq_wrap(m9_seq_wrap));
 
-// ============================================================================
-// M10: retry_buf (small)
-// ============================================================================
 reg  [1055:0] m10_tlp_in;
 reg           m10_write_en;
 reg  [11:0]   m10_seq_in, m10_ack_seq, m10_nak_seq;
@@ -231,9 +188,6 @@ retry_buf #(.BUF_DEPTH(16),.TLP_WIDTH(1056),.PTR_W(4)) u_rb (
     .retry_seq(m10_retry_seq),.buf_full(m10_full),.buf_occ(m10_occ),
     .purge_done(m10_purge_done));
 
-// ============================================================================
-// M11: replay_fsm
-// ============================================================================
 reg         m11_nak_valid, m11_replay_timer;
 reg  [11:0] m11_nak_seq;
 reg  [1:0]  m11_replay_num;
@@ -248,9 +202,6 @@ replay_fsm u_rf (
     .retry_req(m11_retry_req),.retry_seq_start(m11_retry_seq),
     .dll_link_down(m11_link_down),.replay_rollover_err(m11_rollover));
 
-// ============================================================================
-// M12: lcrc_flit_crc_chk
-// ============================================================================
 reg  [1055:0] m12_tlp_rx;
 reg           m12_valid, m12_flit_mode;
 wire          m12_ok, m12_err;
@@ -263,9 +214,6 @@ lcrc_flit_crc_chk u_lcrc (
     .flit_mode_en(m12_flit_mode),.crc_ok(m12_ok),.crc_err(m12_err),
     .tlp_clean(m12_clean),.tlp_clean_valid(m12_clean_v),.seq_rx(m12_seq));
 
-// ============================================================================
-// M13: seq_num_checker_rx
-// ============================================================================
 reg  [11:0]   m13_seq_rx;
 reg           m13_tlp_valid, m13_tlp_ok, m13_link_rst;
 reg  [1023:0] m13_tlp_clean;
@@ -282,9 +230,6 @@ seq_num_checker_rx u_snc (
     .seq_err_val(m13_err_val),.next_expected(m13_next_exp),
     .tlp_fwd(m13_fwd),.tlp_fwd_valid(m13_fwd_valid));
 
-// ============================================================================
-// M14: dll_err
-// ============================================================================
 reg         m14_rollover, m14_dllp_crc, m14_dllp_mal;
 reg         m14_lcrc, m14_flit_uncorr, m14_lfsr;
 wire [5:0]  m14_aer;
@@ -299,9 +244,6 @@ dll_err u_de (
     .dll_err_to_aer(m14_aer),.dll_err_valid(m14_valid),
     .dll_err_type(m14_type),.dll_err_severity(m14_sev));
 
-// ============================================================================
-// M15: nop_gen
-// ============================================================================
 reg         m15_active, m15_timer_exp, m15_inhibit;
 wire        m15_send;
 wire [63:0] m15_dllp;
@@ -312,9 +254,6 @@ nop_gen u_ng (
     .nop_timer_exp(m15_timer_exp),.nop_inhibit(m15_inhibit),
     .nop_send(m15_send),.nop_dllp(m15_dllp),.nop_count(m15_count));
 
-// ============================================================================
-// M16: fc_tmr
-// ============================================================================
 reg         m16_sent, m16_active;
 reg  [15:0] m16_limit;
 wire        m16_req, m16_exp;
@@ -324,9 +263,6 @@ fc_tmr u_ft (
     .fc_timer_limit(m16_limit),.dll_active(m16_active),
     .fc_update_req(m16_req),.fc_timer_exp(m16_exp));
 
-// ============================================================================
-// M17: fc_wdg
-// ============================================================================
 reg         m17_p, m17_np, m17_cpl, m17_pending, m17_active;
 reg  [15:0] m17_limit;
 wire        m17_deadlock, m17_err, m17_recov;
@@ -337,9 +273,6 @@ fc_wdg u_fw (
     .fc_watchdog_limit(m17_limit),.dll_active(m17_active),
     .fc_deadlock_det(m17_deadlock),.fc_watchdog_err(m17_err),.fc_recovery_req(m17_recov));
 
-// ============================================================================
-// M18: ack_tmr
-// ============================================================================
 reg         m18_tlp_valid, m18_ack_sent;
 reg  [15:0] m18_ack_lim, m18_replay_lim;
 wire        m18_ack_exp, m18_replay_exp;
@@ -351,9 +284,6 @@ ack_tmr u_at (
     .ack_timer_exp(m18_ack_exp),.replay_timer_exp(m18_replay_exp),
     .replay_num(m18_replay_num));
 
-// ============================================================================
-// M19: phy_interface_rx
-// ============================================================================
 reg  [255:0] m19_rxd;
 reg          m19_valid;
 reg  [2:0]   m19_status;
@@ -370,9 +300,6 @@ phy_interface_rx u_pr (
     .ltssm_dl_up(m19_dl_up),.rx_data(m19_rx_data),.rx_valid(m19_rx_valid),
     .rx_flit(m19_rx_flit),.rx_flit_valid(m19_rx_flit_valid));
 
-// ============================================================================
-// M20: dll_init
-// ============================================================================
 reg         m20_ltssm_up, m20_ltssm_down, m20_fc_done;
 reg         m20_rollover, m20_link_down;
 wire        m20_dll_up, m20_rst_seq, m20_active, m20_error;
@@ -383,9 +310,6 @@ dll_init u_di (
     .dll_link_down(m20_link_down),.dll_up_to_tl(m20_dll_up),
     .dll_reset_seq(m20_rst_seq),.dll_active(m20_active),.dll_error(m20_error));
 
-// ============================================================================
-// M21: pm_tmr
-// ============================================================================
 reg         m21_l0s_entry, m21_l1_entry, m21_l0s_exit, m21_l1_exit;
 reg  [15:0] m21_l0s_lim, m21_l1_lim;
 wire        m21_l0s_exp, m21_l1_exp, m21_pm_err;
@@ -396,9 +320,6 @@ pm_tmr u_pt (
     .l0s_limit(m21_l0s_lim),.l1_limit(m21_l1_lim),
     .l0s_timer_exp(m21_l0s_exp),.l1_timer_exp(m21_l1_exp),.pm_timeout_err(m21_pm_err));
 
-// ============================================================================
-// M22: ack_pgb
-// ============================================================================
 reg  [11:0] m22_pending_seq;
 reg         m22_pending, m22_nop_req;
 reg  [15:0] m22_lat_lim;
@@ -411,9 +332,6 @@ ack_pgb u_apgb (
     .ack_piggyback_seq(m22_pgb_seq),.ack_piggyback_valid(m22_pgb_valid),
     .ack_sent(m22_ack_sent));
 
-// ============================================================================
-// M23: fc_init_fsm
-// ============================================================================
 reg         m23_active, m23_rx_valid, m23_timeout;
 reg  [71:0] m23_rx;
 wire [71:0] m23_tx;
@@ -426,9 +344,6 @@ fc_init_fsm u_fi (
     .initfc_tx(m23_tx),.initfc_tx_send(m23_tx_send),
     .fc_init_done(m23_done),.fc_init_err(m23_err),.fc_init_state(m23_state));
 
-// ============================================================================
-// M24: lbw_fsm
-// ============================================================================
 reg  [3:0]  m24_speed;
 reg  [5:0]  m24_width;
 reg         m24_bw_change, m24_eq_req;
@@ -442,9 +357,6 @@ lbw_fsm u_lbw (
     .bw_notif_dllp(m24_bw_dllp),.bw_notif_valid(m24_bw_valid),
     .link_eq_req(m24_eq_req_out),.link_eq_ack(m24_eq_ack),.bw_status(m24_bw_status));
 
-// ============================================================================
-// M25: pm_fsm
-// ============================================================================
 reg  [2:0]  m25_req_sw, m25_pm_rx;
 reg         m25_pm_rx_valid, m25_l0s_exp, m25_l1_exp;
 wire [2:0]  m25_pm_type, m25_ls, m25_ltssm_req;
@@ -456,9 +368,6 @@ pm_fsm u_pmfsm (
     .pm_dllp_type(m25_pm_type),.pm_dllp_send(m25_pm_send),
     .link_state(m25_ls),.ltssm_pm_req(m25_ltssm_req));
 
-// ============================================================================
-// M26: flit_seq
-// ============================================================================
 reg  [11:0] m26_tx_seq, m26_rx_seq, m26_ack_seq, m26_nak_seq;
 reg         m26_link_rst;
 wire [11:0] m26_oldest;
@@ -470,9 +379,6 @@ flit_seq u_fs (
     .oldest_unacked_seq(m26_oldest),.seq_window_full(m26_win_full),
     .seq_wrap_det(m26_wrap),.seq_err(m26_err));
 
-// ============================================================================
-// Initialize all inputs
-// ============================================================================
 task init_all;
     begin
         m1_seq_rx=0;m1_crc_ok=0;m1_tlp_valid=0;m1_timer_exp=0;m1_ack_freq=4;
@@ -506,16 +412,11 @@ task init_all;
     end
 endtask
 
-// ============================================================================
-// TESTS
-// ============================================================================
 initial begin
     $dumpfile("tb_dll_top.vcd");
     $dumpvars(0, tb_dll_top);
     init_all; do_reset;
 
-    // ===== TC01-05: ACK/NAK Scheduler TX =====
-    // TC01: No ACK below threshold
     m1_ack_freq=8'd4;
     repeat(3) begin
         @(negedge clk);m1_tlp_valid=1;m1_crc_ok=1;m1_seq_rx=12'd5;
@@ -523,17 +424,14 @@ initial begin
     end
     check(!m1_dllp_valid,"TC01: No ACK when count<freq");
 
-    // TC02: ACK fires at threshold
     @(negedge clk);m1_tlp_valid=1;m1_crc_ok=1;m1_seq_rx=12'd10;
     @(posedge clk);@(negedge clk);m1_tlp_valid=0;@(posedge clk);
     check(m1_dllp_valid && m1_dllp_type==2'b01,"TC02: ACK fires at freq=4");
 
-    // TC03: NAK on CRC fail
     @(negedge clk);m1_tlp_valid=1;m1_crc_ok=0;m1_seq_rx=12'd20;
     @(posedge clk);@(negedge clk);m1_tlp_valid=0;@(posedge clk);
     check(m1_dllp_valid && m1_dllp_type==2'b10,"TC03: NAK on CRC fail");
 
-    // TC04: Timer-flush ACK
     m1_ack_freq=8'd8;
     @(negedge clk);m1_tlp_valid=1;m1_crc_ok=1;m1_seq_rx=12'd30;
     @(posedge clk);@(negedge clk);m1_tlp_valid=0;
@@ -541,65 +439,52 @@ initial begin
     @(posedge clk);@(negedge clk);m1_timer_exp=0;@(posedge clk);
     check(m1_dllp_valid && m1_dllp_type==2'b01,"TC04: Timer flush ACK");
 
-    // TC05: No spurious output when both valid and timer=0
     m1_ack_freq=8'd8;
     @(posedge clk);@(posedge clk);
     check(!m1_dllp_valid,"TC05: No spurious DLLP when idle");
     do_reset;
 
-    // ===== TC06-10: ACK/NAK Receiver =====
-    // TC06: Valid ACK accepted
     @(negedge clk);m2_ack_out={8'h00,12'd7,4'h0};m2_ack_valid_in=1;
     @(posedge clk);@(negedge clk);m2_ack_valid_in=0;@(posedge clk);
     check(m2_ack_valid && m2_ack_seq==12'd7,"TC06: ACK seq=7 accepted");
 
-    // TC07: NAK triggers retry
     @(negedge clk);m2_ack_out={8'h01,12'd10,4'h0};m2_ack_valid_in=1;
     @(posedge clk);@(negedge clk);m2_ack_valid_in=0;@(posedge clk);
     check(m2_nak_valid && m2_retry_req,"TC07: NAK triggers retry_req");
 
-    // TC08: Out-of-window rejected
     @(negedge clk);m2_ack_out={8'h00,12'd5,4'h0};m2_ack_valid_in=1;
     @(posedge clk);@(negedge clk);m2_ack_valid_in=0;@(posedge clk);
     check(!m2_ack_valid,"TC08: Out-of-window ACK rejected (BUG FIX)");
 
-    // TC09: Max-window boundary (seq=2047 when oldest=0)
     do_reset;
     @(negedge clk);m2_ack_out={8'h00,12'd2047,4'h0};m2_ack_valid_in=1;
     @(posedge clk);@(negedge clk);m2_ack_valid_in=0;@(posedge clk);
     check(m2_ack_valid && m2_ack_seq==12'd2047,"TC09: Max-window ACK accepted");
 
-    // TC10: Just-past-window (2048) rejected
     do_reset;
     @(negedge clk);m2_ack_out={8'h00,12'd2048,4'h0};m2_ack_valid_in=1;
     @(posedge clk);@(negedge clk);m2_ack_valid_in=0;@(posedge clk);
     check(!m2_ack_valid,"TC10: dist=2048 rejected (outside window)");
     do_reset;
 
-    // ===== TC11-15: DLLP CRC =====
-    // TC11: Round-trip match
     @(negedge clk);m3_dllp_in=48'h001234_567890;m3_valid_in=1;
     @(posedge clk);@(negedge clk);m3_valid_in=0;
     m4_raw=m3_full_out;m4_rx_valid=1;
     @(posedge clk);@(negedge clk);m4_rx_valid=0;@(posedge clk);
     check(m4_crc_ok && !m4_crc_err,"TC11: DLLP CRC round-trip OK (BUG FIX)");
 
-    // TC12: CRC error on corrupt CRC field
     @(negedge clk);m4_raw={m3_full_out[63:48]^16'hBEEF,m3_full_out[47:0]};m4_rx_valid=1;
     @(posedge clk);@(negedge clk);m4_rx_valid=0;@(posedge clk);
     check(!m4_crc_ok && m4_crc_err,"TC12: CRC error detected");
 
-    // TC13: Body zeroed on error
     check(m4_body==48'h0,"TC13: Body=0 on CRC fail");
 
-    // TC14: Body forwarded on pass
     @(negedge clk);m3_dllp_in=48'hABCDEF_123456;m3_valid_in=1;
     @(posedge clk);@(negedge clk);m3_valid_in=0;
     m4_raw=m3_full_out;m4_rx_valid=1;
     @(posedge clk);@(negedge clk);m4_rx_valid=0;@(posedge clk);
     check(m4_valid_out && m4_body==48'hABCDEF_123456,"TC14: Body forwarded on pass");
 
-    // TC15: NOP DLLP type=0x31 correct CRC
     @(negedge clk);m3_dllp_in={8'h31,40'h0};m3_valid_in=1;
     @(posedge clk);@(negedge clk);m3_valid_in=0;
     m4_raw=m3_full_out;m4_rx_valid=1;
@@ -607,85 +492,66 @@ initial begin
     check(m4_crc_ok && m4_body[47:40]==8'h31,"TC15: NOP 0x31 CRC OK");
     do_reset;
 
-    // ===== TC16-20: Malformed DLLP =====
-    // TC16: Valid ACK passes
     @(negedge clk);m5_body={8'h00,16'h0000,12'hABC,12'h000};m5_crc_ok=1;m5_valid_in=1;
     @(posedge clk);@(negedge clk);m5_valid_in=0;@(posedge clk);
     check(m5_type_ok && m5_clean_valid && !m5_mal_err,"TC16: Valid ACK passes");
 
-    // TC17: Unknown type 0xFF rejected
     @(negedge clk);m5_body={8'hFF,40'h0};m5_crc_ok=1;m5_valid_in=1;
     @(posedge clk);@(negedge clk);m5_valid_in=0;@(posedge clk);
     check(m5_mal_err && !m5_clean_valid,"TC17: Unknown 0xFF rejected");
 
-    // TC18: UpdateFC with VC_ID=3 rejected
     @(negedge clk);m5_body={8'h40,4'd3,36'h0};m5_crc_ok=1;m5_valid_in=1;
     @(posedge clk);@(negedge clk);m5_valid_in=0;@(posedge clk);
     check(m5_mal_err,"TC18: Non-zero VC_ID rejected");
 
-    // TC19: NOP=0x31 passes (BUG FIX)
     @(negedge clk);m5_body={8'h31,40'h0};m5_crc_ok=1;m5_valid_in=1;
     @(posedge clk);@(negedge clk);m5_valid_in=0;@(posedge clk);
     check(!m5_mal_err && m5_clean_valid,"TC19: NOP=0x31 passes (BUG FIX)");
 
-    // TC20: NAK=0x10 passes
     @(negedge clk);m5_body={8'h10,16'h0000,12'h123,12'h000};m5_crc_ok=1;m5_valid_in=1;
     @(posedge clk);@(negedge clk);m5_valid_in=0;@(posedge clk);
     check(!m5_mal_err && m5_clean_valid,"TC20: NAK=0x10 passes");
     do_reset;
 
-    // ===== TC21-25: DLLP Decoder =====
-    // TC21: ACK seq bits [23:12] extracted (BUG FIX)
     @(negedge clk);m6_clean={8'h00,16'h0000,12'hBCD,12'h000};m6_clean_valid=1;
     @(posedge clk);@(negedge clk);m6_clean_valid=0;@(posedge clk);
     check(m6_ack_out_valid && m6_ack_out[15:4]==12'hBCD,"TC21: ACK seq=BCD (BUG FIX)");
 
-    // TC22: NAK decoded, flag=0x01
     @(negedge clk);m6_clean={8'h10,16'h0000,12'h123,12'h000};m6_clean_valid=1;
     @(posedge clk);@(negedge clk);m6_clean_valid=0;@(posedge clk);
     check(m6_ack_out_valid && m6_ack_out[23:16]==8'h01,"TC22: NAK flag=0x01");
 
-    // TC23: UpdateFC → fc_update_valid
     @(negedge clk);m6_clean={8'h40,4'h0,8'hAB,12'h123,16'h0};m6_clean_valid=1;
     @(posedge clk);@(negedge clk);m6_clean_valid=0;@(posedge clk);
     check(m6_fc_valid,"TC23: UpdateFC → fc_update_valid");
 
-    // TC24: PM_Enter_L1 (0x20) decoded
     @(negedge clk);m6_clean={8'h20,40'h0};m6_clean_valid=1;
     @(posedge clk);@(negedge clk);m6_clean_valid=0;@(posedge clk);
     check(m6_pm_valid && m6_pm_type==3'd0,"TC24: PM L1 decoded");
 
-    // TC25: NOP=0x31 silent (BUG FIX)
     @(negedge clk);m6_clean={8'h31,40'h0};m6_clean_valid=1;
     @(posedge clk);@(negedge clk);m6_clean_valid=0;@(posedge clk);
     check(!m6_ack_out_valid && !m6_fc_valid && !m6_pm_valid,"TC25: NOP silent (BUG FIX)");
     do_reset;
 
-    // ===== TC26-29: DLLP Arbiter =====
-    // TC26: ACK wins
     @(negedge clk);m7_ack_dllp={8'h00,56'h0};m7_fc_dllp={8'h40,56'h0};
     m7_pm_dllp={8'h20,56'h0};m7_ack_v=1;m7_fc_v=1;m7_pm_v=1;m7_nop_v=1;m7_bw_v=1;
     @(posedge clk);@(negedge clk);m7_ack_v=0;m7_fc_v=0;m7_pm_v=0;m7_nop_v=0;m7_bw_v=0;
     @(posedge clk);
     check(m7_out_v && m7_type==4'h0,"TC26: ACK wins priority");
 
-    // TC27: FC over PM/NOP
     @(negedge clk);m7_fc_v=1;m7_pm_v=1;m7_nop_v=1;
     @(posedge clk);@(negedge clk);m7_fc_v=0;m7_pm_v=0;m7_nop_v=0;@(posedge clk);
     check(m7_out_v && m7_type==4'h2,"TC27: FC over PM/NOP");
 
-    // TC28: NOP=0x31 type byte
     @(negedge clk);m7_nop_v=1;
     @(posedge clk);@(negedge clk);m7_nop_v=0;@(posedge clk);
     check(m7_out_v && m7_type==4'h5 && m7_out[63:56]==8'h31,"TC28: NOP=0x31 (BUG FIX)");
 
-    // TC29: Idle → no output
     @(posedge clk);@(posedge clk);
     check(!m7_out_v,"TC29: Idle no output");
     do_reset;
 
-    // ===== TC30-32: Scrambler/Descrambler =====
-    // TC30: Round-trip
     m8_seed=23'h7FFFFF;m8_sc_en=1;
     m8_link_rst=1;@(posedge clk);@(negedge clk);m8_link_rst=0;@(posedge clk);
     @(negedge clk);
@@ -697,7 +563,6 @@ initial begin
         m8_dsc_out==256'hDEAD_BEEF_1234_5678_ABCD_EF01_9876_5432_DEAD_BEEF_1234_5678_ABCD_EF01_9876_5432,
         "TC30: Scram/Descram round-trip (BUG FIX)");
 
-    // TC31: Scrambler changes data
     m8_link_rst=1;@(posedge clk);@(negedge clk);m8_link_rst=0;@(posedge clk);
     @(negedge clk);m8_data_in=256'hA5A5A5A5_A5A5A5A5_A5A5A5A5_A5A5A5A5_A5A5A5A5_A5A5A5A5_A5A5A5A5_A5A5A5A5;
     m8_valid_in=1;
@@ -706,7 +571,6 @@ initial begin
         m8_sc_out!=256'hA5A5A5A5_A5A5A5A5_A5A5A5A5_A5A5A5A5_A5A5A5A5_A5A5A5A5_A5A5A5A5_A5A5A5A5,
         "TC31: Scrambler changes data");
 
-    // TC32: Passthrough when disabled
     m8_link_rst=1;@(posedge clk);@(negedge clk);m8_link_rst=0;m8_sc_en=0;@(posedge clk);
     @(negedge clk);m8_data_in=256'hCAFE_CAFE_CAFE_CAFE_CAFE_CAFE_CAFE_CAFE_CAFE_CAFE_CAFE_CAFE_CAFE_CAFE_CAFE_CAFE;
     m8_valid_in=1;
@@ -717,21 +581,17 @@ initial begin
     m8_sc_en=1;
     do_reset;
 
-    // ===== TC33-36: Seq Num Gen =====
-    // TC33: 0,1,2 sequential
     repeat(3) begin
         @(negedge clk);m9_tlp_valid=1;
         @(posedge clk);@(negedge clk);m9_tlp_valid=0;@(posedge clk);
     end
     check(m9_seq_valid && m9_seq_num==12'd2,"TC33: SEQ 0→2 sequential");
 
-    // TC34: Link reset → restart
     @(negedge clk);m9_link_rst=1;@(posedge clk);@(negedge clk);m9_link_rst=0;
     @(negedge clk);m9_tlp_valid=1;
     @(posedge clk);@(negedge clk);m9_tlp_valid=0;@(posedge clk);
     check(m9_seq_valid && m9_seq_num==12'd0,"TC34: Link reset restarts seq");
 
-    // TC35: NAK triggers retry from nak_seq
     repeat(5) begin
         @(negedge clk);m9_tlp_valid=1;
         @(posedge clk);@(negedge clk);m9_tlp_valid=0;@(posedge clk);
@@ -741,13 +601,10 @@ initial begin
     @(posedge clk);@(negedge clk);m9_tlp_valid=0;@(posedge clk);
     check(m9_seq_valid && m9_seq_num==12'd2,"TC35: Retry from nak_seq=2");
 
-    // TC36: No seq issued when no tlp_valid
     @(posedge clk);@(posedge clk);
     check(!m9_seq_valid,"TC36: No seq when idle");
     do_reset;
 
-    // ===== TC37-40: Retry Buffer =====
-    // TC37: Write 4 TLPs
     for(i=0;i<4;i=i+1) begin
         @(negedge clk);m10_tlp_in={{1044{1'b0}},i[11:0]};m10_seq_in=i[11:0];m10_write_en=1;
         @(posedge clk);@(negedge clk);m10_write_en=0;
@@ -755,17 +612,14 @@ initial begin
     @(posedge clk);@(posedge clk);
     check(m10_occ>=12'd3,"TC37: 4 TLPs written");
 
-    // TC38: ACK seq=1 purges 2 entries
     @(negedge clk);m10_ack_seq=12'd1;repeat(5)@(posedge clk);
     check(m10_occ<=12'd2,"TC38: ACK purges entries");
 
-    // TC39: NAK causes replay
     @(negedge clk);m10_retry_req=1;
     @(posedge clk);@(negedge clk);m10_retry_req=0;
     @(posedge clk);@(posedge clk);
     check(m10_retry_valid,"TC39: NAK → retry_valid");
 
-    // TC40: Wrap-around no spurious purge (BUG FIX)
     do_reset;
     @(negedge clk);m10_tlp_in={{1044{1'b0}},12'hFFE};m10_seq_in=12'hFFE;m10_write_en=1;
     @(posedge clk);@(negedge clk);
@@ -775,150 +629,115 @@ initial begin
     check(m10_occ>=12'd1,"TC40: Wrap no spurious purge (BUG FIX)");
     do_reset;
 
-    // ===== TC41-43: Replay FSM =====
-    // TC41: NAK → retry
     @(negedge clk);m11_nak_valid=1;m11_nak_seq=12'd5;m11_replay_num=2'd0;
     @(posedge clk);@(negedge clk);m11_nak_valid=0;@(posedge clk);
     check(m11_retry_req && m11_retry_seq==12'd5,"TC41: NAK → retry_req");
 
-    // TC42: Replay timer → retry
-    @(posedge clk);// return to IDLE
+    @(posedge clk);
     @(negedge clk);m11_replay_timer=1;m11_replay_num=2'd1;
     @(posedge clk);@(negedge clk);m11_replay_timer=0;@(posedge clk);
     check(m11_retry_req,"TC42: Replay timer → retry");
 
-    // TC43: 3 replays → link_down
     @(posedge clk);
     @(negedge clk);m11_nak_valid=1;m11_replay_num=2'd3;
     @(posedge clk);@(negedge clk);m11_nak_valid=0;@(posedge clk);
     check(m11_link_down && m11_rollover,"TC43: 3 replays → link_down");
     do_reset;
 
-    // ===== TC44-46: LCRC Checker =====
-    // TC44: Good CRC
     body992=992'hDEAD_CAFE_1234;crc32_val=crc32_lcrc(body992);
     @(negedge clk);m12_tlp_rx={12'd42,20'h0,body992,crc32_val};m12_valid=1;m12_flit_mode=0;
     @(posedge clk);@(negedge clk);m12_valid=0;@(posedge clk);
     check(m12_ok && !m12_err && m12_seq==12'd42,"TC44: LCRC good CRC");
 
-    // TC45: Bad CRC
     @(negedge clk);m12_tlp_rx[31:0]=m12_tlp_rx[31:0]^32'hDEAD_BEEF;m12_valid=1;
     @(posedge clk);@(negedge clk);m12_valid=0;@(posedge clk);
     check(!m12_ok && m12_err,"TC45: LCRC error detected");
 
-    // TC46: Seq number extracted
     body992=992'h0;crc32_val=crc32_lcrc(body992);
     @(negedge clk);m12_tlp_rx={12'd999,20'h0,body992,crc32_val};m12_valid=1;
     @(posedge clk);@(negedge clk);m12_valid=0;@(posedge clk);
     check(m12_ok && m12_seq==12'd999,"TC46: Seq=999 extracted");
     do_reset;
 
-    // ===== TC47-50: Seq Checker RX =====
-    // TC47: Good seq=0
     @(negedge clk);m13_seq_rx=0;m13_tlp_ok=1;m13_tlp_valid=1;m13_tlp_clean=1024'hCAFE;
     @(posedge clk);@(negedge clk);m13_tlp_valid=0;@(posedge clk);
     check(m13_seq_ok && m13_fwd_valid && m13_next_exp==12'd1,"TC47: seq=0 forwarded");
 
-    // TC48: Duplicate
     @(negedge clk);m13_seq_rx=0;m13_tlp_ok=1;m13_tlp_valid=1;
     @(posedge clk);@(negedge clk);m13_tlp_valid=0;@(posedge clk);
     check(m13_dup && !m13_fwd_valid,"TC48: Duplicate dropped");
 
-    // TC49: Seq error
     @(negedge clk);m13_seq_rx=5;m13_tlp_ok=1;m13_tlp_valid=1;
     @(posedge clk);@(negedge clk);m13_tlp_valid=0;@(posedge clk);
     check(m13_seq_err && m13_nak_req,"TC49: Seq error NAK");
 
-    // TC50: CRC fail bypasses seq
     @(negedge clk);m13_seq_rx=1;m13_tlp_ok=0;m13_tlp_valid=1;
     @(posedge clk);@(negedge clk);m13_tlp_valid=0;@(posedge clk);
     check(!m13_seq_ok && m13_next_exp==12'd1,"TC50: CRC fail no advance");
     do_reset;
 
-    // ===== TC51-54: Error Reporter =====
-    // TC51: Rollover = FATAL
     @(negedge clk);m14_rollover=1;@(posedge clk);@(negedge clk);m14_rollover=0;@(posedge clk);
     check(m14_valid && m14_type==4'd1 && m14_sev==2'd2,"TC51: Rollover=FATAL");
 
-    // TC52: DLLP CRC = CORRECTABLE
     @(negedge clk);m14_dllp_crc=1;@(posedge clk);@(negedge clk);m14_dllp_crc=0;@(posedge clk);
     check(m14_valid && m14_type==4'd2 && m14_sev==2'd0,"TC52: DLLP CRC=COR");
 
-    // TC53: LCRC = NONFATAL
     @(negedge clk);m14_lcrc=1;@(posedge clk);@(negedge clk);m14_lcrc=0;@(posedge clk);
     check(m14_valid && m14_type==4'd4 && m14_sev==2'd1,"TC53: LCRC=NONFATAL");
 
-    // TC54: FLIT UE = FATAL
     @(negedge clk);m14_flit_uncorr=1;@(posedge clk);@(negedge clk);m14_flit_uncorr=0;@(posedge clk);
     check(m14_valid && m14_sev==2'd2,"TC54: FLIT_UE=FATAL");
     do_reset;
 
-    // ===== TC55-57: NOP Gen =====
-    // TC55: NOP fires active+timer
     @(negedge clk);m15_active=1;m15_timer_exp=1;m15_inhibit=0;
     @(posedge clk);@(negedge clk);m15_timer_exp=0;@(posedge clk);
     check(m15_send && m15_dllp[63:56]==8'h31,"TC55: NOP=0x31 fires (BUG FIX)");
 
-    // TC56: Inhibited
     @(negedge clk);m15_timer_exp=1;m15_inhibit=1;
     @(posedge clk);@(negedge clk);m15_timer_exp=0;m15_inhibit=0;@(posedge clk);
     check(!m15_send,"TC56: NOP inhibited");
 
-    // TC57: Not active
     @(negedge clk);m15_active=0;m15_timer_exp=1;
     @(posedge clk);@(negedge clk);m15_timer_exp=0;@(posedge clk);
     check(!m15_send,"TC57: NOP suppressed inactive");
     m15_active=1;
     do_reset;
 
-    // ===== TC58-60: FC Timer =====
-    // TC58: Fires after limit (BUG FIX applied)
     m16_active=1;m16_limit=16'd4;
     repeat(7)@(posedge clk);
     check(m16_exp && m16_req,"TC58: FC timer fires");
 
-    // TC59: Reset on fc_update_sent (BUG FIX)
     @(negedge clk);m16_sent=1;
     @(posedge clk);@(negedge clk);m16_sent=0;@(posedge clk);
     check(!m16_exp,"TC59: FC timer clears on sent (BUG FIX)");
 
-    // TC60: Inactive when dll_active=0
     @(negedge clk);m16_active=0;repeat(10)@(posedge clk);
     check(!m16_exp,"TC60: FC inactive when not active");
     m16_active=1;
     do_reset;
 
-    // ===== TC61-62: FC Watchdog =====
-    // TC61: Deadlock detected
     m17_active=1;m17_pending=1;m17_limit=16'd3;
     repeat(6)@(posedge clk);
     check(m17_deadlock && m17_err,"TC61: FC watchdog fires");
 
-    // TC62: Clears on credit
     @(negedge clk);m17_p=1;@(posedge clk);@(negedge clk);m17_p=0;
     @(posedge clk);@(posedge clk);
     check(!m17_deadlock,"TC62: Watchdog clears on credit");
     do_reset;
 
-    // ===== TC63-65: ACK Timer =====
-    // TC63: ACK timer
     m18_ack_lim=16'd4;m18_replay_lim=16'd8;
     @(negedge clk);m18_tlp_valid=1;@(posedge clk);@(negedge clk);m18_tlp_valid=0;
     repeat(6)@(posedge clk);
     check(m18_ack_exp,"TC63: ACK timer fires");
 
-    // TC64: Replay timer
     repeat(5)@(posedge clk);
     check(m18_replay_exp,"TC64: Replay timer fires");
 
-    // TC65: ack_sent clears
     @(negedge clk);m18_ack_sent=1;@(posedge clk);@(negedge clk);m18_ack_sent=0;
     @(posedge clk);@(posedge clk);
     check(!m18_ack_exp,"TC65: ACK timer clears");
     do_reset;
 
-    // ===== TC66-68: PHY Interface RX =====
-    // TC66: 8 beats → FLIT
     m19_dl_up=1;m19_status=0;m19_syndrome=0;m19_corrected=0;
     for(beat=0;beat<8;beat=beat+1) begin
         @(negedge clk);m19_rxd={244'h0,beat[11:0]};m19_valid=1;@(posedge clk);
@@ -926,7 +745,6 @@ initial begin
     @(negedge clk);m19_valid=0;@(posedge clk);
     check(m19_rx_flit_valid,"TC66: 8-beat FLIT assembled");
 
-    // TC67: FEC UE suppresses FLIT
     do_reset;m19_dl_up=1;m19_status=0;m19_syndrome=16'hBEEF;m19_corrected=0;
     for(beat=0;beat<8;beat=beat+1) begin
         @(negedge clk);m19_rxd=256'h0;m19_valid=1;@(posedge clk);
@@ -934,7 +752,6 @@ initial begin
     @(negedge clk);m19_valid=0;@(posedge clk);
     check(!m19_rx_flit_valid,"TC67: FEC UE suppresses FLIT");
 
-    // TC68: DL not up suppresses
     do_reset;m19_dl_up=0;m19_syndrome=0;
     for(beat=0;beat<8;beat=beat+1) begin
         @(negedge clk);m19_rxd=256'h0;m19_valid=1;@(posedge clk);
@@ -943,114 +760,91 @@ initial begin
     check(!m19_rx_flit_valid,"TC68: DL not up suppresses FLIT");
     do_reset;
 
-    // ===== TC69-72: DLL Init FSM =====
-    // TC69-70: INACTIVE→INIT→ACTIVE
     @(negedge clk);m20_ltssm_up=1;@(posedge clk);@(negedge clk);m20_ltssm_up=0;@(posedge clk);
     check(!m20_active,"TC69: DL_INIT not active");
     @(negedge clk);m20_fc_done=1;@(posedge clk);@(negedge clk);m20_fc_done=0;@(posedge clk);
     check(m20_active && m20_dll_up,"TC70: DL_ACTIVE after fc_done");
 
-    // TC71: Rollover → ERROR
     @(negedge clk);m20_rollover=1;@(posedge clk);@(negedge clk);m20_rollover=0;@(posedge clk);
     check(m20_error && !m20_active,"TC71: Rollover → DL_ERROR");
 
-    // TC72: Down → INACTIVE
     @(negedge clk);m20_ltssm_down=1;@(posedge clk);@(negedge clk);m20_ltssm_down=0;
     @(posedge clk);@(posedge clk);
     check(!m20_error && !m20_active,"TC72: Down → INACTIVE");
     do_reset;
 
-    // ===== TC73-76: PM Timer & FSM =====
-    // TC73: L0s timer fires
     m21_l0s_lim=16'd3;
     @(negedge clk);m21_l0s_entry=1;
     repeat(5)@(posedge clk);
     check(m21_l0s_exp,"TC73: L0s timer fires");
 
-    // TC74: Exit resets timer
     @(negedge clk);m21_l0s_exit=1;m21_l0s_entry=0;
     @(posedge clk);@(negedge clk);m21_l0s_exit=0;
     @(posedge clk);@(posedge clk);
     check(!m21_l0s_exp,"TC74: L0s exit resets");
 
-    // TC75: PM FSM L0s entry
     do_reset;
     @(negedge clk);m25_req_sw=3'd4;
     @(posedge clk);@(negedge clk);m25_req_sw=0;@(posedge clk);
     check(m25_pm_send && m25_ls==3'd1,"TC75: PM sends L0s DLLP");
 
-    // TC76: PM exits L0s on ACK
     @(negedge clk);m25_pm_rx=3'd3;m25_pm_rx_valid=1;
     @(posedge clk);@(negedge clk);m25_pm_rx_valid=0;@(posedge clk);
     check(m25_ls==3'd0,"TC76: PM exits L0s on ACK");
     do_reset;
 
-    // ===== TC77-79: ACK Piggyback =====
-    // TC77: Timer triggers ACK
     m22_lat_lim=16'd3;
     @(negedge clk);m22_pending=1;m22_pending_seq=12'd55;
     repeat(5)@(posedge clk);
     check(m22_pgb_valid && m22_pgb_seq==12'd55,"TC77: ACK piggybacked at timer");
 
-    // TC78: NOP triggers ACK
     do_reset;
     @(negedge clk);m22_pending=1;m22_pending_seq=12'd99;m22_nop_req=1;
     @(posedge clk);@(negedge clk);m22_nop_req=0;@(posedge clk);
     check(m22_pgb_valid && m22_pgb_seq==12'd99,"TC78: ACK piggybacked on NOP");
 
-    // TC79: No ACK when pending=0
     @(negedge clk);m22_pending=0;@(posedge clk);@(posedge clk);
     check(!m22_pgb_valid,"TC79: No ACK when pending=0");
     do_reset;
 
-    // ===== TC80: FC Init FSM =====
-    // TC80: activate → wait 1cy → INIT1 → send peer FC1 → wait → INIT2 → send FC2 → DONE
     @(negedge clk);m23_active=1;
-    @(posedge clk);@(posedge clk); // settle into INIT1
-    @(negedge clk);m23_rx={64'h0,8'hC0};m23_rx_valid=1;// peer InitFC1
+    @(posedge clk);@(posedge clk);
+    @(negedge clk);m23_rx={64'h0,8'hC0};m23_rx_valid=1;
     @(posedge clk);@(negedge clk);m23_rx_valid=0;
-    @(posedge clk);@(posedge clk); // settle into INIT2
-    @(negedge clk);m23_rx={64'h0,8'hD0};m23_rx_valid=1;// peer InitFC2
+    @(posedge clk);@(posedge clk);
+    @(negedge clk);m23_rx={64'h0,8'hD0};m23_rx_valid=1;
     @(posedge clk);@(negedge clk);m23_rx_valid=0;
     repeat(5)@(posedge clk);
     check(m23_done,"TC80: FC init handshake done");
     do_reset;
 
-    // ===== TC81-82: LBW FSM =====
-    // TC81: BW notification
     m24_speed=4'd8;m24_width=6'd16;
     @(negedge clk);m24_bw_change=1;@(posedge clk);@(negedge clk);m24_bw_change=0;
     @(posedge clk);@(posedge clk);
     check(m24_bw_valid,"TC81: BW notification DLLP sent");
 
-    // TC82: EQ req processed
     do_reset;
     @(negedge clk);m24_eq_req=1;
-    @(posedge clk);@(posedge clk);@(posedge clk); // 3 cycles: IDLE→EQ_REQ→assert
+    @(posedge clk);@(posedge clk);@(posedge clk);
     check(m24_eq_req_out,"TC82: EQ req forwarded");
     @(negedge clk);m24_eq_req=0;
     @(posedge clk);@(posedge clk);
     check(m24_eq_ack,"TC82b: EQ ack on de-assert");
     do_reset;
 
-    // ===== TC83-85: FLIT Seq Tracker =====
-    // TC83: Window full at 2048
     @(negedge clk);m26_tx_seq=12'd2048;m26_ack_seq=12'd0;
     @(posedge clk);@(posedge clk);
     check(m26_win_full,"TC83: Window full at 2048");
 
-    // TC84: Window clears after ACK
     @(negedge clk);m26_ack_seq=12'd2047;
-    @(posedge clk);@(posedge clk);@(posedge clk); // 3 cycles: ack latches→oldest updates→window recomputes
+    @(posedge clk);@(posedge clk);@(posedge clk);
     check(!m26_win_full,"TC84: Window clears after ACK");
 
-    // TC85: Wrap detection 4095→0
     @(negedge clk);m26_tx_seq=12'd4095;@(posedge clk);
     @(negedge clk);m26_tx_seq=12'd0;
-    @(posedge clk);@(posedge clk); // 2 cycles for wrap to register
+    @(posedge clk);@(posedge clk);
     check(m26_wrap,"TC85: Wrap 4095→0 detected");
 
-    // ===== SUMMARY =====
     $display("\n========================================");
     $display("  RESULTS: %0d PASSED  |  %0d FAILED", pass_cnt, fail_cnt);
     $display("========================================");

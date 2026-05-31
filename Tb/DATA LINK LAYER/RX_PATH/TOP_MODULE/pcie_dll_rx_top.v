@@ -1,40 +1,11 @@
-// =============================================================================
-// Module  : pcie_dll_rx_top
-// Layer   : Data Link Layer (DLL) — RX Path Top Module
-// Spec    : PCIe Gen6 Base Specification r1.0
-//
-// Description:
-//   Top-level integration of all 12 DLL RX Path sub-modules:
-//
-//   PHY_IF_RX  → Descrambler → FLIT_RX_DEFRAMER → NULL_HDL
-//                                     ↓
-//                             RX_DEMUX
-//                            /        \
-//                      TLP path      DLLP path
-//                   LCRC_CHK       DLLP_CRC_CHK
-//                   SEQ_CHK        DLLP_MAL_CHK
-//                   ACK_NAK_SCHED  DLLP_RX_DEC
-//                                  ACK_NAK_RCV
-//
-// Datapath Summary:
-//   RX beats (256b) → PHY Interface RX assembles 2048-bit FLITs
-//   FLITs → Descrambler (undo LFSR scrambling)
-//   Descrambled FLITs → FLIT Rx Deframer (extract TLP/DLLP slots, CRC24)
-//   Null slots → Nullified TLP Handler (drop + count)
-//   FLIT outputs → RX Datapath DEMUX (route TLP vs DLLP)
-//   TLP path: LCRC/FLIT CRC Check → Seq Num Check → ACK/NAK Scheduler TX
-//   DLLP path: DLLP CRC Check → DLLP Malformed Check → DLLP Receiver/Decoder
-//              → ACK/NAK Receiver
-// =============================================================================
 
 `timescale 1ns/1ps
 
 module pcie_dll_rx_top (
-    // ── Clock & Reset ──────────────────────────────────────────────────────────
+
     input  wire          clk,
     input  wire          rst_n,
 
-    // ── PHY Interface Inputs ───────────────────────────────────────────────────
     input  wire [255:0]  phy_rxd,
     input  wire          phy_rx_valid,
     input  wire [2:0]    phy_rx_status,
@@ -42,36 +13,29 @@ module pcie_dll_rx_top (
     input  wire          fec_corrected,
     input  wire          ltssm_dl_up,
 
-    // ── Descrambler Control ────────────────────────────────────────────────────
     input  wire [22:0]   lfsr_seed,
     input  wire          scramble_en,
     input  wire          link_reset,
 
-    // ── Mode Select ────────────────────────────────────────────────────────────
     input  wire          flit_mode_en,
 
-    // ── ACK/NAK Scheduler TX Control ──────────────────────────────────────────
     input  wire          ack_timer_exp,
     input  wire [7:0]    ack_freq,
 
-    // ── TLP Output (to Transaction Layer) ─────────────────────────────────────
     output wire [1023:0] tlp_fwd,
     output wire          tlp_fwd_valid,
 
-    // ── Sequence Check Status ──────────────────────────────────────────────────
     output wire          tlp_seq_ok,
     output wire          tlp_dup,
     output wire          tlp_seq_err,
     output wire          nak_req,
     output wire [11:0]   next_expected,
 
-    // ── ACK/NAK Scheduler TX Outputs ──────────────────────────────────────────
     output wire [63:0]   ack_dllp,
     output wire [63:0]   nak_dllp,
     output wire          dllp_valid_tx,
     output wire [1:0]    dllp_type_tx,
 
-    // ── DLLP Decoder Outputs (FC Updates) ─────────────────────────────────────
     output wire [7:0]    fc_update_ph,
     output wire [11:0]   fc_update_pd,
     output wire [7:0]    fc_update_nph,
@@ -81,14 +45,12 @@ module pcie_dll_rx_top (
     output wire [2:0]    pm_type,
     output wire          pm_valid,
 
-    // ── ACK/NAK Receiver Outputs ───────────────────────────────────────────────
     output wire [11:0]   ack_seq,
     output wire [11:0]   nak_seq,
     output wire          ack_valid,
     output wire          nak_valid,
     output wire          retry_req,
 
-    // ── Error / Status Outputs ─────────────────────────────────────────────────
     output wire          lfsr_sync_err,
     output wire          flit_crc_err,
     output wire          flit_null,
@@ -101,43 +63,19 @@ module pcie_dll_rx_top (
     output wire          dllp_mal_err
 );
 
-    // =========================================================================
-    // Internal wires
-    // =========================================================================
-
-    // PHY_IF_RX → Descrambler
     wire [255:0]  phy_rx_data_out;
     wire          phy_rx_data_valid;
     wire [2047:0] phy_rx_flit;
     wire          phy_rx_flit_valid;
 
-    // Descrambler → FLIT Deframer
     wire [255:0]  descr_data_out;
     wire          descr_data_valid;
 
-    // We feed descrambled beats to FLIT deframer via a second PHY_IF_RX-like
-    // accumulation. Since the Descrambler operates beat-by-beat (256b),
-    // we need to re-accumulate a FLIT. In this top-level we connect the
-    // FLIT (already assembled by PHY_IF_RX) through the Descrambler at
-    // the 256-bit beat level, then pass the assembled FLIT directly.
-    // For simplicity: PHY_IF_RX assembles the FLIT, then Descrambler
-    // descrambles the 256-bit beat stream. We connect them as a pipeline:
-    // PHY_IF_RX beat output → Descrambler → accumulate → FLIT Deframer.
-    //
-    // Architectural note: In real Gen6 HW, descrambling happens at the
-    // symbol level before FLIT assembly. Here we model it with the DUT
-    // modules as-given: Descrambler is 256-bit wide, takes data_valid_in
-    // and outputs a 256-bit descrambled word. The PHY_IF_RX assembled FLIT
-    // is used directly when scramble_en=0 (bypass). When scramble_en=1
-    // the beat-level output of PHY_IF_RX feeds the Descrambler and we
-    // reassemble below.
-
-    // Reassemble FLIT from descrambled beats
     reg [2047:0] descr_flit_buf;
     reg [2:0]    descr_beat_cnt;
     reg [2047:0] descr_flit;
     reg          descr_flit_valid;
-    // Forward FEC signals through to FLIT deframer
+
     reg [15:0]   descr_fec_syndrome_r;
     reg          descr_fec_corrected_r;
 
@@ -175,30 +113,25 @@ module pcie_dll_rx_top (
         end
     end
 
-    // FLIT Deframer → DEMUX
     wire [1023:0] flit_tlp;
     wire          flit_tlp_valid;
     wire [63:0]   flit_dllp_raw;
     wire          flit_dllp_valid;
     wire [11:0]   flit_seq;
 
-    // Null handler
     wire          flit_null_int;
 
-    // DEMUX → CRC checkers
     wire [1055:0] tlp_rx_wire;
     wire          tlp_rx_valid_wire;
     wire [63:0]   dllp_raw_wire;
     wire          dllp_rx_valid_wire;
 
-    // LCRC checker → Seq checker
     wire          lcrc_crc_ok;
     wire          lcrc_crc_err;
     wire [1023:0] lcrc_tlp_clean;
     wire          lcrc_tlp_clean_valid;
     wire [11:0]   lcrc_seq_rx;
 
-    // Seq checker → ACK/NAK Scheduler
     wire          seq_tlp_seq_ok;
     wire          seq_tlp_dup;
     wire          seq_tlp_seq_err;
@@ -209,27 +142,19 @@ module pcie_dll_rx_top (
     wire [1023:0] seq_tlp_fwd;
     wire          seq_tlp_fwd_valid;
 
-    // DLLP CRC checker → MAL checker
     wire [47:0]   dllp_body_wire;
     wire          dllp_crc_ok_int;
     wire          dllp_crc_err_int;
     wire          dllp_valid_out_wire;
 
-    // MAL checker → DLLP Decoder
     wire          dllp_type_ok_wire;
     wire          dllp_mal_err_int;
     wire [47:0]   dllp_clean_wire;
     wire          dllp_clean_valid_wire;
 
-    // DLLP Decoder → ACK/NAK Receiver
     wire [23:0]   ack_out_wire;
     wire          ack_out_valid_wire;
 
-    // =========================================================================
-    // Module instantiations
-    // =========================================================================
-
-    // 1. PHY Interface RX
     phy_interface_rx u_phy_if_rx (
         .clk           (clk),
         .rst_n         (rst_n),
@@ -245,7 +170,6 @@ module pcie_dll_rx_top (
         .rx_flit_valid (phy_rx_flit_valid)
     );
 
-    // 2. Descrambler (operates on beat-level 256-bit data)
     Descrambler u_descrambler (
         .clk           (clk),
         .rst_n         (rst_n),
@@ -259,7 +183,6 @@ module pcie_dll_rx_top (
         .lfsr_sync_err (lfsr_sync_err)
     );
 
-    // 3. FLIT RX Deframer (uses descrambled FLIT when scramble_en, else phy FLIT)
     flit_rx_deframer u_flit_deframer (
         .clk            (clk),
         .rst_n          (rst_n),
@@ -279,7 +202,6 @@ module pcie_dll_rx_top (
 
     assign flit_null = flit_null_int;
 
-    // 4. Nullified TLP Handler
     nullified_tlp_handler u_null_hdl (
         .clk            (clk),
         .rst_n          (rst_n),
@@ -290,7 +212,6 @@ module pcie_dll_rx_top (
         .null_count     (null_count)
     );
 
-    // 5. RX Datapath DEMUX
     rx_datapath_demux u_rx_demux (
         .clk            (clk),
         .rst_n          (rst_n),
@@ -308,7 +229,6 @@ module pcie_dll_rx_top (
         .rx_parse_err   (rx_parse_err)
     );
 
-    // 6. LCRC / FLIT CRC Checker
     lcrc_flit_crc_chk u_lcrc_chk (
         .clk            (clk),
         .rst_n          (rst_n),
@@ -322,7 +242,6 @@ module pcie_dll_rx_top (
         .seq_rx         (lcrc_seq_rx)
     );
 
-    // 7. Sequence Number Checker RX
     seq_num_checker_rx u_seq_chk (
         .clk            (clk),
         .rst_n          (rst_n),
@@ -342,7 +261,6 @@ module pcie_dll_rx_top (
         .tlp_fwd_valid  (seq_tlp_fwd_valid)
     );
 
-    // 8. ACK/NAK Scheduler TX
     ack_nak_scheduler_tx u_ack_sched (
         .clk            (clk),
         .rst_n          (rst_n),
@@ -357,7 +275,6 @@ module pcie_dll_rx_top (
         .dllp_type      (dllp_type_tx)
     );
 
-    // 9. DLLP CRC Checker
     dllp_crc_chk u_dllp_crc (
         .clk            (clk),
         .rst_n          (rst_n),
@@ -372,7 +289,6 @@ module pcie_dll_rx_top (
     assign dllp_crc_ok  = dllp_crc_ok_int;
     assign dllp_crc_err = dllp_crc_err_int;
 
-    // 10. DLLP Malformed Checker
     dllp_mal_chk u_dllp_mal (
         .clk             (clk),
         .rst_n           (rst_n),
@@ -387,7 +303,6 @@ module pcie_dll_rx_top (
 
     assign dllp_mal_err = dllp_mal_err_int;
 
-    // 11. DLLP Receiver / Decoder
     dllp_receiver_decoder u_dllp_dec (
         .clk             (clk),
         .rst_n           (rst_n),
@@ -405,7 +320,6 @@ module pcie_dll_rx_top (
         .ack_out_valid   (ack_out_valid_wire)
     );
 
-    // 12. ACK/NAK Receiver
     ack_nak_receiver u_ack_rcv (
         .clk             (clk),
         .rst_n           (rst_n),
@@ -418,7 +332,6 @@ module pcie_dll_rx_top (
         .retry_req       (retry_req)
     );
 
-    // ── Passthrough output assignments ─────────────────────────────────────────
     assign tlp_fwd        = seq_tlp_fwd;
     assign tlp_fwd_valid  = seq_tlp_fwd_valid;
     assign tlp_seq_ok     = seq_tlp_seq_ok;

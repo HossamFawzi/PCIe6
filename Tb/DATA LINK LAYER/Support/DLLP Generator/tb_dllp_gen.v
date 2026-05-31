@@ -28,27 +28,23 @@ module tb_dllp_gen;
     initial begin
         $display("=== TB: dllp_gen ===");
 
-        // TC1: Reset
         $display("[TC1] Reset: all valids=0");
         rst; @(posedge clk); #1;
         chk1(0,fc_dllp_valid,"fc_dllp_valid=0");
         chk1(0,pm_dllp_valid,"pm_dllp_valid=0");
         chk1(0,nop_valid,"nop_valid=0");
 
-        // TC2: fc_update_valid -> fc_dllp_valid registered next cycle
         $display("[TC2] fc_update_valid -> fc_dllp_valid");
         rst; fc_update=72'hABCDEF;
-        fc_update_valid=1; @(posedge clk); #1;  // RTL registers fc_dllp_valid=1
+        fc_update_valid=1; @(posedge clk); #1;
         chk1(1,fc_dllp_valid,"fc_dllp_valid=1");
         fc_update_valid=0;
 
-        // TC3: fc_update_req alone
         $display("[TC3] fc_update_req alone -> fc_dllp_valid");
         rst; fc_update_req=1; @(posedge clk); #1;
         chk1(1,fc_dllp_valid,"fc_dllp_valid=1 on req alone");
         fc_update_req=0;
 
-        // TC4: pm_send -> pm_dllp_valid + correct type
         $display("[TC4] pm_send -> pm_dllp_valid");
         rst; pm_type=3'd2;
         pm_send=1; @(posedge clk); #1;
@@ -56,7 +52,6 @@ module tb_dllp_gen;
         chk8(PM_B|8'd2,pm_dllp[63:56],"pm_dllp type byte");
         pm_send=0;
 
-        // TC5: nop_send -> nop_valid + type=0x00
         $display("[TC5] nop_send -> nop_valid type=0x00");
         rst;
         nop_send=1; @(posedge clk); #1;
@@ -64,7 +59,6 @@ module tb_dllp_gen;
         chk8(NOP_T,nop_dllp[63:56],"nop type=0x00");
         nop_send=0;
 
-        // TC6: bw_notif_valid routes to fc_dllp
         $display("[TC6] bw_notif_valid -> fc_dllp");
         rst; bw_notif=64'hDEADBEEF12345678;
         bw_notif_valid=1; @(posedge clk); #1;
@@ -73,14 +67,12 @@ module tb_dllp_gen;
         else begin $display("  FAIL | fc_dllp mismatch: 0x%h",fc_dllp);fail_count=fail_count+1;end
         bw_notif_valid=0;
 
-        // TC7: No inputs -> all 0
         $display("[TC7] No inputs -> all valids=0");
         rst; repeat(5)@(posedge clk); #1;
         chk1(0,fc_dllp_valid,"fc_dllp_valid=0 idle");
         chk1(0,pm_dllp_valid,"pm_dllp_valid=0 idle");
         chk1(0,nop_valid,"nop_valid=0 idle");
 
-        // TC8: Simultaneous fc_update_valid + nop_send
         $display("[TC8] Simultaneous fc_update_valid + nop_send");
         rst; fc_update=72'hFF;
         fc_update_valid=1; nop_send=1; @(posedge clk); #1;

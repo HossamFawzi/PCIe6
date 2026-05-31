@@ -1,6 +1,4 @@
-// =============================================================================
-// PCIe Gen6 DLL Support Block: NOP DLLP Generator (NOP_GEN)
-// =============================================================================
+
 module nop_gen (
     input  wire        clk,
     input  wire        rst_n,
@@ -11,10 +9,8 @@ module nop_gen (
     output reg  [63:0] nop_dllp,
     output reg  [7:0]  nop_count
 );
-    localparam NOP_TYPE = 8'h31; // BUG FIX: NOP=0x31 per spec (not 0x00=ACK)
+    localparam NOP_TYPE = 8'h31;
 
-    // nop_send is combinational so the TB can check it on the same posedge
-    // that nop_timer_exp is applied
     assign nop_send = dll_active && nop_timer_exp && !nop_inhibit;
 
     always @(posedge clk or negedge rst_n) begin

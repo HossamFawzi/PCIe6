@@ -1,43 +1,26 @@
-// ============================================================
-// Module 45 : EIOS / EIEOS Handler (EIOS)
-// PCIe Gen6 Physical Layer
-// EIOS = Electrical Idle Ordered Set (power state entry)
-// EIEOS = Electrical Idle Exit Ordered Set (Gen3+ exit)
-// Required for all power state transitions.
-// ============================================================
+
 module eios (
     input  wire        clk,
     input  wire        rst_n,
 
-    // TX control
-    input  wire        eios_send,      // Request to send EIOS
-    input  wire        eieos_send,     // Request to send EIEOS
+    input  wire        eios_send,
+    input  wire        eieos_send,
 
-    // RX input
     input  wire [255:0] rx_data,
     input  wire         rx_valid,
 
-    // TX outputs
-    output reg  [255:0] eios_data,     // EIOS/EIEOS data
-    output reg          eios_tx_valid, // TX data valid
+    output reg  [255:0] eios_data,
+    output reg          eios_tx_valid,
 
-    // RX detection
     output reg          eios_detected,
     output reg          eieos_detected
 );
 
-// EIOS: COM + IDL + IDL + IDL (4 symbols) repeated 4 times
-// PCIe: K28.5(BC) K28.3(7C) K28.3(7C) K28.3(7C) ×4 = 16 symbols
-// EIEOS: 8 IDL followed by 8 non-IDL alternating (or 00/FF pattern)
-// Simplified: EIEOS = 0x00FF alternating 16 bytes then IDL
+localparam [7:0] COM_SYMBOL  = 8'hBC;
+localparam [7:0] IDL_SYMBOL  = 8'hBC;
+localparam [7:0] EIOS_SYM0   = 8'hBC;
+localparam [7:0] EIOS_SYM1   = 8'h7C;
 
-localparam [7:0] COM_SYMBOL  = 8'hBC;  // K28.5
-localparam [7:0] IDL_SYMBOL  = 8'hBC;  // K28.5 is used for EI too (spec variant)
-localparam [7:0] EIOS_SYM0   = 8'hBC;  // K28.5 (COM)
-localparam [7:0] EIOS_SYM1   = 8'h7C;  // K28.3 (IDL)
-
-// Build EIOS 256-bit word (32 symbols):
-// Pattern: BC 7C 7C 7C BC 7C 7C 7C ... repeated 8 times = 32 symbols
 wire [255:0] eios_word;
 genvar gi;
 generate
@@ -49,7 +32,6 @@ generate
     end
 endgenerate
 
-// EIEOS: alternating 0x00 and 0xFF per byte pair
 wire [255:0] eieos_word;
 generate
     for (gi = 0; gi < 16; gi = gi + 1) begin : EIEOS_BUILD
@@ -58,7 +40,6 @@ generate
     end
 endgenerate
 
-// TX FSM
 reg [1:0] tx_state;
 localparam TX_IDLE  = 2'd0;
 localparam TX_SEND  = 2'd1;
@@ -102,9 +83,6 @@ always @(posedge clk or negedge rst_n) begin
     end
 end
 
-// RX detection
-// EIOS: first byte BC and second byte 7C
-// EIEOS: first byte 0x00 and second byte 0xFF
 wire rx_is_eios  = (rx_data[7:0] == EIOS_SYM0) && (rx_data[15:8] == EIOS_SYM1);
 wire rx_is_eieos = (rx_data[7:0] == 8'h00)     && (rx_data[15:8] == 8'hFF);
 

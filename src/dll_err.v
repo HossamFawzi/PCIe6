@@ -1,12 +1,4 @@
-// =============================================================================
-// PCIe Gen6 DLL Support Block: Error Reporting Interface to TL AER (DLL_ERR)
-// From HTML: grp="support", tag="DLL_ERR"
-// Inputs : replay_rollover_err, dllp_crc_err, dllp_mal_err, lcrc_err,
-//          flit_uncorr_err, lfsr_sync_err, clk, rst_n
-// Outputs: dll_err_to_aer[5:0], dll_err_valid, dll_err_type[3:0],
-//          dll_err_severity[1:0]
-// Behavior: DLL cannot generate TLP msgs - passes all errors up to TL AER.
-// =============================================================================
+
 module dll_err (
     input  wire       clk,
     input  wire       rst_n,
@@ -22,7 +14,6 @@ module dll_err (
     output reg  [1:0] dll_err_severity
 );
 
-    // Error type encoding
     localparam ERR_NONE           = 4'd0;
     localparam ERR_REPLAY_ROLLOVER= 4'd1;
     localparam ERR_DLLP_CRC       = 4'd2;
@@ -31,7 +22,6 @@ module dll_err (
     localparam ERR_FLIT_UNCORR    = 4'd5;
     localparam ERR_LFSR_SYNC      = 4'd6;
 
-    // Severity: 0=COR, 1=NONFATAL, 2=FATAL
     localparam SEV_COR      = 2'd0;
     localparam SEV_NONFATAL = 2'd1;
     localparam SEV_FATAL    = 2'd2;
@@ -51,7 +41,6 @@ module dll_err (
                                 dllp_crc_err, replay_rollover_err};
             dll_err_valid   <= any_err;
 
-            // Priority encode error type (highest severity first)
             if (replay_rollover_err) begin
                 dll_err_type     <= ERR_REPLAY_ROLLOVER;
                 dll_err_severity <= SEV_FATAL;

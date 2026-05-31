@@ -1,24 +1,13 @@
-// =============================================================
-//  TESTBENCH : tb_cfg_space_handler
-//  DUT       : cfg_space_handler
-//  TESTS:
-//    T1 — CfgWr DevCtrl  → check max_payload / ro_en / ecrc_en
-//    T2 — CfgWr DevCtrl2 → check flit_mode_en
-//    T3 — CfgRd DevCap   → check cfg_rd_data & cpl TLP valid
-//    T4 — CfgWr + CfgRd  → write then read-back same DW
-//    T5 — CfgRd VendDev  → confirm hard-coded value
-// =============================================================
+
 `timescale 1ns/1ps
 
 module tb_cfg_space_handler;
 
-    // ── Clock / Reset ────────────────────────────────────────
     reg clk = 0;
-    always #5 clk = ~clk;   // 100 MHz
+    always #5 clk = ~clk;
 
     reg rst_n;
 
-    // ── DUT ports ────────────────────────────────────────────
     reg  [255:0] tlp_cfg;
     reg          tlp_cfg_valid;
     reg  [11:0]  cfg_addr;
@@ -34,7 +23,6 @@ module tb_cfg_space_handler;
     wire         ecrc_en;
     wire         ro_en;
 
-    // ── DUT instantiation ─────────────────────────────────────
     cfg_space_handler dut (
         .clk           (clk),
         .rst_n         (rst_n),
@@ -53,7 +41,6 @@ module tb_cfg_space_handler;
         .ro_en         (ro_en)
     );
 
-    // ── Helper tasks ─────────────────────────────────────────
     integer pass_count = 0;
     integer fail_count = 0;
 
@@ -73,7 +60,7 @@ module tb_cfg_space_handler;
 
     task cfg_write(input [11:0] addr, input [31:0] data);
         begin
-            @(negedge clk);   // drive on negedge — safe setup time
+            @(negedge clk);
             tlp_cfg_valid = 1;
             cfg_wr_en     = 1;
             cfg_addr      = addr;
@@ -81,12 +68,12 @@ module tb_cfg_space_handler;
             tlp_cfg       = {8'h44, 8'h00, 16'h0001,
                              16'hBEEF, 8'hAA, 8'h00,
                              32'h0000_0000, data, 64'h0};
-            @(posedge clk);   // RTL latches here
-            @(negedge clk);   // release after latch
+            @(posedge clk);
+            @(negedge clk);
             tlp_cfg_valid = 0;
             cfg_wr_en     = 0;
-            @(posedge clk);   // one full cycle for output
-            #1;               // NBA settle
+            @(posedge clk);
+            #1;
         end
     endtask
 
@@ -99,10 +86,10 @@ module tb_cfg_space_handler;
             tlp_cfg       = {8'h04, 8'h00, 16'h0001,
                              16'hBEEF, 8'hAA, 8'h00,
                              32'h0, 64'h0, 64'h0};
-            @(posedge clk);   // RTL latches here
+            @(posedge clk);
             @(negedge clk);
             tlp_cfg_valid = 0;
-            @(posedge clk);   // output available
+            @(posedge clk);
             #1;
         end
     endtask
@@ -121,38 +108,25 @@ module tb_cfg_space_handler;
         end
     endtask
 
-    // ── Stimulus ─────────────────────────────────────────────
     initial begin
         $display("=== cfg_space_handler Testbench ===");
         do_reset;
 
-        // --------------------------------------------------
-        // T1: CfgWr DevCtrl — MPS=256B(001), RO=1, ECRC=1
-        //     DevCtrl bit[7:5]=001  bit[4]=1  bit[11]=1
-        //     data = 32'h0000_08B0
-        //            bit11=1(ecrc) bit7:5=001(mps) bit4=1(ro)
-        // --------------------------------------------------
         $display("\n[T1] CfgWr DevCtrl: MPS=256B, RO=1, ECRC=1");
-        cfg_write(12'h094, 32'h0000_08B0); // IDX_DEVCTRL=0x25 → byte=0x94
+        cfg_write(12'h094, 32'h0000_08B0);
         @(posedge clk);
         check(max_payload,  3'b101, "max_payload=101 (MPS=101=512B)");
         check(ro_en,        1'b1,   "ro_en=1");
         check(ecrc_en,      1'b1,   "ecrc_en=1");
         check(flit_mode_en, 1'b0,   "flit_mode_en still 0");
 
-        // --------------------------------------------------
-        // T2: CfgWr DevCtrl2 — FLIT mode enable
-        // --------------------------------------------------
         $display("\n[T2] CfgWr DevCtrl2: flit_mode_en=1");
-        cfg_write(12'h0B4, 32'h0000_0001); // IDX_DEVCTRL2=0x2D → byte=0xB4
+        cfg_write(12'h0B4, 32'h0000_0001);
         @(posedge clk);
         check(flit_mode_en, 1'b1, "flit_mode_en=1");
 
-        // --------------------------------------------------
-        // T3: CfgRd DevCap — should return default value
-        // --------------------------------------------------
         $display("\n[T3] CfgRd DevCap → expect 0x00000001");
-        // Capture pulse signals during the read active cycle
+
         begin : T3_BLOCK
             reg cap_rd_valid, cap_cpl_valid;
             reg [255:0] cap_cpl_tlp;
@@ -162,7 +136,7 @@ module tb_cfg_space_handler;
             tlp_cfg_valid = 1; cfg_wr_en = 0; cfg_addr = 12'h090;
             tlp_cfg = {8'h04, 8'h00, 16'h0001, 16'hBEEF, 8'hAA, 8'h00,
                        32'h0, 64'h0, 64'h0};
-            @(posedge clk); #1;  // RTL latches, outputs pulse HERE
+            @(posedge clk); #1;
             cap_rd_valid  = cfg_rd_valid;
             cap_cpl_valid = cfg_cpl_valid;
             cap_cpl_tlp   = cfg_cpl_tlp;
@@ -176,9 +150,6 @@ module tb_cfg_space_handler;
             check(cap_cpl_tlp[255:248], 8'h4A, "cpl fmt/type=CplD(0x4A)");
         end
 
-        // --------------------------------------------------
-        // T4: Write arbitrary DW then read it back
-        // --------------------------------------------------
         $display("\n[T4] Write 0xDEAD_BEEF @ 0x100 then read back");
         cfg_write(12'h100, 32'hDEAD_BEEF);
         @(posedge clk);
@@ -186,17 +157,11 @@ module tb_cfg_space_handler;
         @(posedge clk);
         check(cfg_rd_data, 32'hDEAD_BEEF, "readback=0xDEADBEEF");
 
-        // --------------------------------------------------
-        // T5: CfgRd VendorID/DeviceID (offset 0x000)
-        // --------------------------------------------------
         $display("\n[T5] CfgRd VendDev @ 0x000 → expect 0x1234ABCD");
         cfg_read(12'h000);
         @(posedge clk);
         check(cfg_rd_data, 32'h1234_ABCD, "VendDev=0x1234ABCD");
 
-        // --------------------------------------------------
-        // Summary
-        // --------------------------------------------------
         $display("\n===================================");
         $display("  TOTAL PASS : %0d", pass_count);
         $display("  TOTAL FAIL : %0d", fail_count);

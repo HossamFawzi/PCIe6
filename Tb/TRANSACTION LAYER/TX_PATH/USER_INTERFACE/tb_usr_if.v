@@ -2,15 +2,11 @@
 
 module tb_usr_if;
 
-    // ============================================================
-    // Parameters & Signals
-    // ============================================================
     parameter CLK_PERIOD = 10;
 
     reg          clk;
     reg          rst_n;
 
-    // Driver -> USR_IF
     reg  [3:0]   req_type;
     reg  [63:0]  req_addr;
     reg  [9:0]   req_len;
@@ -22,40 +18,32 @@ module tb_usr_if;
     reg  [3:0]   req_last_be;
     wire         req_ready;
 
-    // USR_IF -> REQ_Q
     wire [603:0] pkt_out;
     wire         pkt_valid;
     reg          pkt_ready;
 
-    // CPL_Q -> USR_IF
     reg  [511:0] cpl_data;
     reg          cpl_valid;
     reg  [2:0]   cpl_status;
     reg  [9:0]   cpl_tag;
-    
-    // USR_IF -> Driver (CPL)
+
     wire [511:0] usr_cpl_data;
     wire         usr_cpl_valid;
     wire [2:0]   usr_cpl_status;
     wire [9:0]   usr_cpl_tag;
 
-    // MWR_HDL -> USR_IF
     reg  [511:0] mwr_data;
     reg          mwr_valid;
     reg  [63:0]  mwr_addr;
-    
-    // USR_IF -> Driver (MWR)
+
     wire [511:0] usr_mwr_data;
     wire         usr_mwr_valid;
     wire [63:0]  usr_mwr_addr;
 
-    // ============================================================
-    // DUT Instantiation
-    // ============================================================
     usr_if dut (
         .clk(clk),
         .rst_n(rst_n),
-        
+
         .req_type(req_type),
         .req_addr(req_addr),
         .req_len(req_len),
@@ -66,11 +54,11 @@ module tb_usr_if;
         .req_first_be(req_first_be),
         .req_last_be(req_last_be),
         .req_ready(req_ready),
-        
+
         .pkt_out(pkt_out),
         .pkt_valid(pkt_valid),
         .pkt_ready(pkt_ready),
-        
+
         .cpl_data(cpl_data),
         .cpl_valid(cpl_valid),
         .cpl_status(cpl_status),
@@ -79,7 +67,7 @@ module tb_usr_if;
         .usr_cpl_valid(usr_cpl_valid),
         .usr_cpl_status(usr_cpl_status),
         .usr_cpl_tag(usr_cpl_tag),
-        
+
         .mwr_data(mwr_data),
         .mwr_valid(mwr_valid),
         .mwr_addr(mwr_addr),
@@ -88,15 +76,9 @@ module tb_usr_if;
         .usr_mwr_addr(usr_mwr_addr)
     );
 
-    // ============================================================
-    // Clock Generation
-    // ============================================================
     initial clk = 0;
     always #(CLK_PERIOD/2) clk = ~clk;
 
-    // ============================================================
-    // Test Infrastructure
-    // ============================================================
     integer pass = 0;
     integer fail = 0;
     integer test_id = 0;
@@ -124,23 +106,17 @@ module tb_usr_if;
         pkt_ready = 0;
         cpl_data = 0; cpl_valid = 0; cpl_status = 0; cpl_tag = 0;
         mwr_data = 0; mwr_valid = 0; mwr_addr = 0;
-        
+
         repeat(3) @(posedge clk);
         rst_n = 1;
         @(posedge clk);
     end
     endtask
 
-    // ============================================================
-    // Main Test Sequence
-    // ============================================================
     initial begin
         $display("==== TB usr_if START ====");
         reset_dut();
 
-        // -------------------------------------------------
-        // T1: Combinatorial Packing Alignment
-        // -------------------------------------------------
         req_type     = 4'hA;
         req_addr     = 64'h1122_3344_5566_7788;
         req_len      = 10'h2AA;
@@ -148,10 +124,10 @@ module tb_usr_if;
         req_tc       = 3'h7;
         req_first_be = 4'hF;
         req_last_be  = 4'h1;
-        req_data     = {16{32'hDEAD_BEEF}}; // Fill 512 bits
-        
-        #1; // Wait for combinational logic to propagate
-        
+        req_data     = {16{32'hDEAD_BEEF}};
+
+        #1;
+
         check(
             pkt_out[603:600] == req_type     &&
             pkt_out[599:536] == req_addr     &&
@@ -164,9 +140,6 @@ module tb_usr_if;
             "Static Packet Packing Alignment"
         );
 
-        // -------------------------------------------------
-        // T2: Request Handshake Routing
-        // -------------------------------------------------
         req_valid = 1'b1;
         pkt_ready = 1'b0;
         #1;
@@ -177,9 +150,6 @@ module tb_usr_if;
         #1;
         check(pkt_valid == 1'b0 && req_ready == 1'b1, "Handshake: pkt_ready pass-through");
 
-        // -------------------------------------------------
-        // T3: Completion (CPL) Return Path
-        // -------------------------------------------------
         cpl_data   = {16{32'hCAFE_BABE}};
         cpl_valid  = 1'b1;
         cpl_status = 3'h3;
@@ -193,9 +163,6 @@ module tb_usr_if;
             "CPL Return Path Pass-through"
         );
 
-        // -------------------------------------------------
-        // T4: Inbound Write (MWR) Return Path
-        // -------------------------------------------------
         mwr_data  = {16{32'hFACE_FEED}};
         mwr_valid = 1'b1;
         mwr_addr  = 64'h9988_7766_5544_3322;
@@ -207,24 +174,20 @@ module tb_usr_if;
             "MWR Return Path Pass-through"
         );
 
-        // -------------------------------------------------
-        // T5: Random Stress Test (Checking Assertions & Packing)
-        // -------------------------------------------------
-        // Running 10 random cycles
         repeat(10) begin
             @(posedge clk);
-            // Constrain req_type to <= 5 and req_len > 0 to pass DUT's internal assertions
-            req_type     = {$random} % 6; 
-            req_len      = ({$random} % 1023) + 1; 
-            
-            req_addr     = {{$random}, {$random}}; 
+
+            req_type     = {$random} % 6;
+            req_len      = ({$random} % 1023) + 1;
+
+            req_addr     = {{$random}, {$random}};
             req_attr     = {$random} % 8;
             req_tc       = {$random} % 8;
             req_first_be = {$random} % 16;
             req_last_be  = {$random} % 16;
-            req_data     = {16{$random}}; // Generates 512 bits of random data
-            
-            #1; // Combo propagate
+            req_data     = {16{$random}};
+
+            #1;
             if (
                 pkt_out[603:600] !== req_type     ||
                 pkt_out[599:536] !== req_addr     ||
@@ -239,12 +202,9 @@ module tb_usr_if;
                 fail = fail + 1;
             end
         end
-        // If it survives the loop without incrementing fail
+
         check(1, "Random Stress Packing Constraints");
 
-        // -------------------------------------------------
-        // End of Simulation
-        // -------------------------------------------------
         #20;
         $display("=================================");
         $display("==== RESULTS: PASS=%0d FAIL=%0d ====", pass, fail);

@@ -1,12 +1,6 @@
 
-// ============================================================================
-//  TESTBENCH : tb_pcie_gen6_dll_if
-// ============================================================================
 module tb_pcie_gen6_dll_if;
 
-    //------------------------------------------------------------------
-    // Signals
-    //------------------------------------------------------------------
     reg               clk_tb;
     reg               rst_n_tb;
 
@@ -28,9 +22,6 @@ module tb_pcie_gen6_dll_if;
 
     wire              dll_ready_tb;
 
-    //------------------------------------------------------------------
-    // DUT
-    //------------------------------------------------------------------
     DLL_IF #(
         .TIMEOUT_MAX (200),
         .RETRY_MAX   (4)
@@ -51,22 +42,13 @@ module tb_pcie_gen6_dll_if;
         .dll_ready         (dll_ready_tb)
     );
 
-    //------------------------------------------------------------------
-    // Clock (10 ns period)
-    //------------------------------------------------------------------
     initial  clk_tb = 1'b0;
     always #5 clk_tb = ~clk_tb;
 
-    //------------------------------------------------------------------
-    // Scoreboard
-    //------------------------------------------------------------------
     integer      error_count;
     integer      send_count;
     reg [2047:0] expected_flit;
 
-    //------------------------------------------------------------------
-    // Monitor
-    //------------------------------------------------------------------
     always @(posedge clk_tb) begin
         if (!dll_up_tb && flit_to_dll_valid_tb) begin
             $display("[%0t] ERROR: TX while dll_up=0", $time);
@@ -86,9 +68,6 @@ module tb_pcie_gen6_dll_if;
         end
     end
 
-    //------------------------------------------------------------------
-    // Tasks
-    //------------------------------------------------------------------
     task send_flit;
         input [2047:0] flit;
         begin
@@ -118,12 +97,8 @@ module tb_pcie_gen6_dll_if;
         end
     endtask
 
-    //------------------------------------------------------------------
-    // Test sequence
-    //------------------------------------------------------------------
     initial begin
 
-        // Init
         rst_n_tb           = 1'b0;
         flit_in_tb         = 2048'h0;
         flit_valid_in_tb   = 1'b0;
@@ -136,14 +111,10 @@ module tb_pcie_gen6_dll_if;
         send_count         = 0;
         expected_flit      = 2048'h0;
 
-        // Release reset
         repeat(4) @(posedge clk_tb);
         #1 rst_n_tb = 1'b1;
         repeat(2) @(posedge clk_tb);
 
-        //==============================================================
-        // TEST 1 - Link-Up: dll_ready must follow dll_up
-        //==============================================================
         $display("");
         $display("[%0t] ===== TEST 1: Link-Up =====", $time);
 
@@ -159,15 +130,11 @@ module tb_pcie_gen6_dll_if;
             $display("[%0t] PASS : dll_ready=1 when dll_up=1", $time);
         end
 
-        //==============================================================
-        // TEST 2 - Normal TX + ACK
-        // Expect: FLIT sent exactly once.
-        //==============================================================
         $display("");
         $display("[%0t] ===== TEST 2: Normal TX + ACK =====", $time);
 
-        send_count    = 0;           // reset BEFORE test
-        expected_flit = 2048'hAAAA;  // set BEFORE send
+        send_count    = 0;
+        expected_flit = 2048'hAAAA;
 
         send_flit(expected_flit);
         repeat(3) @(posedge clk_tb);
@@ -184,10 +151,6 @@ module tb_pcie_gen6_dll_if;
                 $time, send_count);
         end
 
-        //==============================================================
-        // TEST 3 - NAK + Replay
-        // Expect: FLIT sent >= 2 times.
-        //==============================================================
         $display("");
         $display("[%0t] ===== TEST 3: NAK + Replay =====", $time);
 
@@ -211,14 +174,6 @@ module tb_pcie_gen6_dll_if;
                 $time, send_count);
         end
 
-        //==============================================================
-        // TEST 4 - Timeout Replay
-        //
-        // TIMEOUT_MAX=200 clock cycles (10 ns each) = 2000 ns minimum.
-        // We wait #2200 ns > 2000 ns to guarantee timeout fires, then
-        // ACK the retried FLIT.
-        // Expect: FLIT sent >= 2 times.
-        //==============================================================
         $display("");
         $display("[%0t] ===== TEST 4: Timeout Replay =====", $time);
         $display("[%0t] INFO : Waiting 2200ns for TIMEOUT_MAX=200 cycles...",
@@ -227,11 +182,11 @@ module tb_pcie_gen6_dll_if;
         send_count    = 0;
         expected_flit = 2048'hCCCC;
 
-        send_flit(expected_flit);   // starts WAIT_ACK countdown
+        send_flit(expected_flit);
 
-        #2200;                      // wait for timeout to fire + replay
+        #2200;
 
-        pulse_ack;                  // ACK the retried FLIT
+        pulse_ack;
         repeat(2) @(posedge clk_tb);
 
         if (send_count < 2) begin
@@ -244,10 +199,6 @@ module tb_pcie_gen6_dll_if;
                 $time, send_count);
         end
 
-        //==============================================================
-        // TEST 5 - Link-Down Protection
-        // Expect: zero FLITs sent while dll_up=0.
-        //==============================================================
         $display("");
         $display("[%0t] ===== TEST 5: Link-Down Protection =====", $time);
 
@@ -274,47 +225,18 @@ module tb_pcie_gen6_dll_if;
             $display("[%0t] PASS : Test5 - No TX during link-down", $time);
         end
 
-        //==============================================================
-        // TEST 6 - Credit-Update RX Path
-        //
-        // [TB-7] BUG FIX (root cause of the only remaining failure):
-        //
-        //   tlp_rx_valid is a REGISTERED output (set synchronously in
-        //   always @(posedge clk)).  The default assignment clears it
-        //   every cycle UNLESS cr_update_valid overrides it.
-        //
-        //   Failing sequence in original TB:
-        //     @(posedge clk); #1;  cr_update_valid = 1        <- Cycle N
-        //     @(posedge clk); #1;  cr_update_valid = 0        <- posedge N: DUT sets tlp_rx_valid=1
-        //     @(posedge clk); #1;                             <- posedge N+1: DUT clears tlp_rx_valid=0
-        //     check tlp_rx_valid -> sees 0 -> FALSE FAIL
-        //
-        //   Fixed sequence:
-        //     @(posedge clk); #1;  cr_update_valid = 1        <- Cycle N
-        //     @(posedge clk); #1;  cr_update_valid = 0        <- posedge N: DUT sets tlp_rx_valid=1
-        //     // *** sample HERE, #1 after posedge N, before N+1 clears it ***
-        //     check tlp_rx_valid -> sees 1 -> PASS
-        //
-        // Expect: tlp_rx_valid=1 sampled immediately after the clock edge
-        //         that latched cr_update_valid=1.
-        //==============================================================
         $display("");
         $display("[%0t] ===== TEST 6: Credit-Update RX Path =====", $time);
 
         dll_up_tb = 1'b1;
 
-        // Apply cr_update_valid for one cycle
         @(posedge clk_tb); #1;
         cr_update_tb       = 72'hDEAD_BEEF_0000_0000_00;
         cr_update_valid_tb = 1'b1;
 
-        // posedge fires here; DUT registers tlp_rx_valid=1
         @(posedge clk_tb); #1;
         cr_update_valid_tb = 1'b0;
 
-        // [TB-7 FIX] Sample tlp_rx_valid NOW (1 ns after the posedge that set it)
-        // DO NOT take another @(posedge clk_tb) here ? that would let the
-        // synchronous default clear tlp_rx_valid before we check it.
         if (!tlp_rx_valid_tb) begin
             $display("[%0t] ERROR: Test6 - tlp_rx_valid not set", $time);
             error_count = error_count + 1;
@@ -326,9 +248,6 @@ module tb_pcie_gen6_dll_if;
 
         repeat(3) @(posedge clk_tb);
 
-        //==============================================================
-        // FINAL REPORT
-        //==============================================================
         $display("");
         $display("====================================");
         if (error_count == 0)
@@ -341,4 +260,4 @@ module tb_pcie_gen6_dll_if;
         #20 $stop;
     end
 
-endmodule  // tb_pcie_gen6_dll_if
+endmodule

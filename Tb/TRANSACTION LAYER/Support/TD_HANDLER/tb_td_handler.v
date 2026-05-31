@@ -1,7 +1,4 @@
-// =============================================================
-//  TESTBENCH : tb_td_handler  (clean)
-//  DUT       : td_handler
-// =============================================================
+
 `timescale 1ns/1ps
 module tb_td_handler;
 
@@ -69,46 +66,41 @@ module tb_td_handler;
     initial begin
         $display("=== td_handler Testbench ===");
 
-        // T1: ecrc_en=1, td_bit=1 → ECRC appended at LSB[31:0]
         $display("\n[T1] TX: ecrc_en=1 td_bit=1 → ECRC appended");
         do_reset;
         apply(1184'hABCD_1234, 1, 32'hDEAD_BEEF, 1);
         chk1(digest_valid, 1'b1, "digest_valid=1");
         chk32(tlp_with_digest[31:0], 32'hDEAD_BEEF, "ECRC at [31:0]");
 
-        // T2: ecrc_en=0, td_bit=0 → pass-through
         $display("\n[T2] TX: no ECRC pass-through");
         do_reset;
         apply(1184'hCAFE_F00D, 0, 32'h0, 0);
         chk1(digest_valid, 1'b1, "digest_valid passthrough");
         chk1(td_err,       1'b0, "no td_err");
 
-        // T3: RX strip: ecrc_en=0 td_bit=1 ECRC match → strip_ok
         $display("\n[T3] RX strip: ECRC match → td_strip_ok");
         do_reset;
         begin : T3_BLK
             reg [1183:0] rx_tlp;
             rx_tlp        = 1184'h0;
-            rx_tlp[31:0]  = 32'h1234_5678;  // received ECRC at LSB
+            rx_tlp[31:0]  = 32'h1234_5678;
             rx_tlp[1183:32]= 1152'hAA;
-            apply(rx_tlp, 1, 32'h1234_5678, 0); // ecrc_val matches
+            apply(rx_tlp, 1, 32'h1234_5678, 0);
         end
         chk1(td_strip_ok, 1'b1, "td_strip_ok=1");
         chk1(td_err,      1'b0, "no td_err");
 
-        // T4: RX strip: ECRC mismatch → td_err
         $display("\n[T4] RX strip: ECRC mismatch → td_err");
         do_reset;
         begin : T4_BLK
             reg [1183:0] rx_tlp2;
             rx_tlp2        = 1184'h0;
             rx_tlp2[31:0]  = 32'hDEAD_BEEF;
-            apply(rx_tlp2, 1, 32'hBAAD_F00D, 0);  // mismatch
+            apply(rx_tlp2, 1, 32'hBAAD_F00D, 0);
         end
         chk1(td_err,      1'b1, "td_err=1 mismatch");
         chk1(td_strip_ok, 1'b0, "no strip_ok");
 
-        // T5: idle → no outputs
         $display("\n[T5] Idle → no outputs");
         do_reset;
         repeat(3) @(posedge clk); #1;
