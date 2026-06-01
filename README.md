@@ -37,7 +37,8 @@ The simulation framework is designed to evaluate and measure the following metri
 
 This repository adheres to standard hardware verification practices:
 
-* `/src`: Contains **all** the Verilog (`.v`) and SystemVerilog (`.sv`) files for both the RTL design (Transaction, Data Link, and Physical modules) and the testbenches/verification environments.
+* `/src`: Contains the complete RTL design files (`.v`, `.sv`) and the **top-level testbench** required to run the full system integration.
+* `/tb`: Contains individual testbenches for each specific RTL file/sub-module for unit-level verification.
 * `/docs`: Architecture block diagrams, theoretical analysis, and design documentation.
 * `/scripts`: Synthesis constraints, compilation scripts, and simulation macros.
 
@@ -45,10 +46,9 @@ This repository adheres to standard hardware verification practices:
 
 1. **Prerequisites:** ModelSim (or QuestaSim) is required for functional simulation.
 2. **Clone the Repository:** Pull the latest version to your local environment.
-3. **Compile:** Navigate directly to the `/src` directory. Because all design and testbench files are centralized here, you can compile the entire system directly from this folder.
-4. **Run Unit Tests:** Execute individual testbenches (located in `/src`) for FLIT construction, FEC encoding, and PAM4 logical mapping.
-5. **Run System Integration:** Execute the top-level testbench from `/src` to monitor the complete TLP flow from the TX Transaction Layer to the RX Transaction Layer.
-6. **Analysis:** Review the generated waveforms to inspect packet sequencing, valid FLIT boundaries, and fault-tolerance mechanisms.
+3. **Run Unit Tests:** Navigate to the `/tb` directory to compile and execute individual testbenches for specific sub-modules (e.g., FLIT construction, FEC encoding, PAM4 logical mapping).
+4. **Run System Integration:** To simulate the entire system, navigate to the `/src` directory and execute the top-level testbench to monitor the complete TLP flow from the TX to the RX Transaction Layer.
+5. **Analysis:** Review the generated waveforms to inspect packet sequencing, valid FLIT boundaries, and fault-tolerance mechanisms.
 
 ## Current Project Status
 
