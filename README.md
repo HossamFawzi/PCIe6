@@ -1,9 +1,3 @@
-Here is the updated README with the **Repository Structure** and **Build & Simulation Instructions** modified to reflect that all design and testbench files (`.v` and `.sv`) are now centralized in the `/src` directory.
-
-You can copy and paste this directly into your `README.md`:
-
----
-
 # Simplified PCIe Gen 6 Digital Model
 
 ## Overview
