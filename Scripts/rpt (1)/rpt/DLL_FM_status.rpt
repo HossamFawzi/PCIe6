@@ -1,0 +1,56 @@
+**************************************************
+Report         : status
+
+Reference      : ref:/WORK/dll_top
+Implementation : impl:/WORK/dll_top
+Version        : L-2016.03-SP1
+Date           : Fri Jun 12 05:26:17 2026
+**************************************************
+
+***************************** Synopsys Auto Setup Summary ******************************
+
+!!! Synopsys Auto Setup Mode was enabled. !!!
+!!! Verification results are valid assuming the following setup constraints: !!!
+
+### RTL Interpretation Setup
+   set hdlin_ignore_parallel_case false
+   set hdlin_ignore_full_case false
+   set hdlin_error_on_mismatch_message false
+   set hdlin_ignore_embedded_configuration true
+
+### Undriven Signal Handling Setup
+   set verification_set_undriven_signals synthesis
+
+### Test Logic Setup
+   set verification_verify_directly_undriven_output false
+   For details see report_dont_verify_points and report_constants
+
+
+For further details on Synopsys Auto Setup Mode: Type man synopsys_auto_setup
+****************************************************************************************
+
+
+********************************* Verification Results *********************************
+Verification FAILED
+   ATTENTION: synopsys_auto_setup mode was enabled.
+              See Synopsys Auto Setup Summary for details.
+----------------------------------------------------------
+ Reference design: ref:/WORK/dll_top
+ Implementation design: impl:/WORK/dll_top
+ 21342 Passing compare points
+ 20 Failing compare points
+ 0 Aborted compare points
+ 9307 Unverified compare points
+----------------------------------------------------------------------------------------
+Matched Compare Points     BBPin    Loop   BBNet     Cut    Port     DFF     LAT   TOTAL
+----------------------------------------------------------------------------------------
+Passing (equivalent)           0       0       0       0    1389   19953       0   21342
+Failing (not equivalent)       0       0       0       0       0      20       0      20
+Unverified                     0       0       0       0      45    9262       0    9307
+Not Compared
+  Unread                       0       0       0       0       0       2       0       2
+****************************************************************************************
+Info:  Try the analyze_points command to see if Formality can determine potential
+causes, or suggest next steps for a FAILED or INCONCLUSIVE verification.
+See the man page for analyze_points usage and options.
+1

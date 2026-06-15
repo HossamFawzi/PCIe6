@@ -1,0 +1,309 @@
+
+                                 Formality (R)
+
+               Version L-2016.03-SP1 for linux64 - Apr 13, 2016 
+
+                    Copyright (c) 1988 - 2016 Synopsys, Inc.
+   This software and the associated documentation are proprietary to Synopsys,
+ Inc. This software may only be used in accordance with the terms and conditions
+ of a written license agreement with Synopsys, Inc. All other use, reproduction,
+            or distribution of this software is strictly prohibited.
+
+  ** Highlights of Formality (R) Version L-2016.03 **
+   - New alternate verification strategies for resolving inconclusive verifications
+   - Automation for deploying alternate strategies
+   - New command to export the mapping of reference to implementation registers
+   - New capability to combine PG and low power information from db libraries with Verilog functional models
+
+   * Please refer to the Formality Release Notes for details and additional enhancements
+
+Build: 4031317
+Hostname: IC (RHEL64)
+Current time: Fri Jun 12 05:23:56 2026
+
+Loading db file '/opt/Synopsys/Formality2016/libraries/syn/gtech.db'
+###############################################################################
+#            Formality — DLL  (RTL  vs  Synthesized Netlist)
+#            Modeled on the UART_TX formality flow.
+###############################################################################
+##======================= Standard-cell libraries (.db) =====================##
+set SSLIB "/home/IC/PCIE_GEN_6/std_cells/scmetro_tsmc_cl013g_rvt_ss_1p08v_125c.db"
+/home/IC/PCIE_GEN_6/std_cells/scmetro_tsmc_cl013g_rvt_ss_1p08v_125c.db
+set TTLIB "/home/IC/PCIE_GEN_6/std_cells/scmetro_tsmc_cl013g_rvt_tt_1p2v_25c.db"
+/home/IC/PCIE_GEN_6/std_cells/scmetro_tsmc_cl013g_rvt_tt_1p2v_25c.db
+set FFLIB "/home/IC/PCIE_GEN_6/std_cells/scmetro_tsmc_cl013g_rvt_ff_1p32v_m40c.db"
+/home/IC/PCIE_GEN_6/std_cells/scmetro_tsmc_cl013g_rvt_ff_1p32v_m40c.db
+##============================ RTL source files =============================##
+set RTL "/home/IC/PCIE_GEN_6/rtl"
+/home/IC/PCIE_GEN_6/rtl
+set RTL_FILES [list   "$RTL/DLL/tx_datapath_mux.v"        "$RTL/DLL/rx_datapath_demux.v"   "$RTL/DLL/scrambler.v"              "$RTL/DLL/Descrambler.v"   "$RTL/DLL/crc_gen.v"               "$RTL/DLL/dllp_crc_gen.v"   "$RTL/DLL/dllp_crc_chk.v"          "$RTL/DLL/lcrc_flit_crc_chk.v"   "$RTL/DLL/seq_num_gen.v"           "$RTL/DLL/seq_num_checker_rx.v"   "$RTL/DLL/ack_nak_receiver.v"      "$RTL/DLL/ack_nak_scheduler_tx.v"   "$RTL/DLL/ack_pgb.v"               "$RTL/DLL/ack_tmr.v"   "$RTL/DLL/retry_buf.v"             "$RTL/DLL/replay_fsm.v"   "$RTL/DLL/dllp_gen.v"              "$RTL/DLL/dllp_arb.v"   "$RTL/DLL/dllp_receiver_decoder.v" "$RTL/DLL/dllp_mal_chk.v"   "$RTL/DLL/flit_null_slot_inserter.v" "$RTL/DLL/flit_rx_deframer.v"   "$RTL/DLL/flit_seq.v"              "$RTL/DLL/fc_init_fsm.v"   "$RTL/DLL/fc_tmr.v"                "$RTL/DLL/fc_wdg.v"   "$RTL/DLL/lbw_fsm.v"               "$RTL/DLL/nullified_tlp_handler.v"   "$RTL/DLL/dll_err.v"               "$RTL/DLL/dll_init.v"   "$RTL/DLL/pm_fsm.v"                "$RTL/DLL/pm_tmr.v"   "$RTL/DLL/nop_gen.v"               "$RTL/DLL/pcie6_phy_tx.v"   "$RTL/DLL/phy_interface_rx.v"      "$RTL/DLL/tl_interface.v"   "$RTL/TOP/dll_top.v" ]
+/home/IC/PCIE_GEN_6/rtl/DLL/tx_datapath_mux.v /home/IC/PCIE_GEN_6/rtl/DLL/rx_datapath_demux.v /home/IC/PCIE_GEN_6/rtl/DLL/scrambler.v /home/IC/PCIE_GEN_6/rtl/DLL/Descrambler.v /home/IC/PCIE_GEN_6/rtl/DLL/crc_gen.v /home/IC/PCIE_GEN_6/rtl/DLL/dllp_crc_gen.v /home/IC/PCIE_GEN_6/rtl/DLL/dllp_crc_chk.v /home/IC/PCIE_GEN_6/rtl/DLL/lcrc_flit_crc_chk.v /home/IC/PCIE_GEN_6/rtl/DLL/seq_num_gen.v /home/IC/PCIE_GEN_6/rtl/DLL/seq_num_checker_rx.v /home/IC/PCIE_GEN_6/rtl/DLL/ack_nak_receiver.v /home/IC/PCIE_GEN_6/rtl/DLL/ack_nak_scheduler_tx.v /home/IC/PCIE_GEN_6/rtl/DLL/ack_pgb.v /home/IC/PCIE_GEN_6/rtl/DLL/ack_tmr.v /home/IC/PCIE_GEN_6/rtl/DLL/retry_buf.v /home/IC/PCIE_GEN_6/rtl/DLL/replay_fsm.v /home/IC/PCIE_GEN_6/rtl/DLL/dllp_gen.v /home/IC/PCIE_GEN_6/rtl/DLL/dllp_arb.v /home/IC/PCIE_GEN_6/rtl/DLL/dllp_receiver_decoder.v /home/IC/PCIE_GEN_6/rtl/DLL/dllp_mal_chk.v /home/IC/PCIE_GEN_6/rtl/DLL/flit_null_slot_inserter.v /home/IC/PCIE_GEN_6/rtl/DLL/flit_rx_deframer.v /home/IC/PCIE_GEN_6/rtl/DLL/flit_seq.v /home/IC/PCIE_GEN_6/rtl/DLL/fc_init_fsm.v /home/IC/PCIE_GEN_6/rtl/DLL/fc_tmr.v /home/IC/PCIE_GEN_6/rtl/DLL/fc_wdg.v /home/IC/PCIE_GEN_6/rtl/DLL/lbw_fsm.v /home/IC/PCIE_GEN_6/rtl/DLL/nullified_tlp_handler.v /home/IC/PCIE_GEN_6/rtl/DLL/dll_err.v /home/IC/PCIE_GEN_6/rtl/DLL/dll_init.v /home/IC/PCIE_GEN_6/rtl/DLL/pm_fsm.v /home/IC/PCIE_GEN_6/rtl/DLL/pm_tmr.v /home/IC/PCIE_GEN_6/rtl/DLL/nop_gen.v /home/IC/PCIE_GEN_6/rtl/DLL/pcie6_phy_tx.v /home/IC/PCIE_GEN_6/rtl/DLL/phy_interface_rx.v /home/IC/PCIE_GEN_6/rtl/DLL/tl_interface.v /home/IC/PCIE_GEN_6/rtl/TOP/dll_top.v
+##============================== Guidance ===================================##
+# Enable Synopsys auto-setup (valid var name has NO leading underscore).
+set_app_var synopsys_auto_setup true
+true
+# SVF written by Design Compiler. MUST be loaded so Formality understands DC's
+# optimizations (compile_ultra retiming / register opt). Load it BEFORE reading
+# the designs. Ensure synthesis ran with:  set_svf <this same path>
+set_svf "/home/IC/PCIE_GEN_6/syn/DLL_SYN.svf"
+Error: Invalid SVF, contents ignored (FM-339)
+0
+##======================= Reference container (RTL) ========================##
+read_verilog -container ref -libname WORK -05 $RTL_FILES
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/tx_datapath_mux.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/rx_datapath_demux.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/scrambler.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/Descrambler.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/crc_gen.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/dllp_crc_gen.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/dllp_crc_chk.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/lcrc_flit_crc_chk.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/seq_num_gen.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/seq_num_checker_rx.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/ack_nak_receiver.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/ack_nak_scheduler_tx.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/ack_pgb.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/ack_tmr.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/retry_buf.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/replay_fsm.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/dllp_gen.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/dllp_arb.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/dllp_receiver_decoder.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/dllp_mal_chk.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/flit_null_slot_inserter.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/flit_rx_deframer.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/flit_seq.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/fc_init_fsm.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/fc_tmr.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/fc_wdg.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/lbw_fsm.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/nullified_tlp_handler.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/dll_err.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/dll_init.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/pm_fsm.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/pm_tmr.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/nop_gen.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/pcie6_phy_tx.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/phy_interface_rx.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/DLL/tl_interface.v'
+Loading verilog file '/home/IC/PCIE_GEN_6/rtl/TOP/dll_top.v'
+Created container 'ref'
+Current container set to 'ref'
+1
+read_db -container ref [list $SSLIB $TTLIB $FFLIB]
+Loading db file '/home/IC/PCIE_GEN_6/std_cells/scmetro_tsmc_cl013g_rvt_ss_1p08v_125c.db'
+Loading db file '/home/IC/PCIE_GEN_6/std_cells/scmetro_tsmc_cl013g_rvt_tt_1p2v_25c.db'
+Loading db file '/home/IC/PCIE_GEN_6/std_cells/scmetro_tsmc_cl013g_rvt_ff_1p32v_m40c.db'
+1
+set_reference_design ref:/WORK/dll_top
+Reference design set to 'ref:/WORK/dll_top'
+1
+set_top dll_top
+Setting top design to 'ref:/WORK/dll_top'
+Status:   Elaborating design dll_top   ...  
+Status:   Elaborating design phy_interface_rx   ...  
+Status:   Elaborating design descrambler   ...  
+Status:   Elaborating design flit_rx_deframer   ...  
+Status:   Elaborating design nullified_tlp_handler   ...  
+Status:   Elaborating design rx_datapath_demux   ...  
+Status:   Elaborating design lcrc_flit_crc_chk   ...  
+Status:   Elaborating design seq_num_checker_rx   ...  
+Status:   Elaborating design ack_nak_scheduler_tx   ...  
+Status:   Elaborating design dllp_crc_chk   ...  
+Status:   Elaborating design dllp_mal_chk   ...  
+Status:   Elaborating design dllp_receiver_decoder   ...  
+Status:   Elaborating design ack_nak_receiver   ...  
+Status:   Elaborating design tl_interface   ...  
+Status:   Elaborating design seq_num_gen   ...  
+Status:   Elaborating design retry_buf   ...  
+Status:   Elaborating design dll_tx_datapath_mux   ...  
+Status:   Elaborating design scrambler   ...  
+Status:   Elaborating design pcie6_phy_tx   ...  
+Status:   Elaborating design crc_gen   ...  
+Status:   Elaborating design dllp_gen   ...  
+Status:   Elaborating design dllp_crc_gen   ...  
+Status:   Elaborating design dllp_arb   ...  
+Status:   Elaborating design dll_init   ...  
+Status:   Elaborating design fc_init_fsm   ...  
+Status:   Elaborating design fc_tmr   ...  
+Status:   Elaborating design fc_wdg   ...  
+Status:   Elaborating design ack_tmr   ...  
+Status:   Elaborating design ack_pgb   ...  
+Status:   Elaborating design replay_fsm   ...  
+Status:   Elaborating design flit_seq   ...  
+Status:   Elaborating design lbw_fsm   ...  
+Status:   Elaborating design nop_gen   ...  
+Status:   Elaborating design pm_fsm   ...  
+Status:   Elaborating design pm_tmr   ...  
+Status:   Elaborating design dll_err   ...  
+Status:   Elaborating design flit_null_slot_inserter   ...  
+Status:  Implementing inferred operators...
+
+************ Library Checking Summary ************
+Warning:  3 unlinked power cell(s) with unread pg pins.
+        Use 'report_libraries -defects all' for more details.
+**************************************************
+
+Top design successfully set to 'ref:/WORK/dll_top'
+Reference design set to 'ref:/WORK/dll_top'
+1
+##==================== Implementation container (Netlist) ==================##
+read_verilog -container impl -libname WORK -netlist "/home/IC/PCIE_GEN_6/syn/DLL_SYN.v"
+Loading verilog file '/home/IC/PCIE_GEN_6/syn/DLL_SYN.v'
+Created container 'impl'
+Current container set to 'impl'
+1
+read_db -container impl [list $SSLIB $TTLIB $FFLIB]
+Loading db file '/home/IC/PCIE_GEN_6/std_cells/scmetro_tsmc_cl013g_rvt_ss_1p08v_125c.db'
+Loading db file '/home/IC/PCIE_GEN_6/std_cells/scmetro_tsmc_cl013g_rvt_tt_1p2v_25c.db'
+Loading db file '/home/IC/PCIE_GEN_6/std_cells/scmetro_tsmc_cl013g_rvt_ff_1p32v_m40c.db'
+1
+set_implementation_design impl:/WORK/dll_top
+Implementation design set to 'impl:/WORK/dll_top'
+1
+set_top dll_top
+Setting top design to 'impl:/WORK/dll_top'
+Status:  Implementing inferred operators...
+
+************ Library Checking Summary ************
+Warning:  3 unlinked power cell(s) with unread pg pins.
+        Use 'report_libraries -defects all' for more details.
+**************************************************
+
+Top design successfully set to 'impl:/WORK/dll_top'
+Implementation design set to 'impl:/WORK/dll_top'
+1
+##============================ Match & Verify ==============================##
+match
+Reference design is 'ref:/WORK/dll_top'
+Implementation design is 'impl:/WORK/dll_top'
+Status:  Checking designs...
+    Warning: 1 (3056) undriven nets found in reference (implementation) design; see formality1.log for list (FM-399)
+Status:  Building verification models...
+Status:  Matching...
+    
+*********************************** Matching Results ***********************************    
+ 30669 Compare points matched by name    
+ 0 Compare points matched by signature analysis    
+ 0 Compare points matched by topology    
+ 1449 Matched primary inputs, black-box outputs    
+ 742(0) Unmatched reference(implementation) compare points    
+ 0(0) Unmatched reference(implementation) primary inputs, black-box outputs    
+ 12147(0) Unmatched reference(implementation) unread points    
+----------------------------------------------------------------------------------------    
+Unmatched Objects                                                        REF        IMPL    
+----------------------------------------------------------------------------------------    
+ Registers                                                               742           0    
+   DFF                                                                     9           0    
+   Constrained 0X                                                        733           0    
+****************************************************************************************
+
+1
+set successful [verify]
+Reference design is 'ref:/WORK/dll_top'
+Implementation design is 'impl:/WORK/dll_top'
+    
+*********************************** Matching Results ***********************************    
+ 30669 Compare points matched by name    
+ 0 Compare points matched by signature analysis    
+ 0 Compare points matched by topology    
+ 1449 Matched primary inputs, black-box outputs    
+ 742(0) Unmatched reference(implementation) compare points    
+ 0(0) Unmatched reference(implementation) primary inputs, black-box outputs    
+ 12147(0) Unmatched reference(implementation) unread points    
+----------------------------------------------------------------------------------------    
+Unmatched Objects                                                        REF        IMPL    
+----------------------------------------------------------------------------------------    
+ Registers                                                               742           0    
+   DFF                                                                     9           0    
+   Constrained 0X                                                        733           0    
+****************************************************************************************
+
+Status:  Verifying...
+    Compare point u_rx_demux/tlp_rx_reg_101_ failed (is not equivalent)
+.
+    Compare point u_flit_rx/data_lat_reg_549_ failed (is not equivalent)
+    Compare point u_pm_tmr/l0s_active_reg failed (is not equivalent)
+    Compare point u_pm_tmr/l0s_cnt_reg_0_ failed (is not equivalent)
+    Compare point u_pm_tmr/l0s_cnt_reg_1_ failed (is not equivalent)
+    Compare point u_pm_tmr/l0s_cnt_reg_2_ failed (is not equivalent)
+    Compare point u_pm_tmr/l0s_cnt_reg_3_ failed (is not equivalent)
+    Compare point u_pm_tmr/l0s_cnt_reg_4_ failed (is not equivalent)
+    Compare point u_pm_tmr/l0s_cnt_reg_5_ failed (is not equivalent)
+    Compare point u_pm_tmr/l1_active_reg failed (is not equivalent)
+    Compare point u_pm_tmr/l1_cnt_reg_0_ failed (is not equivalent)
+    Compare point u_pm_tmr/l1_cnt_reg_1_ failed (is not equivalent)
+    Compare point u_dllp_gen/pm_dllp_reg_56_ failed (is not equivalent)
+    Compare point u_dllp_gen/pm_dllp_reg_58_ failed (is not equivalent)
+    Compare point u_dllp_gen/pm_dllp_reg_61_ failed (is not equivalent)
+    Compare point u_pm_fsm/pm_dllp_send_reg failed (is not equivalent)
+    Compare point u_dllp_gen/pm_dllp_valid_reg failed (is not equivalent)
+    Compare point u_pm_tmr/l1_cnt_reg_2_ failed (is not equivalent)
+    Compare point u_pm_tmr/l1_cnt_reg_3_ failed (is not equivalent)
+    Compare point u_pm_tmr/l1_cnt_reg_4_ failed (is not equivalent)
+
+***************************** Synopsys Auto Setup Summary ******************************
+
+!!! Synopsys Auto Setup Mode was enabled. !!!
+!!! Verification results are valid assuming the following setup constraints: !!!
+
+### RTL Interpretation Setup
+   set hdlin_ignore_parallel_case false
+   set hdlin_ignore_full_case false
+   set hdlin_error_on_mismatch_message false
+   set hdlin_ignore_embedded_configuration true
+
+### Undriven Signal Handling Setup
+   set verification_set_undriven_signals synthesis
+
+### Test Logic Setup
+   set verification_verify_directly_undriven_output false
+   For details see report_dont_verify_points and report_constants
+
+
+For further details on Synopsys Auto Setup Mode: Type man synopsys_auto_setup
+****************************************************************************************
+
+
+********************************* Verification Results *********************************
+Verification FAILED
+   ATTENTION: synopsys_auto_setup mode was enabled.
+              See Synopsys Auto Setup Summary for details.
+----------------------------------------------------------
+ Reference design: ref:/WORK/dll_top
+ Implementation design: impl:/WORK/dll_top
+ 21342 Passing compare points
+ 20 Failing compare points
+ 0 Aborted compare points
+ 9307 Unverified compare points
+----------------------------------------------------------------------------------------
+Matched Compare Points     BBPin    Loop   BBNet     Cut    Port     DFF     LAT   TOTAL
+----------------------------------------------------------------------------------------
+Passing (equivalent)           0       0       0       0    1389   19953       0   21342
+Failing (not equivalent)       0       0       0       0       0      20       0      20
+Unverified                     0       0       0       0      45    9262       0    9307
+Not Compared
+  Unread                       0       0       0       0       0       2       0       2
+****************************************************************************************
+Info:  Try the analyze_points command to see if Formality can determine potential
+causes, or suggest next steps for a FAILED or INCONCLUSIVE verification.
+See the man page for analyze_points usage and options.
+0
+##============================== Reports ===================================##
+report_status            > rpt/DLL_FM_status.rpt
+report_verify            > rpt/DLL_FM_verify.rpt
+report_unmatched_points  > rpt/DLL_FM_unmatched.rpt
+report_failing_points    > rpt/DLL_FM_failing_points.rpt
+if {$successful} {
+    puts "############################################################"
+    puts "#   FORMAL VERIFICATION PASSED — RTL matches Netlist        #"
+    puts "############################################################"
+} else {
+    puts "############################################################"
+    puts "#   FORMAL VERIFICATION FAILED — see rpt/ for details       #"
+    puts "############################################################"
+}
+############################################################
+#   FORMAL VERIFICATION FAILED ? see rpt/ for details       #
+############################################################
+fm_shell (verify)> 
