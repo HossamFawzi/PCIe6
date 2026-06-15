@@ -1,0 +1,150 @@
+ 
+****************************************
+Report : qor
+Design : pcie_gen6_system_top
+Version: K-2015.06
+Date   : Mon Jun  8 21:57:20 2026
+****************************************
+
+
+  Timing Path Group 'INOUT'
+  -----------------------------------
+  Levels of Logic:               4.00
+  Critical Path Length:          4.14
+  Critical Path Slack:          -3.44
+  Critical Path Clk Period:      4.00
+  Total Negative Slack:         -9.63
+  No. of Violating Paths:        3.00
+  Worst Hold Violation:          0.00
+  Total Hold Violation:          0.00
+  No. of Hold Violations:        0.00
+  -----------------------------------
+
+  Timing Path Group 'INREG'
+  -----------------------------------
+  Levels of Logic:               4.00
+  Critical Path Length:       1344.03
+  Critical Path Slack:       -1394.25
+  Critical Path Clk Period:      4.00
+  Total Negative Slack:  -31650776.00
+  No. of Violating Paths:   116076.00
+  Worst Hold Violation:          0.00
+  Total Hold Violation:          0.00
+  No. of Hold Violations:        0.00
+  -----------------------------------
+
+  Timing Path Group 'REGOUT'
+  -----------------------------------
+  Levels of Logic:              10.00
+  Critical Path Length:         13.52
+  Critical Path Slack:         -11.22
+  Critical Path Clk Period:      4.00
+  Total Negative Slack:        -38.66
+  No. of Violating Paths:       11.00
+  Worst Hold Violation:          0.00
+  Total Hold Violation:          0.00
+  No. of Hold Violations:        0.00
+  -----------------------------------
+
+  Timing Path Group 'clk'
+  -----------------------------------
+  Levels of Logic:            1112.00
+  Critical Path Length:       1926.37
+  Critical Path Slack:       -1922.87
+  Critical Path Clk Period:      4.00
+  Total Negative Slack:  -37154512.00
+  No. of Violating Paths:   195996.00
+  Worst Hold Violation:          0.00
+  Total Hold Violation:          0.00
+  No. of Hold Violations:        0.00
+  -----------------------------------
+
+  Timing Path Group 'clk_pipe'
+  -----------------------------------
+  Levels of Logic:              13.00
+  Critical Path Length:         28.32
+  Critical Path Slack:         -24.77
+  Critical Path Clk Period:      4.00
+  Total Negative Slack:    -167142.14
+  No. of Violating Paths:     9085.00
+  Worst Hold Violation:          0.00
+  Total Hold Violation:          0.00
+  No. of Hold Violations:        0.00
+  -----------------------------------
+
+  Timing Path Group 'clk_ser'
+  -----------------------------------
+  Levels of Logic:               5.00
+  Critical Path Length:         12.42
+  Critical Path Slack:         -10.80
+  Critical Path Clk Period:      2.00
+  Total Negative Slack:      -5167.53
+  No. of Violating Paths:      709.00
+  Worst Hold Violation:          0.00
+  Total Hold Violation:          0.00
+  No. of Hold Violations:        0.00
+  -----------------------------------
+
+
+  Cell Count
+  -----------------------------------
+  Hierarchical Cell Count:       2249
+  Hierarchical Port Count:     242491
+  Leaf Cell Count:            1117027
+  Buf/Inv Cell Count:          143550
+  Buf Cell Count:               37851
+  Inv Cell Count:              105699
+  CT Buf/Inv Cell Count:            0
+  Combinational Cell Count:    892081
+  Sequential Cell Count:       224946
+  Macro Count:                      0
+  -----------------------------------
+
+
+  Area
+  -----------------------------------
+  Combinational Area: 10108702.632929
+  Noncombinational Area:
+                       6177056.061131
+  Buf/Inv Area:         583074.863209
+  Total Buffer Area:        181328.29
+  Total Inverter Area:      401746.57
+  Macro/Black Box Area:      0.000000
+  Net Area:          425191060.513794
+  -----------------------------------
+  Cell Area:          16285758.694060
+  Design Area:       441476819.207854
+
+
+  Design Rules
+  -----------------------------------
+  Total Number of Nets:       1125580
+  Nets With Violations:        329792
+  Max Trans Violations:        301711
+  Max Cap Violations:          192389
+  Max Fanout Violations:          128
+  -----------------------------------
+
+
+  Hostname: IC
+
+  Compile CPU Statistics
+  -----------------------------------------
+  Resource Sharing:                    0.84
+  Logic Optimization:                179.27
+  Mapping Optimization:              103.13
+  -----------------------------------------
+  Overall Compile Time:              390.64
+  Overall Compile Wall Clock Time:   410.94
+
+  --------------------------------------------------------------------
+
+  Design  WNS: 1922.87  TNS: 37946084.00  Number of Violating Paths: 257313
+
+
+  Design (Hold)  WNS: 0.00  TNS: 0.00  Number of Violating Paths: 0
+
+  --------------------------------------------------------------------
+
+
+1

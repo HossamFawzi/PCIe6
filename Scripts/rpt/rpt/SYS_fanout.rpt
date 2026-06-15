@@ -1,0 +1,281 @@
+ 
+****************************************
+Report : net fanout
+        -threshold 32
+Design : pcie_gen6_system_top
+Version: K-2015.06
+Date   : Mon Jun  8 21:57:24 2026
+****************************************
+
+
+Operating Conditions: scmetro_tsmc_cl013g_rvt_ss_1p08v_125c   Library: scmetro_tsmc_cl013g_rvt_ss_1p08v_125c
+Wire Load Model Mode: top
+
+Design        Wire Load Model            Library
+------------------------------------------------
+pcie_gen6_system_top   tsmc13_wl30       scmetro_tsmc_cl013g_rvt_ss_1p08v_125c
+
+
+Attributes:
+   dr - drc disabled
+    c - annotated capacitance
+    d - dont_touch
+    i - ideal_net
+    I - ideal_network
+    p - includes pin load
+    r - annotated resistance
+    h - high fanout
+
+Net                 Fanout   Attributes   Capacitance   Driver
+--------------------------------------------------------------------------------
+*Logic0*              1107   dr, h         1031.00      U2/**logic_0**
+clk                 214759   dr, d, h      1031.00      clk
+clk_pipe              9414   dr, d, h      1031.00      clk_pipe
+clk_ser                709   dr, d           22.81      clk_ser
+rst_n               141906   d, h          1031.00      rst_n
+u_phy_top/*Logic1*      45   dr, d            1.42      u_phy_top/U1/**logic_1**
+u_phy_top/*Logic0*     821   dr, d           26.10      u_phy_top/U2/**logic_0**
+u_phy_top/net2414522
+                      6823   d, h          1031.00      u_phy_top/U13676/Y
+u_phy_top/n13197     10139   dr, d, h      1031.00      u_phy_top/U13531/**logic_0**
+u_phy_top/n13214      2294   d, h          1031.00      u_phy_top/U26239/Y
+u_phy_top/n13215      2649   d, h          1031.00      u_phy_top/U26240/Y
+u_phy_top/n13216       259   d                8.17      u_phy_top/U26241/Y
+u_phy_top/n13217      1105   d, h          1031.00      u_phy_top/U26242/Y
+u_phy_top/n13218       969   d               32.24      u_phy_top/U26243/Y
+u_phy_top/n13219       832   d               27.23      u_phy_top/U26244/Y
+u_phy_top/n13220       618   d               21.31      u_phy_top/U26245/Y
+u_phy_top/n13221       588   d               20.40      u_phy_top/U26246/Y
+u_phy_top/n13222       561   d               18.42      u_phy_top/U26247/Y
+u_phy_top/n13223       520   d               17.03      u_phy_top/U26248/Y
+u_phy_top/n13224       300   d               10.11      u_phy_top/U26249/Y
+u_phy_top/n13225       274   d                9.22      u_phy_top/U26250/Y
+u_phy_top/n13226       148   d                4.85      u_phy_top/U26251/Y
+u_phy_top/n13227       128   d                4.19      u_phy_top/U26252/Y
+u_phy_top/n13228       228   d                7.82      u_phy_top/U26253/Y
+u_phy_top/n13229       213   d                6.98      u_phy_top/U26254/Y
+u_phy_top/n13230       219   d                7.17      u_phy_top/U26255/Y
+u_phy_top/n13231       219   d                7.23      u_phy_top/U26256/Y
+u_phy_top/n13232       260   d                8.51      u_phy_top/U26257/Y
+u_phy_top/n13233       132   d                4.32      u_phy_top/U26258/Y
+u_phy_top/n13234       131   d                4.29      u_phy_top/U26259/Y
+u_phy_top/n13235        80   d                2.70      u_phy_top/U26260/Y
+u_phy_top/n13237        64   d                2.21      u_phy_top/U26261/Y
+u_phy_top/n13239        51   d                1.77      u_phy_top/U26262/Y
+u_phy_top/n13240        48   d                1.67      u_phy_top/U26263/Y
+u_phy_top/n13241        38   d                1.32      u_phy_top/U13553/Y
+u_dll_top/*Logic1*    1045   dr, d, h      1031.00      u_dll_top/U1/**logic_1**
+u_dll_top/*Logic0*      65   dr, d            2.03      u_dll_top/U2/**logic_0**
+u_dll_top/n10          253   dr, d            8.12      u_dll_top/U82/**logic_0**
+u_tl_top/*Logic1*    12292   dr, d, h      1031.00      u_tl_top/U1/**logic_1**
+u_tl_top/*Logic0*    24889   dr, d, h      1031.00      u_tl_top/U2/**logic_0**
+u_tl_top/n249         1785   dr, d, h      1031.00      u_tl_top/U2246/**logic_0**
+u_phy_top/u_rx_elastic_buf/N168
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U376/Y
+u_phy_top/u_rx_elastic_buf/N174
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U373/Y
+u_phy_top/u_rx_elastic_buf/N179
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U370/Y
+u_phy_top/u_rx_elastic_buf/N185
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U86/Y
+u_phy_top/u_rx_elastic_buf/N190
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U365/Y
+u_phy_top/u_rx_elastic_buf/N196
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U363/Y
+u_phy_top/u_rx_elastic_buf/N202
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U361/Y
+u_phy_top/u_rx_elastic_buf/N207
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U359/Y
+u_phy_top/u_rx_elastic_buf/N213
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U356/Y
+u_phy_top/u_rx_elastic_buf/N218
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U355/Y
+u_phy_top/u_rx_elastic_buf/N224
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U354/Y
+u_phy_top/u_rx_elastic_buf/N230
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U353/Y
+u_phy_top/u_rx_elastic_buf/N235
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U352/Y
+u_phy_top/u_rx_elastic_buf/N241
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U351/Y
+u_phy_top/u_rx_elastic_buf/N246
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U350/Y
+u_phy_top/u_rx_elastic_buf/N252
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U349/Y
+u_phy_top/u_rx_elastic_buf/N257
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U346/Y
+u_phy_top/u_rx_elastic_buf/N263
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U345/Y
+u_phy_top/u_rx_elastic_buf/N269
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U344/Y
+u_phy_top/u_rx_elastic_buf/N274
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U343/Y
+u_phy_top/u_rx_elastic_buf/N280
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U342/Y
+u_phy_top/u_rx_elastic_buf/N285
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U341/Y
+u_phy_top/u_rx_elastic_buf/N291
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U340/Y
+u_phy_top/u_rx_elastic_buf/N297
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U339/Y
+u_phy_top/u_rx_elastic_buf/N302
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U337/Y
+u_phy_top/u_rx_elastic_buf/N308
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U336/Y
+u_phy_top/u_rx_elastic_buf/N313
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U335/Y
+u_phy_top/u_rx_elastic_buf/N319
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U334/Y
+u_phy_top/u_rx_elastic_buf/N324
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U333/Y
+u_phy_top/u_rx_elastic_buf/N330
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U332/Y
+u_phy_top/u_rx_elastic_buf/N336
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U331/Y
+u_phy_top/u_rx_elastic_buf/N341
+                       256   d                8.77      u_phy_top/u_rx_elastic_buf/U84/Y
+u_phy_top/u_pam4_dec/*Logic0*
+                       129   dr, d            4.00      u_phy_top/u_pam4_dec/U2/**logic_0**
+u_phy_top/u_pam4_dec/N1161
+                       130   d                4.09      u_phy_top/u_pam4_dec/U3/Y
+u_phy_top/u_pam4_dec/n132
+                        64   d                2.02      u_phy_top/u_pam4_dec/U9/Y
+u_phy_top/u_fec_syndrome/N913
+                      2302   d, h          1031.00      u_phy_top/u_fec_syndrome/U5/Y
+u_phy_top/u_fec_syndrome/N11012
+                       240   d                7.94      u_phy_top/u_fec_syndrome/U2484/Y
+u_phy_top/u_fec_syndrome/N11222
+                       257   d                8.53      u_phy_top/u_fec_syndrome/U21/Y
+u_phy_top/u_fec_syndrome/n27
+                       120   d                3.78      u_phy_top/u_fec_syndrome/U2352/Y
+u_phy_top/u_fec_syndrome/n151
+                      2305   d, h          1031.00      u_phy_top/u_fec_syndrome/U25/Y
+u_phy_top/u_fec_syndrome/n238
+                       124   d                3.91      u_phy_top/u_fec_syndrome/U22/Y
+u_phy_top/u_pam4_enc/N462
+                       256   d                8.49      u_phy_top/u_pam4_enc/U389/Y
+u_phy_top/u_pam4_enc/n260
+                       128   d                4.04      u_phy_top/u_pam4_enc/U105/Y
+u_phy_top/u_tx_elastic_buf/N408
+                       256   d                8.49      u_phy_top/u_tx_elastic_buf/U502/Y
+u_phy_top/u_tx_elastic_buf/N414
+                       256   d                8.49      u_phy_top/u_tx_elastic_buf/U499/Y
+u_phy_top/u_tx_elastic_buf/N419
+                       256   d                8.49      u_phy_top/u_tx_elastic_buf/U496/Y
+u_phy_top/u_tx_elastic_buf/N425
+                       256   d                8.49      u_phy_top/u_tx_elastic_buf/U495/Y
+u_phy_top/u_tx_elastic_buf/N430
+                       256   d                8.49      u_phy_top/u_tx_elastic_buf/U493/Y
+u_phy_top/u_tx_elastic_buf/N436
+                       256   d                8.49      u_phy_top/u_tx_elastic_buf/U492/Y
+u_phy_top/u_tx_elastic_buf/N442
+                       256   d                8.49      u_phy_top/u_tx_elastic_buf/U490/Y
+u_phy_top/u_tx_elastic_buf/N447
+                       256   d                8.50      u_phy_top/u_tx_elastic_buf/U489/Y
+u_phy_top/u_tx_elastic_buf/N453
+                       256   d                8.49      u_phy_top/u_tx_elastic_buf/U485/Y
+u_phy_top/u_tx_elastic_buf/N458
+                       256   d                8.49      u_phy_top/u_tx_elastic_buf/U483/Y
+u_phy_top/u_tx_elastic_buf/N464
+                       256   d                8.49      u_phy_top/u_tx_elastic_buf/U482/Y
+u_phy_top/u_tx_elastic_buf/N470
+                       256   d                8.49      u_phy_top/u_tx_elastic_buf/U481/Y
+u_phy_top/u_tx_elastic_buf/N475
+                       256   d                8.49      u_phy_top/u_tx_elastic_buf/U480/Y
+u_phy_top/u_tx_elastic_buf/N481
+                       256   d                8.49      u_phy_top/u_tx_elastic_buf/U479/Y
+u_phy_top/u_tx_elastic_buf/N486
+                       256   d                8.49      u_phy_top/u_tx_elastic_buf/U478/Y
+u_phy_top/u_tx_elastic_buf/N492
+                       256   d                8.49      u_phy_top/u_tx_elastic_buf/U477/Y
+u_dll_top/u_retry_buf/n2813
+                        76   d                2.50      u_dll_top/u_retry_buf/U704/Y
+u_dll_top/u_phy_tx/N553
+                       162   d                5.09      u_dll_top/u_phy_tx/U7/Y
+u_dll_top/u_phy_tx/n6
+                       263   d                8.28      u_dll_top/u_phy_tx/U12/Y
+u_dll_top/u_phy_tx/n12
+                       257   d                8.04      u_dll_top/u_phy_tx/U13/Y
+u_dll_top/u_fc_init/*Logic0*
+                        64   dr, d            2.00      u_dll_top/u_fc_init/U2/**logic_0**
+u_dll_top/u_fc_init/N11
+                        64   dr, d            2.06      u_dll_top/u_fc_init/*cell*296/**logic_0**
+u_dll_top/u_null_ins/N927
+                      2048   d, h          1031.00      u_dll_top/u_null_ins/U870/Y
+u_dll_top/u_null_ins/n1028
+                      1024   d, h          1031.00      u_dll_top/u_null_ins/U869/Y
+u_dll_top/u_null_ins/n1029
+                      1024   d, h          1031.00      u_dll_top/u_null_ins/U2039/Y
+u_dll_top/u_null_ins/n1035
+                      1024   d, h          1031.00      u_dll_top/u_null_ins/U2000/Y
+u_dll_top/u_null_ins/n1036
+                      1024   d, h          1031.00      u_dll_top/u_null_ins/U1999/Y
+u_tl_top/U_REQ_Q/N484
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1279/Y
+u_tl_top/U_REQ_Q/N496
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1276/Y
+u_tl_top/U_REQ_Q/N508
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1273/Y
+u_tl_top/U_REQ_Q/N520
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1272/Y
+u_tl_top/U_REQ_Q/N532
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1269/Y
+u_tl_top/U_REQ_Q/N543
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1268/Y
+u_tl_top/U_REQ_Q/N555
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1266/Y
+u_tl_top/U_REQ_Q/N567
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1265/Y
+u_tl_top/U_REQ_Q/N579
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1261/Y
+u_tl_top/U_REQ_Q/N591
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1259/Y
+u_tl_top/U_REQ_Q/N602
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1258/Y
+u_tl_top/U_REQ_Q/N608
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1257/Y
+u_tl_top/U_REQ_Q/N620
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1256/Y
+u_tl_top/U_REQ_Q/N632
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1255/Y
+u_tl_top/U_REQ_Q/N644
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1254/Y
+u_tl_top/U_REQ_Q/N656
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1253/Y
+u_tl_top/U_REQ_Q/N667
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1245/Y
+u_tl_top/U_REQ_Q/N679
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1242/Y
+u_tl_top/U_REQ_Q/N691
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1239/Y
+u_tl_top/U_REQ_Q/N703
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1238/Y
+u_tl_top/U_REQ_Q/N715
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1235/Y
+u_tl_top/U_REQ_Q/N726
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1234/Y
+u_tl_top/U_REQ_Q/N732
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1232/Y
+u_tl_top/U_REQ_Q/N744
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1231/Y
+u_tl_top/U_REQ_Q/N756
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1227/Y
+u_tl_top/U_REQ_Q/N768
+                       576   d               19.06      u_tl_top/U_REQ_Q/U1225/Y
+u_tl_top/U_REQ_Q/N780
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1224/Y
+u_tl_top/U_REQ_Q/N791
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1223/Y
+u_tl_top/U_REQ_Q/N803
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1222/Y
+u_tl_top/U_REQ_Q/N815
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1221/Y
+u_tl_top/U_REQ_Q/N827
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1220/Y
+u_tl_top/U_REQ_Q/N839
+                       576   d               19.11      u_tl_top/U_REQ_Q/U1219/Y
+u_tl_top/U_TAG_MGR/n2
+                        40   dr, d            1.25      u_tl_top/U_TAG_MGR/U82/**logic_0**
+u_tl_top/U_ECRC/net3737837
+                        33   d                1.14      u_tl_top/U_ECRC/U1755/Y
+1

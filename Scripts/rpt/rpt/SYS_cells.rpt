@@ -1,0 +1,54 @@
+ 
+****************************************
+Report : cell
+Design : pcie_gen6_system_top
+Version: K-2015.06
+Date   : Mon Jun  8 21:57:24 2026
+****************************************
+
+Attributes:
+    b - black box (unknown)
+    d - dont_touch
+    h - hierarchical
+    n - noncombinational
+    p - parameterized
+    r - removable
+    u - contains unmapped logic
+
+Cell                      Reference       Library             Area  Attributes
+--------------------------------------------------------------------------------
+U263                      CLKINVX8M       scmetro_tsmc_cl013g_rvt_ss_1p08v_125c
+                                                          7.060200  
+U264                      INVXLM          scmetro_tsmc_cl013g_rvt_ss_1p08v_125c
+                                                          3.530100  
+U265                      CLKINVX6M       scmetro_tsmc_cl013g_rvt_ss_1p08v_125c
+                                                          5.883500  
+U266                      INVX10M         scmetro_tsmc_cl013g_rvt_ss_1p08v_125c
+                                                          9.413600  
+U267                      CLKINVX40M      scmetro_tsmc_cl013g_rvt_ss_1p08v_125c
+                                                          24.710699 
+U268                      INVXLM          scmetro_tsmc_cl013g_rvt_ss_1p08v_125c
+                                                          3.530100  
+U269                      INVXLM          scmetro_tsmc_cl013g_rvt_ss_1p08v_125c
+                                                          3.530100  
+U270                      INVX6M          scmetro_tsmc_cl013g_rvt_ss_1p08v_125c
+                                                          5.883500  
+U271                      OR2X4M          scmetro_tsmc_cl013g_rvt_ss_1p08v_125c
+                                                          7.060200  
+U272                      OAI2B1X4M       scmetro_tsmc_cl013g_rvt_ss_1p08v_125c
+                                                          12.943700 
+U273                      AND3X4M         scmetro_tsmc_cl013g_rvt_ss_1p08v_125c
+                                                          8.236900  
+U274                      NAND2BX4M       scmetro_tsmc_cl013g_rvt_ss_1p08v_125c
+                                                          9.413600  
+dll_up_prev_r_reg         DFFRQX2M        scmetro_tsmc_cl013g_rvt_ss_1p08v_125c
+                                                          25.887400 n
+u_dll_top                 dll_top                         1915875.871735
+                                                                    d, h, n
+u_phy_top                 pcie_gen6_phy_top               6773741.800107
+                                                                    d, h, n, p
+u_tl_top                  pcie_tl_top                     7596013.938618
+                                                                    d, h, n
+--------------------------------------------------------------------------------
+Total 16 cells                                            16285758.694060
+1
