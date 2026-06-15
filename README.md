@@ -15,7 +15,6 @@ This project presents a structured, simulation-driven architectural digital mode
 * Ahmed Alaa Gafaar
 
 
-
 ## System Architecture
 
 The design spans three primary protocol layers across a transmitter and receiver, communicating over a behavioral digital channel with controlled error injection capabilities:
